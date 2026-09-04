@@ -13,7 +13,6 @@ namespace Workshop
     /// body, and the parameters declare which components this job reads and writes.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
     public partial struct MoveSystem : ISystem
     {
         [BurstCompile]
@@ -27,12 +26,13 @@ namespace Workshop
         }
 
         [BurstCompile]
+        [WithAll(typeof(EnemyTag))]
         public partial struct MoveJob : IJobEntity
         {
             public float DeltaTime;
             public float3 Direction;
 
-            private void Execute(ref LocalTransform transform, in MoveSpeed speed, in EnemyTag _)
+            private void Execute(ref LocalTransform transform, in MoveSpeed speed)
             {
                 // TODO WORKSHOP 1a: move this entity along Direction by
                 //   speed.Value * DeltaTime.

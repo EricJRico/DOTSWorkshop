@@ -13,7 +13,6 @@ namespace Workshop
     /// from a singleton rather than being allocated fresh each frame.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
     public partial struct SpawnSystem : ISystem
     {
         private uint _seed;

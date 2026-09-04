@@ -10,7 +10,6 @@ namespace Workshop
     /// Provided to you - this one is not a lab.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
     public partial struct PlayerMoveSystem : ISystem
     {
         [BurstCompile]

@@ -13,7 +13,6 @@ namespace Workshop
     /// they receive values, not access to the world.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
     public partial struct ChaseSystem : ISystem
     {
         [BurstCompile]
@@ -33,12 +32,13 @@ namespace Workshop
         }
 
         [BurstCompile]
+        [WithAll(typeof(EnemyTag))]
         public partial struct ChaseJob : IJobEntity
         {
             public float DeltaTime;
             public float3 PlayerPosition;
 
-            private void Execute(ref LocalTransform transform, in MoveSpeed speed, in EnemyTag _)
+            private void Execute(ref LocalTransform transform, in MoveSpeed speed)
             {
                 // TODO WORKSHOP 2b-3: build the vector from this enemy to PlayerPosition and
                 //   flatten it by setting .y to 0.

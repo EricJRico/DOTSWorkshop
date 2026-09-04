@@ -17,7 +17,6 @@ namespace Workshop
     /// against. Toggle SpawnSettings.UseNaiveCollision on the Spawner to switch.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
     [UpdateAfter(typeof(GridBuildSystem))]
     public partial struct CollisionSystem : ISystem
     {
@@ -29,9 +28,9 @@ namespace Workshop
             state.RequireForUpdate<EnemyGrid>();
             state.RequireForUpdate<SpawnSettings>();
 
-            _enemyQuery = new EntityQueryBuilder(Allocator.Temp)
+            _enemyQuery = SystemAPI.QueryBuilder()
                 .WithAll<EnemyTag, LocalTransform, Radius>()
-                .Build(ref state);
+                .Build();
         }
 
         [BurstCompile]
@@ -70,6 +69,7 @@ namespace Workshop
         }
 
         [BurstCompile]
+        [WithAll(typeof(BulletTag))]
         public partial struct GridCollisionJob : IJobEntity
         {
             [ReadOnly] public NativeParallelMultiHashMap<int, Entity> Grid;
@@ -81,8 +81,7 @@ namespace Workshop
                 [ChunkIndexInQuery] int chunkIndex,
                 Entity bullet,
                 in LocalTransform transform,
-                in Radius radius,
-                in BulletTag _)
+                in Radius radius)
             {
                 // TODO WORKSHOP 3c-1: hash this bullet's position to a cell key and call
                 //   Grid.TryGetFirstValue(key, out var enemy, out var iterator).
@@ -105,6 +104,7 @@ namespace Workshop
         /// Provided for comparison. Correct, and hopeless at scale.
         /// </summary>
         [BurstCompile]
+        [WithAll(typeof(BulletTag))]
         public partial struct NaiveCollisionJob : IJobEntity
         {
             [ReadOnly] public NativeArray<Entity> Enemies;
@@ -116,8 +116,7 @@ namespace Workshop
                 [ChunkIndexInQuery] int chunkIndex,
                 Entity bullet,
                 in LocalTransform transform,
-                in Radius radius,
-                in BulletTag _)
+                in Radius radius)
             {
                 for (var i = 0; i < Enemies.Length; i++)
                 {

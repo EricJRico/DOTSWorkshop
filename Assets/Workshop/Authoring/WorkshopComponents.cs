@@ -73,8 +73,12 @@ namespace Workshop
 
     /// <summary>
     /// The spatial hash rebuilt every frame by GridBuildSystem and read by CollisionSystem.
-    /// The map is Allocator.Persistent, allocated once in OnCreate and only Clear()ed per
-    /// frame - reallocating every frame is the exact habit this workshop teaches against.
+    ///
+    /// A native container on a singleton component is the documented way to share one
+    /// long-lived container between systems. One rule comes with it: never take EnemyGrid
+    /// as an IJobEntity or IJobChunk parameter. The job safety system does not look inside
+    /// nested containers, so Entities forbids it. Read the singleton on the main thread and
+    /// pass the map itself into the job - which is what CollisionSystem does.
     /// </summary>
     public struct EnemyGrid : IComponentData
     {

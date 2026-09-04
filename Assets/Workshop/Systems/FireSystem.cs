@@ -13,7 +13,6 @@ namespace Workshop
     /// needs no extra component - math.forward(rotation) recovers it.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
     public partial struct FireSystem : ISystem
     {
         [BurstCompile]
@@ -41,6 +40,7 @@ namespace Workshop
         }
 
         [BurstCompile]
+        [WithAll(typeof(BulletTag))]
         public partial struct BulletJob : IJobEntity
         {
             public float DeltaTime;
@@ -51,8 +51,7 @@ namespace Workshop
                 Entity entity,
                 ref LocalTransform transform,
                 ref Lifetime lifetime,
-                in MoveSpeed speed,
-                in BulletTag _)
+                in MoveSpeed speed)
             {
                 // TODO WORKSHOP 3a-5: subtract DeltaTime from lifetime.Value.
                 //   If it has reached zero, Ecb.DestroyEntity(chunkIndex, entity) and return.
