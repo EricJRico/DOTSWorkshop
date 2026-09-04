@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/unity-cli-context.sh\"",
+            "shell": "bash",
+            "timeout": 20,
+            "statusMessage": "Checking Unity editor via unity CLI..."
+          }
+        ]
+      }
+    ]
+  }
+}
