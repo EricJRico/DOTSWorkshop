@@ -199,6 +199,58 @@
     .cell.want  { border-color: var(--accent); background: rgba(124,197,255,0.55); }
     .cell.other { border-color: rgba(255,255,255,0.22); background: rgba(255,255,255,0.14); }
 
+    /* ---- core lanes ---- */
+    .cores { display: flex; gap: 10px; width: 100%; }
+    .core {
+      flex: 1; height: 72px; box-sizing: border-box; border: 1.5px solid var(--line);
+      border-radius: 9px; display: flex; align-items: center; justify-content: center;
+      color: var(--muted); font-size: 0.4em; font-weight: 700; letter-spacing: 0.1em;
+    }
+    .core.busy { border-color: var(--slow); background: rgba(255,122,102,0.32); color: var(--slow); }
+
+    /* ---- numbered lab steps ---- */
+    .steps { counter-reset: s; list-style: none; margin: 0; padding: 0; }
+    .steps li {
+      position: relative; padding-left: 2.4em; margin: 0.72em 0;
+      color: var(--body); font-size: 0.6em; line-height: 1.5;
+    }
+    .steps li::before {
+      counter-increment: s; content: counter(s);
+      position: absolute; left: 0; top: 0.02em; width: 1.6em; height: 1.6em;
+      border-radius: 5px; background: rgba(124,197,255,0.15); border: 1px solid var(--accent);
+      color: var(--accent); font-size: 0.82em; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    /* ---- side panel ---- */
+    .panel {
+      box-sizing: border-box; border: 1.5px solid var(--line); border-radius: 12px;
+      padding: 1.05em 1.15em; background: rgba(255,255,255,0.03);
+    }
+    .panel + .panel { margin-top: 16px; }
+    .panel h4 {
+      color: var(--accent); font-size: 0.44em; font-weight: 700;
+      letter-spacing: 0.14em; text-transform: uppercase; margin: 0 0 0.7em;
+    }
+    .panel p { color: var(--body); font-size: 0.54em; line-height: 1.5; margin: 0; }
+    .panel p + p { margin-top: 0.6em; }
+    .panel.stretch { border-color: rgba(110,231,168,0.42); }
+    .panel.stretch h4 { color: var(--fast); }
+
+    /* ---- big measured numbers ---- */
+    .nums { display: flex; gap: 54px; }
+    .num .nlbl { color: var(--muted); font-size: 0.42em; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
+    .num .nval { font-size: 1.5em; font-weight: 700; line-height: 1.2; margin-top: 0.15em; }
+    .num.bad  .nval { color: var(--slow); }
+    .num.good .nval { color: var(--fast); }
+    .num .nsub { color: var(--muted); font-size: 0.42em; margin-top: 0.3em; }
+
+    /* ---- translation table (Vector3 -> float3 and friends) ---- */
+    .xlate { display: grid; grid-template-columns: 1fr auto 1fr; gap: 0.55em 0.8em; align-items: center; }
+    .xlate .from { color: var(--muted); font-family: var(--mono); font-size: 0.48em; text-align: right; }
+    .xlate .arw  { color: var(--accent); font-size: 0.44em; font-weight: 700; }
+    .xlate .to   { color: var(--accent); font-family: var(--mono); font-size: 0.48em; }
+
     /* ---- takeaway line ---- */
     .takeaway { font-size: 0.8em; color: var(--ink); margin-top: 26px; line-height: 1.4; }
     .takeaway + .takeaway { margin-top: 14px; }
@@ -476,6 +528,179 @@
     </div>
   </div>
 </section>
+
+<!-- ================= JOBS · THE PROBLEM ================= -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="eyebrow">Jobs &middot; The problem</div>
+    <h2>Seven cores watched the first one work.</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="cores">
+        <div class="core busy">MAIN</div>
+        <div class="core">IDLE</div><div class="core">IDLE</div><div class="core">IDLE</div>
+        <div class="core">IDLE</div><div class="core">IDLE</div><div class="core">IDLE</div>
+        <div class="core">IDLE</div>
+      </div>
+      <p class="takeaway" style="margin-top:36px;">This is <em>problem one</em>, and it is the whole of the next half hour. Nothing about the enemies changes. Only <em>who does the work</em>.</p>
+      <p class="takeaway">A <strong>job</strong> is a piece of work you hand to those other cores. <strong>Burst</strong> is the compiler that makes each piece fast.</p>
+      <div class="chips" style="margin-top:26px;">
+        <span class="chip on">Job system</span><span class="chip on">Burst</span>
+        <span class="chip on">Collections</span><span class="chip on">Mathematics</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= JOBS · THE IDEA ================= -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="eyebrow">Jobs &middot; The idea <span class="pill live">Loops</span></div>
+    <h2>Same work. Split across the cores you already own.</h2>
+    <div class="rule"></div>
+    <div class="body stagearea">
+      <canvas class="viz" id="viz-jobs" width="2200" height="740" style="height:370px;"></canvas>
+      <div class="ctrls">
+        <button class="ghost" id="job-toggle">Pause</button>
+      </div>
+      <p class="takeaway"><code>IJobParallelFor</code> runs the same <code>Execute</code> once per index, on whichever core is free. You never write a thread.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= JOBS · SCHEDULE AND COMPLETE ================= -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="eyebrow">Jobs &middot; Handing it over <span class="pill live">Loops</span></div>
+    <h2>Schedule now. Wait later.</h2>
+    <div class="rule"></div>
+    <div class="body stagearea">
+      <canvas class="viz" id="viz-sched" width="2200" height="620" style="height:310px;"></canvas>
+      <div class="ctrls">
+        <button class="ghost" id="sch-toggle">Pause</button>
+      </div>
+      <p class="takeaway"><code>Schedule</code> hands the work over and returns straight away. <code>Complete</code> is where you wait &mdash; and you only wait when you actually <em>need the results</em>.</p>
+      <p class="takeaway">Call it on the very next line and you waited for nothing. You could also never wait at all, and hand the handle to next frame&rsquo;s job instead. Today we do need them: the positions go back onto the transforms this frame.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= JOBS · THE CODE ================= -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="eyebrow">Jobs &middot; The shape of it</div>
+    <h2>The loop you know, turned inside out.</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="split" style="grid-template-columns: 1fr 1fr;">
+        <div>
+          <div class="lbl">What you write today</div>
+<div class="code"><span class="kw">public class</span> <span class="ty">Enemy</span> : <span class="ty">MonoBehaviour</span>
+{
+    <span class="kw">public float</span> Speed;
+
+    <span class="kw">void</span> <span class="fn">Update</span>()
+    {
+        <span class="ty">Vector3</span> dir = (_target.position
+            - transform.position).normalized;
+
+        transform.position += dir * Speed * <span class="ty">Time</span>.deltaTime;
+    }
+}</div>
+          <p class="takeaway" style="font-size:0.56em; margin-top:18px;">One call per enemy, on the main thread. It reads <code>transform</code> &mdash; a managed object.</p>
+        </div>
+        <div>
+          <div class="lbl">The same work, as a job</div>
+<div class="code"><span class="cm">[BurstCompile]</span>
+<span class="kw">struct</span> <span class="ty">MoveEnemiesJob</span> : <span class="ty">IJobParallelFor</span>
+{
+    <span class="kw">public</span> <span class="ty">float3</span> Target;
+    <span class="kw">public float</span> Speed, DeltaTime;
+    <span class="kw">public</span> <span class="ty">NativeArray</span>&lt;<span class="ty">float3</span>&gt; Positions;
+
+    <span class="kw">public void</span> <span class="fn">Execute</span>(<span class="kw">int</span> i)
+    {
+        <span class="ty">float3</span> dir = math.normalize(Target - Positions[i]);
+        Positions[i] += dir * Speed * DeltaTime;
+    }
+}</div>
+          <p class="takeaway" style="font-size:0.56em; margin-top:18px;">One call per <em>index</em>, on any core. <code>NativeArray</code> because a job cannot touch a managed object.</p>
+        </div>
+      </div>
+      <p class="takeaway" style="margin-top:24px;"><code>job.Schedule(Positions.Length, 64)</code> hands it over &middot; <code>handle.Complete()</code> waits for it back.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= JOBS · LAB ================= -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="eyebrow">Jobs &middot; Lab 2 <span class="pill lab">Hands on</span></div>
+    <h2>Move the swarm on the other cores.</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="split" style="grid-template-columns: 1fr 1fr;">
+        <div>
+          <div class="lbl">Before &middot; Enemy.cs</div>
+<div class="code"><span class="kw">void</span> <span class="fn">Update</span>()
+{
+    <span class="ty">Vector3</span> dir = (_target.position
+        - transform.position).normalized;
+
+    transform.position += dir * Speed * <span class="ty">Time</span>.deltaTime;
+}</div>
+        </div>
+        <div>
+          <div class="lbl">After &middot; MoveEnemiesJob.cs</div>
+<div class="code" style="border-color: rgba(124,197,255,0.45);"><span class="kw">public void</span> <span class="fn">Execute</span>(<span class="kw">int</span> i)
+{
+    <span class="ty">float3</span> dir = math.normalize(
+        Target - Positions[i]);
+
+    Positions[i] += dir * Speed * DeltaTime;
+}</div>
+        </div>
+      </div>
+
+      <p class="takeaway" style="margin-top:26px;">Write the right-hand method in <code>Assets/Workshop/Baseline/MoveEnemiesJob.cs</code>. Everything else is already there. Press Play &mdash; the swarm should move exactly as before.</p>
+      <p class="takeaway">Then comment out <code>[BurstCompile]</code>, play again, and read the number. Put it back.</p>
+
+      <div class="panel stretch" style="margin-top:26px;">
+        <h4>Finished early</h4>
+        <p>All 5,000 run either way. The second argument to <code>Schedule(length, 64)</code> is how many a worker grabs <em>before coming back for more</em>.</p><p>Try <code>1</code>, then <code>5000</code>, and watch the worker lanes. Neither is a good choice; work out why.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= JOBS · DEBRIEF ================= -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="eyebrow">Jobs &middot; Debrief <span class="pill live">Profiler</span></div>
+    <h2>One attribute. That much difference.</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="shot" style="min-height:210px;">
+        <div class="tag">Screenshot &middot; Profiler, Timeline view</div>
+        <div class="what">The same frame as the last block, with the worker lanes now carrying <code>MoveEnemiesJob</code>.</div>
+      </div>
+      <div class="nums" style="margin-top:34px;">
+        <div class="num bad">
+          <div class="nlbl">Job, Burst off</div>
+          <div class="nval">&mdash; ms</div>
+          <div class="nsub">measure live, do not quote</div>
+        </div>
+        <div class="num good">
+          <div class="nlbl">Job, Burst on</div>
+          <div class="nval">&mdash; ms</div>
+          <div class="nsub">same code, one attribute</div>
+        </div>
+      </div>
+      <p class="takeaway" style="margin-top:30px;">Problem one is answered. What is left is mostly <em>GameObject overhead</em> &mdash; and that is what entities fix.</p>
+    </div>
+  </div>
+</section>
+
 
 </div></div>
 
@@ -772,6 +997,166 @@
     }
 
     autoLoop(cv, 'cch-toggle', READS, function (v) { step = v; }, draw, 700, 2600);
+  })();
+
+  /* =========================================================
+     INTERACTIVE - one pile of work, more cores.
+     The bar is the whole frame's movement work. Add cores and
+     the same work is cut into more pieces, so the wall clock
+     falls even though the total work does not change.
+     ========================================================= */
+  (function () {
+    var cv = document.getElementById('viz-jobs');
+    if (!cv) return;
+    var ctx = cv.getContext('2d');
+    var S = 2;
+    var LANES = 8;
+    var PLAN = [1, 2, 4, 8];          /* cores in use, per step */
+
+    var css = getComputedStyle(document.documentElement);
+    var ACC   = css.getPropertyValue('--accent').trim() || '#7CC5FF';
+    var SLOW  = css.getPropertyValue('--slow').trim()   || '#FF7A66';
+    var FAST  = css.getPropertyValue('--fast').trim()   || '#6EE7A8';
+    var MUTED = '#7e828b', INK = '#ffffff';
+    var LINE  = 'rgba(255,255,255,0.13)';
+
+    var idx = 0;
+
+    function txt(x, y, str, colour, size, weight, align) {
+      ctx.fillStyle = colour;
+      ctx.font = (weight || 700) + ' ' + (size || 13) + 'px ui-sans-serif, system-ui, sans-serif';
+      ctx.textAlign = align || 'left';
+      ctx.fillText(str, x, y);
+      ctx.textAlign = 'left';
+    }
+    function rr(x, y, w, h, r) {
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(x, y, w, h, r === undefined ? 5 : r); else ctx.rect(x, y, w, h);
+    }
+    function bar(x, y, w, h, stroke, fill) {
+      rr(x, y, w, h);
+      if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+      ctx.strokeStyle = stroke; ctx.lineWidth = 1.5; ctx.stroke();
+    }
+
+    function draw() {
+      ctx.setTransform(S, 0, 0, S, 0, 0);
+      ctx.clearRect(0, 0, cv.width, cv.height);
+
+      var cores = PLAN[idx];
+      var LX = 150, LW = 780, LH = 20, GY = 6, TOP = 44;
+
+      txt(0, 20, 'THE SAME 5,000 ENEMIES TO MOVE, EVERY FRAME', MUTED, 13);
+
+      for (var i = 0; i < LANES; i++) {
+        var y = TOP + i * (LH + GY);
+        var on = i < cores;
+        txt(0, y + 15, on ? ('Core ' + (i + 1)) : ('Core ' + (i + 1) + '  idle'), on ? INK : MUTED, 12, on ? 700 : 400);
+        bar(LX, y, LW, LH, LINE, null);
+        if (on) bar(LX, y, LW / cores, LH, ACC, 'rgba(124,197,255,0.5)');
+      }
+
+      /* wall clock: the longest single lane */
+      var wy = TOP + LANES * (LH + GY) + 26;
+      txt(0, wy + 16, 'Wall time', INK, 13);
+      bar(LX, wy, LW, 26, LINE, null);
+      var col = cores === 1 ? SLOW : (cores === LANES ? FAST : ACC);
+      bar(LX, wy, LW / cores, 26, col, cores === 1 ? 'rgba(255,122,102,0.45)'
+        : (cores === LANES ? 'rgba(110,231,168,0.45)' : 'rgba(124,197,255,0.45)'));
+      txt(LX + LW / cores + 12, wy + 18, cores === 1 ? 'one core does all of it' : ('about a ' + cores + 'th of the time'), col, 13);
+
+      txt(LX + LW + 16, TOP + 15, cores + (cores === 1 ? ' core' : ' cores'), col, 15);
+      txt(0, wy + 58, 'Total work is identical. Only the wall clock moves.', MUTED, 13, 400);
+    }
+
+    autoLoop(cv, 'job-toggle', PLAN.length - 1, function (v) { idx = v; }, draw, 1100, 2400);
+  })();
+
+  /* =========================================================
+     INTERACTIVE - Schedule hands over, Complete waits.
+     Three steps: schedule and carry on, the workers running
+     while the main thread does other things, then the wait at
+     Complete. Step four is the mistake: Complete on the very
+     next line, which throws the parallelism away.
+     ========================================================= */
+  (function () {
+    var cv = document.getElementById('viz-sched');
+    if (!cv) return;
+    var ctx = cv.getContext('2d');
+    var S = 2;
+
+    var css = getComputedStyle(document.documentElement);
+    var ACC   = css.getPropertyValue('--accent').trim() || '#7CC5FF';
+    var SLOW  = css.getPropertyValue('--slow').trim()   || '#FF7A66';
+    var FAST  = css.getPropertyValue('--fast').trim()   || '#6EE7A8';
+    var MUTED = '#7e828b', INK = '#ffffff';
+    var LINE  = 'rgba(255,255,255,0.13)';
+
+    var step = 0, LAST = 3;
+    var LX = 150, LW = 900, LH = 30;
+
+    function txt(x, y, str, colour, size, weight, align) {
+      ctx.fillStyle = colour;
+      ctx.font = (weight || 700) + ' ' + (size || 13) + 'px ui-sans-serif, system-ui, sans-serif';
+      ctx.textAlign = align || 'left';
+      ctx.fillText(str, x, y);
+      ctx.textAlign = 'left';
+    }
+    function bar(x, y, w, h, stroke, fill) {
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(x, y, w, h, 5); else ctx.rect(x, y, w, h);
+      if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+      ctx.strokeStyle = stroke; ctx.lineWidth = 1.5; ctx.stroke();
+    }
+    function tick(x, y, label, colour) {
+      ctx.strokeStyle = colour; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(x, y - 10); ctx.lineTo(x, y + 96); ctx.stroke();
+      txt(x, y - 18, label, colour, 13, 700, 'center');
+    }
+
+    function draw() {
+      ctx.setTransform(S, 0, 0, S, 0, 0);
+      ctx.clearRect(0, 0, cv.width, cv.height);
+
+      var good = step < 3;
+      var schedX = LX + 60;
+      var compX  = good ? LX + 660 : LX + 130;
+      var doneX  = LX + 660;
+
+      txt(0, 20, good ? 'SCHEDULE EARLY, COMPLETE LATE' : 'THE MISTAKE: COMPLETE ON THE NEXT LINE',
+          good ? MUTED : SLOW, 13);
+
+      /* main thread */
+      var my = 70;
+      txt(0, my + 20, 'Main thread', INK, 13);
+      bar(LX, my, LW, LH, LINE, null);
+      bar(LX, my, schedX - LX, LH, ACC, 'rgba(124,197,255,0.35)');
+      if (step >= 1) {
+        if (good) bar(schedX, my, compX - schedX, LH, ACC, 'rgba(124,197,255,0.35)');
+        else      bar(schedX, my, doneX - schedX, LH, SLOW, 'rgba(255,122,102,0.30)');
+        txt((schedX + (good ? compX : doneX)) / 2, my + 20,
+            good ? 'gets on with other work' : 'blocked, doing nothing',
+            good ? INK : SLOW, 12, 700, 'center');
+      }
+
+      /* workers */
+      var wy = 160;
+      txt(0, wy + 20, 'Workers', INK, 13);
+      bar(LX, wy, LW, LH, LINE, null);
+      if (step >= 1) bar(schedX, wy, doneX - schedX, LH, FAST, 'rgba(110,231,168,0.35)');
+      if (step >= 1) txt((schedX + doneX) / 2, wy + 20, 'MoveEnemiesJob', '#141414', 12, 700, 'center');
+
+      if (step >= 1) tick(schedX, my, 'Schedule', ACC);
+      if (step >= 2) tick(compX, my, 'Complete', good ? FAST : SLOW);
+
+      txt(0, 268, step === 0 ? 'The frame begins.'
+        : step === 1 ? 'Schedule returns immediately. The workers start.'
+        : step === 2 ? 'Complete waits only for whatever is left.'
+        : 'Complete right after Schedule: the main thread just stands there.',
+        step === 3 ? SLOW : MUTED, 14, 400);
+    }
+
+    autoLoop(cv, 'sch-toggle', LAST, function (v) { step = v; }, draw, 1300, 2600);
   })();
 </script>
 </body>
