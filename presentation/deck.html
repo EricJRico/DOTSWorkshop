@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DOTS 101 — Entities, Jobs, and Why They Are Fast</title>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.css">
+
+  <style>
+    /* =========================================================
+       DOTS Workshop deck.
+       Palette: bg #141414 · accent #7CC5FF · slow #FF7A66 · fast #6EE7A8
+       Accent stays cool so warm colours are free to mean "slow".
+       ========================================================= */
+    :root {
+      --bg:     #141414;
+      --accent: #7CC5FF;
+      --slow:   #FF7A66;
+      --fast:   #6EE7A8;
+      --ink:    #ffffff;
+      --body:   #c8ccd2;
+      --muted:  #7e828b;
+      --line:   rgba(255,255,255,0.12);
+      --pad-x:  72px;
+      --pad-y:  52px;
+      --font:   ui-sans-serif, system-ui, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
+      --mono:   ui-monospace, "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+    }
+
+    .reveal-viewport { background: var(--bg); }
+    .reveal { font-family: var(--font); font-size: 30px; font-weight: 400; }
+    .reveal h1, .reveal h2, .reveal h3 { text-transform: none; letter-spacing: -0.015em; font-weight: 700; margin: 0; line-height: 1.1; }
+    .reveal strong { color: var(--ink); font-weight: 700; }
+    .reveal em { color: var(--accent); font-style: normal; font-weight: 700; }
+    .reveal code { color: var(--accent); font-family: var(--mono); font-size: 0.86em; }
+    .reveal a { color: var(--accent); }
+
+    /* ---- universal slide frame ---- */
+    .slide {
+      box-sizing: border-box;
+      width: 1280px; height: 720px;
+      padding: var(--pad-y) var(--pad-x);
+      display: flex; flex-direction: column;
+      align-items: flex-start; text-align: left;
+      justify-content: flex-start;
+    }
+    .slide.center { justify-content: center; }
+
+    /* ---- header block, identical on every content slide ---- */
+    .eyebrow {
+      display: flex; align-items: center; gap: 12px;
+      color: var(--accent); font-size: 0.46em; font-weight: 700;
+      letter-spacing: 0.22em; text-transform: uppercase;
+      margin-bottom: 18px; min-height: 1.2em;
+    }
+    .slide > h2 { color: var(--ink); font-size: 1.3em; }
+    .slide > .sub { color: var(--accent); font-size: 0.72em; font-weight: 700; margin: 12px 0 0; }
+    .rule { width: 54px; height: 3px; background: var(--accent); border-radius: 2px; margin: 18px 0 30px; }
+
+    .pill { font-size: 0.8em; font-weight: 700; letter-spacing: 0.12em; padding: 0.2em 0.7em; border-radius: 5px; }
+    .pill.demo { background: var(--accent); color: #141414; }
+    .pill.live { border: 1px solid var(--accent); color: var(--accent); }
+    .pill.lab  { background: var(--fast); color: #141414; }
+
+    /* ---- body region ---- */
+    .body { width: 100%; flex: 1; }
+
+    /* ---- lists ---- */
+    .list { list-style: none; margin: 0; padding: 0; }
+    .list li {
+      position: relative; padding-left: 28px; margin: 0.62em 0;
+      color: var(--body); font-size: 0.74em; line-height: 1.45;
+    }
+    .list li::before {
+      content: ""; position: absolute; left: 0; top: 0.55em;
+      width: 12px; height: 2px; background: var(--accent);
+    }
+
+    /* ---- two-column compare ---- */
+    .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 0 56px; width: 100%; }
+    .compare .col + .col { border-left: 1px solid var(--line); padding-left: 56px; }
+    .compare h3 { font-size: 0.62em; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 18px; color: var(--ink); }
+    .compare p { font-size: 0.62em; color: var(--body); line-height: 1.5; margin: 0 0 0.7em; }
+    .compare .tag { font-size: 0.46em; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; margin-bottom: 12px; }
+    .compare .tag.one { color: var(--slow); }
+    .compare .tag.two { color: var(--accent); }
+
+    /* ---- label rows ---- */
+    .rows { display: flex; flex-direction: column; gap: 1.05em; width: 100%; }
+    .rows .row { display: grid; grid-template-columns: 9em 1fr; align-items: baseline; gap: 1.4em; }
+    .rows .lbl { color: var(--accent); font-weight: 700; font-size: 0.5em; letter-spacing: 0.12em; text-transform: uppercase; }
+    .rows .val { color: var(--body); font-size: 0.78em; line-height: 1.4; }
+    .rows .val strong { color: var(--ink); }
+
+    /* ---- screenshot slot ---- */
+    .shot {
+      width: 100%; min-height: 300px; box-sizing: border-box;
+      border: 1.5px solid var(--line); border-radius: 12px;
+      background: rgba(124,197,255,0.06);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center; gap: 12px; padding: 1.6em 1.4em; overflow: hidden;
+    }
+    .shot img { max-width: 100%; max-height: 420px; object-fit: contain; display: block; }
+    .shot .tag { color: var(--accent); font-size: 0.46em; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; }
+    .shot .what { color: var(--body); font-size: 0.6em; line-height: 1.45; max-width: 82%; }
+
+    /* ---- stage strip: the same game three times ---- */
+    .stages { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; width: 100%; }
+    .stages .stage {
+      box-sizing: border-box; border: 1.5px solid var(--line); border-radius: 12px;
+      background: rgba(124,197,255,0.06); padding: 1.1em 1.1em 1.2em;
+      display: flex; flex-direction: column; gap: 0.5em; min-height: 286px;
+    }
+    .stages .stage .n { color: var(--accent); font-size: 0.46em; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; }
+    .stages .stage .n.one { color: var(--slow); }
+    .stages.two { grid-template-columns: 1fr 1fr; }
+    .stages .stage .ans { color: var(--body); font-size: 0.54em; line-height: 1.45; margin: 0.8em 0 0; }
+    .stages .stage .ans strong { color: var(--ink); }
+    .stages .stage h3 { color: var(--ink); font-size: 0.72em; }
+    .stages .stage p { color: var(--body); font-size: 0.54em; line-height: 1.45; margin: 0; }
+    .stages .stage .teach { color: var(--muted); font-size: 0.5em; line-height: 1.4; margin-top: auto; padding-top: 0.8em; border-top: 1px solid var(--line); }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 0.6em; }
+    .chip {
+      border: 1px solid var(--line); border-radius: 5px; padding: 0.3em 0.55em;
+      font-size: 0.38em; font-weight: 700; letter-spacing: 0.04em; color: var(--muted); line-height: 1.1;
+    }
+    .chip.on { border-color: var(--accent); color: var(--accent); background: rgba(124,197,255,0.12); }
+
+    /* ---- DOTS stack diagram ---- */
+    .stack { width: 100%; display: flex; flex-direction: column; gap: 13px; }
+    .layer { display: grid; grid-template-columns: 8.2em 1fr; align-items: center; gap: 26px; }
+    .layer .rail {
+      color: var(--muted); font-size: 0.4em; font-weight: 700; line-height: 1.3;
+      letter-spacing: 0.14em; text-transform: uppercase; text-align: right;
+    }
+    .layer .boxes { display: grid; gap: 13px; }
+    .layer.top  .boxes { grid-template-columns: repeat(3, 1fr); }
+    .layer.core .boxes { grid-template-columns: 1fr; }
+    .layer.base .boxes { grid-template-columns: repeat(4, 1fr); }
+    .pkg {
+      box-sizing: border-box; border: 1.5px solid var(--line); border-radius: 10px;
+      padding: 0.66em 0.7em; text-align: center;
+    }
+    .pkg .nm { color: var(--ink); font-size: 0.55em; font-weight: 700; line-height: 1.2; }
+    .pkg .ds { color: var(--muted); font-size: 0.4em; margin-top: 0.35em; line-height: 1.35; }
+    .pkg.on { border-color: var(--accent); background: rgba(124,197,255,0.12); }
+    .pkg.on .nm { color: var(--accent); }
+    .pkg.off { opacity: 0.45; }
+    .stack .cap { color: var(--muted); font-size: 0.44em; line-height: 1.5; margin-left: calc(8.2em + 26px); }
+
+    /* ---- code block ---- */
+    .code {
+      box-sizing: border-box; width: 100%;
+      background: rgba(255,255,255,0.035); border: 1px solid var(--line); border-radius: 10px;
+      padding: 1em 1.15em; font-family: var(--mono); font-size: 0.46em; line-height: 1.6;
+      color: var(--body); white-space: pre;
+    }
+    .code .kw { color: #7CC5FF; }
+    .code .ty { color: #6EE7A8; }
+    .code .cm { color: var(--muted); }
+    .code .fn { color: #ffffff; }
+
+    /* ---- code beside a diagram ---- */
+    .split { display: grid; grid-template-columns: 0.86fr 1.14fr; gap: 34px; width: 100%; align-items: start; }
+    .split .lbl {
+      color: var(--muted); font-size: 0.4em; font-weight: 700;
+      letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 10px;
+    }
+
+    /* ---- hardware distance strip ---- */
+    .hw { display: flex; align-items: center; width: 100%; }
+    .hw .unit {
+      box-sizing: border-box; border: 1.5px solid var(--line); border-radius: 11px;
+      padding: 0.85em 1.1em; text-align: center; background: rgba(255,255,255,0.03);
+    }
+    .hw .unit.near { border-color: var(--accent); background: rgba(124,197,255,0.12); }
+    .hw .unit .u1 { color: var(--ink); font-size: 0.62em; font-weight: 700; line-height: 1.1; }
+    .hw .unit.near .u1 { color: var(--accent); }
+    .hw .unit .u2 { color: var(--muted); font-size: 0.42em; margin-top: 0.4em; line-height: 1.3; }
+    .hw .tie { flex: 0 0 26px; border-top: 1.5px solid var(--line); }
+    .hw .far { flex: 1; position: relative; border-top: 2px dashed rgba(255,255,255,0.28); margin: 0 6px; }
+    .hw .far span {
+      position: absolute; left: 50%; top: -1.5em; transform: translateX(-50%);
+      background: var(--bg); padding: 0 16px; color: var(--muted); text-align: center;
+      font-size: 0.44em; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+    }
+    .hw .far span em {
+      display: block; margin-top: 0.5em; color: var(--muted); opacity: 0.85;
+      font-style: italic; font-weight: 400; font-size: 0.92em; letter-spacing: 0.02em; text-transform: none;
+    }
+
+    /* ---- memory cells ---- */
+    .fetch { display: grid; grid-template-columns: 12.5em 1fr; gap: 20px 26px; align-items: center; width: 100%; }
+    .fetch .fl { color: var(--muted); font-size: 0.44em; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; text-align: right; line-height: 1.35; }
+    .fetch .fl b { color: var(--ink); display: block; font-size: 1.15em; letter-spacing: 0; text-transform: none; }
+    .cells { display: flex; gap: 5px; }
+    .cell { width: 46px; height: 34px; box-sizing: border-box; border: 1.5px solid var(--line); border-radius: 5px; }
+    .cell.want  { border-color: var(--accent); background: rgba(124,197,255,0.55); }
+    .cell.other { border-color: rgba(255,255,255,0.22); background: rgba(255,255,255,0.14); }
+
+    /* ---- takeaway line ---- */
+    .takeaway { font-size: 0.8em; color: var(--ink); margin-top: 26px; line-height: 1.4; }
+    .takeaway + .takeaway { margin-top: 14px; }
+    .takeaway b, .takeaway em { color: var(--accent); }
+
+    /* ---- interactive shell ---- */
+    .stagearea { width: 100%; display: flex; flex-direction: column; gap: 14px; }
+    .ctrls { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .ctrls button {
+      font: inherit; font-size: 0.5em; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+      color: #141414; background: var(--accent); border: 0; border-radius: 7px;
+      padding: 0.6em 1.2em; cursor: pointer;
+    }
+    .ctrls button.ghost { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+    .ctrls button:hover { filter: brightness(1.1); }
+    .metrics { display: flex; gap: 34px; margin-left: auto; }
+    .metric { text-align: right; }
+    .metric .mlbl { color: var(--muted); font-size: 0.4em; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
+    .metric .mval { font-size: 0.86em; font-weight: 700; line-height: 1.1; }
+    .metric.bad .mval  { color: var(--slow); }
+    .metric.good .mval { color: var(--fast); }
+    canvas.viz { width: 100%; display: block; }
+    svg.viz { width: 100%; display: block; }
+
+    /* ---- svg interactive tokens ---- */
+    .viz .box { fill: rgba(124,197,255,0.07); stroke: var(--line); stroke-width: 1.5; rx: 7; }
+    .viz .box.hot { fill: rgba(124,197,255,0.30); stroke: var(--accent); }
+    .viz .card { fill: rgba(255,255,255,0.04); stroke: var(--line); stroke-width: 1.5; rx: 9; cursor: pointer; }
+    .viz .card.hot { stroke: var(--accent); fill: rgba(124,197,255,0.16); }
+    .viz .wire { stroke: var(--muted); stroke-width: 1.5; fill: none; opacity: 0.4; }
+    .viz .wire.hot { stroke: var(--accent); opacity: 1; }
+    .viz text { font-family: var(--font); fill: var(--body); }
+    .viz .t-lbl  { fill: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: 0.14em; }
+    .viz .t-name { fill: var(--ink); font-size: 14px; font-weight: 700; }
+    .viz .t-sm   { fill: var(--body); font-size: 12px; }
+    .viz .t-addr { fill: var(--muted); font-family: var(--mono); font-size: 11px; }
+
+    /* ============== TITLE ============== */
+    .title-slide .kicker { color: var(--accent); letter-spacing: 0.35em; font-size: 0.5em; font-weight: 700; margin-bottom: 26px; }
+    .title-slide h1 { font-size: 2.4em; color: var(--ink); max-width: 12em; line-height: 1.12; }
+    .title-slide .subtitle { font-size: 1.05em; color: var(--accent); margin-top: 16px; font-weight: 700; }
+    .title-slide .lede { font-size: 0.72em; color: var(--body); margin-top: 12px; }
+    .title-slide .rule { margin-top: 34px; }
+    .title-slide .byline { color: var(--muted); font-size: 0.52em; letter-spacing: 0.08em; margin-top: 30px; }
+
+    .reveal .slide-number { background: transparent; color: var(--muted); font-size: 13px; }
+  </style>
+</head>
+<body>
+<div class="reveal"><div class="slides">
+
+<!-- ================= TITLE ================= -->
+<section data-background-color="#141414">
+  <div class="slide center title-slide">
+    <div class="kicker">UNITY DOTS · WORKSHOP</div>
+    <h1>DOTS 101</h1>
+    <h2 class="subtitle">Entities, Jobs, and Why They Are Fast</h2>
+    <p class="lede">One game, built three times.</p>
+    <div class="rule"></div>
+    <p class="byline">Eric Rico · 3 hours · no DOTS experience assumed</p>
+  </div>
+</section>
+
+<!-- ================= WHAT DOTS IS ================= -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="eyebrow">What it is</div>
+    <h2>DOTS is a stack, not a switch.</h2>
+    <p class="sub">Data-Oriented Technology Stack.</p>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="stack">
+        <div class="layer top">
+          <div class="rail">Built<br>on ECS</div>
+          <div class="boxes">
+            <div class="pkg off"><div class="nm">Entities Graphics</div><div class="ds">Renders entities through URP or HDRP</div></div>
+            <div class="pkg off"><div class="nm">Unity Physics</div><div class="ds">Deterministic rigid bodies and queries</div></div>
+            <div class="pkg off"><div class="nm">Netcode for Entities</div><div class="ds">Server-authoritative multiplayer</div></div>
+          </div>
+        </div>
+        <div class="layer core">
+          <div class="rail">The ECS<br>package</div>
+          <div class="boxes">
+            <div class="pkg on"><div class="nm">Entities</div><div class="ds">Entity Component System — entities, components, systems, baking</div></div>
+          </div>
+        </div>
+        <div class="layer base">
+          <div class="rail">Foundation</div>
+          <div class="boxes">
+            <div class="pkg on"><div class="nm">Job system</div><div class="ds">Work on other threads. In the engine, no package</div></div>
+            <div class="pkg on"><div class="nm">Burst</div><div class="ds">Compiles that job code to native</div></div>
+            <div class="pkg on"><div class="nm">Collections</div><div class="ds"><code>NativeArray</code> and friends</div></div>
+            <div class="pkg on"><div class="nm">Mathematics</div><div class="ds">Math types Burst knows how to optimise</div></div>
+          </div>
+        </div>
+        <div class="cap">Lit boxes are what we touch today. You install one package, <code>com.unity.entities</code>, and the whole foundation comes with it.</div>
+      </div>
+      <p class="takeaway">All of it is <em>CPU</em> work — threads and cache. Making the <em>GPU</em> faster is a different job: compute shaders and low-level graphics.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= SETUP ================= -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="eyebrow">Before we start</div>
+    <h2>Get the project open and running now.</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="rows">
+        <div class="row"><div class="lbl">1 · Clone</div><div class="val"><code>git clone https://github.com/EricJRico/DOTSWorkshop.git</code></div></div>
+        <div class="row"><div class="lbl">2 · Checkout</div><div class="val"><code>git checkout checkpoint-0</code></div></div>
+        <div class="row"><div class="lbl">3 · Open</div><div class="val">Open the folder in <strong>Unity 6</strong>. The first import takes a few minutes.</div></div>
+        <div class="row"><div class="lbl">4 · Play</div><div class="val">Open <code>Assets/Scenes/Workshop.unity</code> and press Play. You should see a player and a crowd.</div></div>
+        <div class="row"><div class="lbl">Every lab</div><div class="val">Ends on a <strong>checkpoint branch</strong>. Fall behind, check it out, you are caught up.</div></div>
+      </div>
+      <p class="takeaway">Hand up now if any step failed. We fix setup in the first fifteen minutes, not at the first lab.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= THE ARC ================= -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="eyebrow">The plan</div>
+    <h2>We build the same game three times.</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="stages">
+        <div class="stage">
+          <div class="n">Stage 1</div>
+          <h3>GameObjects</h3>
+          <p>5,000 enemies. One <code>Update</code> each, all on one thread. This is the code you already write.</p>
+          <div class="chips"><span class="chip">No DOTS &middot; plain MonoBehaviours</span></div>
+          <div class="teach">Shows the problem.</div>
+        </div>
+        <div class="stage">
+          <div class="n">Stage 2</div>
+          <h3>GameObjects + jobs</h3>
+          <p>Same scene. The movement work moves off the main thread, and Burst compiles it.</p>
+          <div class="chips"><span class="chip on">Job system</span><span class="chip on">Burst</span><span class="chip on">Collections</span><span class="chip on">Mathematics</span></div>
+          <div class="teach">The whole foundation layer, with no ECS in the way.</div>
+        </div>
+        <div class="stage">
+          <div class="n">Stage 3</div>
+          <h3>Entities</h3>
+          <p>The game rebuilt in ECS. Then the jobs come back, with the query written for you.</p>
+          <div class="chips"><span class="chip on">Entities</span><span class="chip on">Job system, again</span></div>
+          <div class="teach">Layout, queries, systems — then <code>IJobEntity</code>.</div>
+        </div>
+      </div>
+      <p class="takeaway">Stage 1 is not a throwaway demo. You <em>edit it</em> in the first lab.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= BLOCK 1 · DEMO ================= -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="eyebrow">Why it is slow <span class="pill demo">Live</span></div>
+    <h2>5,000 enemies chasing you. Watch the frame time.</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="shot">
+        <div class="tag">Screenshot · GameObjectBaseline.unity</div>
+        <div class="what">The baseline scene running: a crowd of enemies converging on the player, with the frame time in the Game view stats.</div>
+      </div>
+      <p class="takeaway">Nothing here is written badly. It is one <code>Update()</code> per enemy, on one thread.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= BLOCK 1 · PROFILER ================= -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="eyebrow">Problem one · One thread <span class="pill live">Profiler</span></div>
+    <h2>One core is doing all of it.</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="shot" style="min-height:250px;">
+        <div class="tag">Screenshot · Profiler, Timeline view</div>
+        <div class="what">Main thread packed solid with <code>BehaviourUpdate</code>. The worker threads underneath it: empty.</div>
+      </div>
+      <div class="rows" style="margin-top:26px;">
+        <div class="row"><div class="lbl">Main thread</div><div class="val">Full. Nearly all of it is <strong>enemy movement</strong>.</div></div>
+        <div class="row"><div class="lbl">Worker threads</div><div class="val">Idle. Your machine has cores it is not using.</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= BLOCK 1 · LAYOUT ================= -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="eyebrow">Problem two · Scattered data <span class="pill live">Loops</span></div>
+    <h2>Where does an enemy actually live?</h2>
+    <div class="rule"></div>
+    <div class="body stagearea">
+      <div class="split">
+        <div>
+          <div class="lbl">The enemy you already write</div>
+<div class="code"><span class="kw">public class</span> <span class="ty">Enemy</span> : <span class="ty">MonoBehaviour</span>
+{
+    <span class="kw">public float</span> Speed;
+    <span class="kw">public int</span>   Health;
+
+    <span class="kw">void</span> <span class="fn">Update</span>()
+    {
+        transform.position += _dir * Speed;
+    }
+}</div>
+          <p class="takeaway" style="font-size:0.62em; margin-top:22px;">Position is not even on your class. <code>transform</code> is a <em>separate object</em> again.</p>
+        </div>
+        <div>
+          <div class="lbl">The same five enemies, in memory</div>
+          <canvas class="viz" id="viz-layout" width="1320" height="710" style="height:355px;"></canvas>
+        </div>
+      </div>
+      <div class="ctrls">
+        <button class="ghost" id="lay-toggle">Pause</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= BLOCK 1 · CACHE ================= -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="eyebrow">Problem two · Scattered data</div>
+    <h2>The CPU only works on what is near it.</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="hw">
+        <div class="unit near"><div class="u1">CPU</div><div class="u2">does the work</div></div>
+        <div class="tie"></div>
+        <div class="unit near"><div class="u1">Cache</div><div class="u2">tiny, right beside it</div></div>
+        <div class="far"><span>about 100&times; slower<em>the shelf beside you, or a drive across town</em></span></div>
+        <div class="unit"><div class="u1">RAM</div><div class="u2">where everything lives</div></div>
+      </div>
+
+      <p class="takeaway" style="margin-top:26px;">Nothing is worked on in RAM. It is grabbed into the cache first &mdash; and a grab always brings the <em>neighbours</em> along.</p>
+
+      <canvas class="viz" id="viz-cache" width="2200" height="600" style="height:300px; margin-top:18px;"></canvas>
+      <div class="ctrls" style="margin-top:6px;">
+        <button class="ghost" id="cch-toggle">Pause</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= BLOCK 1 · THE TWO PROBLEMS ================= -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="eyebrow">The map for today</div>
+    <h2>Two problems. Two answers.</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="stages two">
+        <div class="stage">
+          <div class="n one">Problem one</div>
+          <h3>One thread</h3>
+          <p>Five thousand <code>Update()</code> calls, one after another, on the main thread. The other cores sit there.</p>
+          <p class="ans"><strong>The answer is jobs.</strong> Work you hand to the other cores, compiled by Burst.</p>
+          <div class="chips"><span class="chip on">Job system</span><span class="chip on">Burst</span></div>
+        </div>
+        <div class="stage">
+          <div class="n">Problem two</div>
+          <h3>Scattered data</h3>
+          <p>Every enemy is its own object, wherever it landed on the heap. A trip out to RAM per enemy, and most of what comes back is data you did not ask for.</p>
+          <p class="ans"><strong>The answer is ECS layout.</strong> The same component for every entity stored together, read in one straight run.</p>
+          <div class="chips"><span class="chip on">Entities</span></div>
+        </div>
+      </div>
+      <p class="takeaway">Everything for the next three hours is one of these two. Lost the thread? Ask which one we are on.</p>
+    </div>
+  </div>
+</section>
+
+</div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.js"></script>
+<script>
+  Reveal.initialize({
+    hash: true,
+    width: 1280,
+    height: 720,
+    margin: 0,
+    center: false,
+    slideNumber: 'c/t',
+    transition: 'fade'
+  });
+
+  /* Runs an animation on a loop, but only while its slide is the
+     one on screen, with a pause on the last frame before it
+     starts over. Returns a pause/play toggle. */
+  function autoLoop(cv, buttonId, last, stepTo, redraw, msPerStep, msHold) {
+    var step = 0, timer = null, paused = false;
+    var btn = document.getElementById(buttonId);
+
+    function frame() {
+      step = (step >= last) ? 0 : step + 1;
+      stepTo(step); redraw();
+      timer = setTimeout(frame, step >= last ? msHold : msPerStep);
+    }
+    function onSlide() {
+      var sec = cv.closest('section');
+      return sec && sec === Reveal.getCurrentSlide();
+    }
+    function start() { if (timer || paused || !onSlide()) return; timer = setTimeout(frame, msPerStep); }
+    function stop()  { if (timer) { clearTimeout(timer); timer = null; } }
+
+    btn.addEventListener('click', function () {
+      paused = !paused;
+      btn.textContent = paused ? 'Play' : 'Pause';
+      if (paused) stop(); else start();
+    });
+    Reveal.on('slidechanged', function () { if (onSlide()) start(); else { stop(); step = 0; stepTo(0); redraw(); } });
+    stepTo(0); redraw();
+    start();
+    return { start: start, stop: stop };
+  }
+
+  /* =========================================================
+     INTERACTIVE - contiguous or not.
+     Five enemies, drawn twice. Every component is labelled and
+     colour coded, and a caret marks the cell being read, so the
+     only thing left to compare is the shape of the walk.
+     No cache here on purpose - that is the next slide.
+     ========================================================= */
+  (function () {
+    var cv = document.getElementById('viz-layout');
+    if (!cv) return;
+    var ctx = cv.getContext('2d');
+    var S = 2;
+    var N = 5, CELLS = 24;
+
+    var POS = '#7CC5FF', SPD = '#C3A6FF', HP = '#FFD08A';
+    var MUTED = '#7e828b', INK = '#ffffff';
+    var LINE = 'rgba(255,255,255,0.13)';
+    var OTHERF = 'rgba(255,255,255,0.07)';
+
+    /* where each enemy object landed - fixed, not random */
+    var CLUMP = [0, 4, 9, 13, 18];
+
+    var CW = 25, CH = 30, GX = 2;
+    var done = 0, timer = null;
+
+    function txt(x, y, str, colour, size, weight, align) {
+      ctx.fillStyle = colour;
+      ctx.font = (weight || 700) + ' ' + (size || 13) + 'px ui-sans-serif, system-ui, sans-serif';
+      ctx.textAlign = align || 'left';
+      ctx.fillText(str, x, y);
+      ctx.textAlign = 'left';
+    }
+    function rr(x, y, w, h, r) {
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(x, y, w, h, r === undefined ? 3 : r);
+      else ctx.rect(x, y, w, h);
+    }
+    function cellX(i) { return i * (CW + GX); }
+    function cell(i, y, colour, filled) {
+      rr(cellX(i), y, CW, CH);
+      if (filled) {
+        ctx.fillStyle = colour.replace('#', 'rgba(').length ? hexa(colour, 0.55) : colour;
+        ctx.fill();
+      } else {
+        ctx.fillStyle = OTHERF; ctx.fill();
+      }
+      ctx.strokeStyle = filled ? colour : LINE;
+      ctx.lineWidth = 1.3; ctx.stroke();
+    }
+    function hexa(hex, a) {
+      var n = parseInt(hex.slice(1), 16);
+      return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+    }
+    function caret(i, y) {
+      var x = cellX(i) + CW / 2;
+      ctx.beginPath();
+      ctx.moveTo(x, y); ctx.lineTo(x - 6, y - 9); ctx.lineTo(x + 6, y - 9); ctx.closePath();
+      ctx.fillStyle = INK; ctx.fill();
+    }
+    function walk(idx, y, colour) {
+      if (done < 2) return;
+      ctx.beginPath();
+      for (var k = 0; k < done; k++) {
+        var x = cellX(idx[k]) + CW / 2;
+        if (k === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = colour; ctx.lineWidth = 2; ctx.stroke();
+    }
+    function bracket(from, to, y, label, colour) {
+      var x1 = cellX(from), x2 = cellX(to) + CW;
+      ctx.strokeStyle = colour; ctx.lineWidth = 1.3;
+      ctx.beginPath();
+      ctx.moveTo(x1, y + 7); ctx.lineTo(x1, y); ctx.lineTo(x2, y); ctx.lineTo(x2, y + 7);
+      ctx.stroke();
+      txt((x1 + x2) / 2, y - 6, label, colour, 12, 700, 'center');
+    }
+
+    function legend(y) {
+      var items = [['Position', POS], ['Speed', SPD], ['Health', HP], ['Other objects', null]];
+      var x = 0;
+      items.forEach(function (it) {
+        rr(x, y - 10, 13, 13, 3);
+        ctx.fillStyle = it[1] ? hexa(it[1], 0.55) : OTHERF; ctx.fill();
+        ctx.strokeStyle = it[1] || LINE; ctx.lineWidth = 1.3; ctx.stroke();
+        txt(x + 20, y, it[0], it[1] || MUTED, 12.5);
+        x += ctx.measureText(it[0]).width + 52;
+      });
+    }
+
+    function draw() {
+      ctx.setTransform(S, 0, 0, S, 0, 0);
+      ctx.clearRect(0, 0, cv.width, cv.height);
+      var i, k;
+
+      legend(14);
+
+      /* ---------- an object per enemy ---------- */
+      var y1 = 100;
+      txt(0, 62, 'AN OBJECT PER ENEMY', MUTED, 13);
+      for (i = 0; i < CELLS; i++) {
+        var owner = -1, slot = -1;
+        for (k = 0; k < N; k++) if (i >= CLUMP[k] && i < CLUMP[k] + 3) { owner = k; slot = i - CLUMP[k]; }
+        if (owner < 0) cell(i, y1, LINE, false);
+        else cell(i, y1, [POS, SPD, HP][slot], true);
+      }
+      for (k = 0; k < N; k++) bracket(CLUMP[k], CLUMP[k] + 2, y1 - 14, 'Enemy ' + k, 'rgba(255,255,255,0.45)');
+      walk(CLUMP, y1 + CH + 16, '#FF7A66');
+      for (k = 0; k < done; k++) caret(CLUMP[k], y1 + CH + 10);
+      txt(0, y1 + CH + 46, 'five positions, five stops, spread out', MUTED, 12.5, 400);
+
+      /* ---------- an array per component ---------- */
+      var y2 = 254;
+      txt(0, 216, 'AN ARRAY PER COMPONENT', MUTED, 13);
+      var order = [];
+      for (k = 0; k < N; k++) order.push(k);
+      for (i = 0; i < CELLS; i++) {
+        if (i < 5)       cell(i, y2, POS, true);
+        else if (i < 10) cell(i, y2, SPD, true);
+        else if (i < 15) cell(i, y2, HP, true);
+        else             cell(i, y2, LINE, false);
+      }
+      bracket(0, 4,  y2 - 14, 'Position[]', POS);
+      bracket(5, 9,  y2 - 14, 'Speed[]', SPD);
+      bracket(10, 14, y2 - 14, 'Health[]',  HP);
+      walk(order, y2 + CH + 16, POS);
+      for (k = 0; k < done; k++) caret(order[k], y2 + CH + 10);
+      txt(0, y2 + CH + 46, 'five positions, one straight run', MUTED, 12.5, 400);
+    }
+
+    autoLoop(cv, 'lay-toggle', N, function (v) { done = v; }, draw, 640, 2400);
+  })();
+
+  /* =========================================================
+     INTERACTIVE - why layout decides the number of trips.
+     Same eight reads on both rows. A grab always hauls back a
+     run of four, not one cell. Packed, the other three are the
+     next three reads, so they come free out of the cache.
+     Scattered, they are junk, so every read is another trip.
+     The words "cache line" stay off the slide on purpose.
+     ========================================================= */
+  (function () {
+    var cv = document.getElementById('viz-cache');
+    if (!cv) return;
+    var ctx = cv.getContext('2d');
+    var S = 2;
+    var READS = 8, RUN = 4, RAM = 32, SLOTS = 4;
+
+    var ACC = '#7CC5FF', SLOW = '#FF7A66', FAST = '#6EE7A8';
+    var MUTED = '#7e828b', INK = '#ffffff';
+    var LINE = 'rgba(255,255,255,0.13)';
+    var JUNK = 'rgba(255,255,255,0.13)';
+
+    var step = 0, timer = null;
+
+    function txt(x, y, str, colour, size, weight, align) {
+      ctx.fillStyle = colour;
+      ctx.font = (weight || 700) + ' ' + (size || 13) + 'px ui-sans-serif, system-ui, sans-serif';
+      ctx.textAlign = align || 'left';
+      ctx.fillText(str, x, y);
+      ctx.textAlign = 'left';
+    }
+    function rr(x, y, w, h, r) {
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(x, y, w, h, r === undefined ? 3 : r); else ctx.rect(x, y, w, h);
+    }
+    function box(x, y, w, h, stroke, fill) {
+      rr(x, y, w, h);
+      if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+      ctx.strokeStyle = stroke; ctx.lineWidth = 1.4; ctx.stroke();
+    }
+
+    /* one row: label, the cache, an arrow, then RAM.
+       curCell is the cell being read this step; miss says whether
+       that read needed a trip or was already sitting in the cache. */
+    function row(y, name, wantedAt, trips, free, lastRun, colour, curCell, miss) {
+      txt(0, y + 16, name, INK, 15);
+      txt(0, y + 38, trips + (trips === 1 ? ' trip to RAM' : ' trips to RAM'), colour, 13);
+      txt(0, y + 56, free + ' free from cache', free ? FAST : MUTED, 13);
+
+      /* cache: whatever the last grab brought back */
+      txt(146, y - 6, 'CACHE', MUTED, 11);
+      for (var c = 0; c < SLOTS; c++) {
+        var cellIdx = lastRun === null ? null : lastRun * RUN + c;
+        var isWanted = cellIdx !== null && wantedAt.indexOf(cellIdx) !== -1;
+        box(146 + c * 34, y + 2, 30, 34,
+            cellIdx === null ? LINE : (isWanted ? ACC : 'rgba(255,255,255,0.22)'),
+            cellIdx === null ? null : (isWanted ? 'rgba(124,197,255,0.6)' : JUNK));
+        /* the slot actually being read this step */
+        if (cellIdx !== null && cellIdx === curCell) {
+          box(146 + c * 34 - 4, y - 2, 38, 42, INK, null);
+          txt(146 + c * 34 + 15, y + 50, 'READING', INK, 10, 700, 'center');
+        }
+      }
+
+      /* the trip. Solid on a miss, absent on a hit. */
+      if (curCell === null) {
+        ctx.strokeStyle = LINE; ctx.lineWidth = 1.4;
+        ctx.beginPath(); ctx.moveTo(366, y + 19); ctx.lineTo(292, y + 19); ctx.stroke();
+      } else if (miss) {
+        ctx.strokeStyle = colour; ctx.lineWidth = 2.4;
+        ctx.beginPath(); ctx.moveTo(366, y + 19); ctx.lineTo(292, y + 19); ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(284, y + 19); ctx.lineTo(296, y + 13); ctx.lineTo(296, y + 25); ctx.closePath();
+        ctx.fillStyle = colour; ctx.fill();
+        txt(329, y + 52, 'went to RAM', colour, 11, 700, 'center');
+      } else {
+        txt(329, y + 24, 'no trip', FAST, 12, 700, 'center');
+        txt(329, y + 40, 'already here', FAST, 11, 400, 'center');
+      }
+
+      /* RAM */
+      txt(380, y - 6, 'RAM', MUTED, 11);
+      var cw = 20, gx = 2, ox = 380;
+      for (var i = 0; i < RAM; i++) {
+        var want = wantedAt.indexOf(i) !== -1;
+        var inRun = lastRun !== null && i >= lastRun * RUN && i < lastRun * RUN + RUN;
+        box(ox + i * (cw + gx), y + 2, cw, 34,
+            inRun ? (miss ? colour : 'rgba(255,255,255,0.22)') : (want ? 'rgba(124,197,255,0.5)' : LINE),
+            want ? 'rgba(124,197,255,0.35)' : (inRun ? 'rgba(255,255,255,0.06)' : null));
+      }
+    }
+
+    function draw() {
+      ctx.setTransform(S, 0, 0, S, 0, 0);
+      ctx.clearRect(0, 0, cv.width, cv.height);
+
+      txt(0, 14, 'BLUE = A POSITION THE MOVEMENT CODE WANTS. A GRAB ALWAYS BRINGS BACK FOUR.', MUTED, 12);
+
+      /* packed: the eight positions sit next to each other */
+      var pWant = [], i;
+      for (i = 0; i < READS; i++) pWant.push(i);
+      var pTrips = step ? Math.floor((step - 1) / RUN) + 1 : 0;
+      var pRun   = step ? Math.floor((step - 1) / RUN) : null;
+      var pCur   = step ? pWant[step - 1] : null;
+      var pMiss  = step ? ((step - 1) % RUN === 0) : false;
+      row(180, 'Packed', pWant, pTrips, step - pTrips, pRun, FAST, pCur, pMiss);
+
+      /* scattered: every position sits on its own, far from the others */
+      var sWant = [];
+      for (i = 0; i < READS; i++) sWant.push(i * RUN);
+      var sTrips = step;
+      var sRun   = step ? step - 1 : null;
+      var sCur   = step ? sWant[step - 1] : null;
+      row(56, 'Scattered', sWant, sTrips, 0, sRun, SLOW, sCur, true);
+
+      txt(0, 268, step >= READS
+        ? 'Eight reads either way. Packed made two trips and got six for nothing.'
+        : '', step >= READS ? INK : MUTED, 14, step >= READS ? 700 : 400);
+    }
+
+    autoLoop(cv, 'cch-toggle', READS, function (v) { step = v; }, draw, 700, 2600);
+  })();
+</script>
+</body>
+</html>
