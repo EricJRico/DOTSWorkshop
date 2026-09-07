@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ce7fe3a00f23e074f8dd8d8580a89498, type: 3}
+  m_Name: SwarmSettings
+  m_EditorClassIdentifier: Workshop.Runtime::Workshop.SwarmSettings
+  Speed: 1.5
+  Radius: 0.15
+  CollisionRadiusScale: 1.05
+  PlayerRadius: 1
+  StepSeconds: 0.020833334
+  Substeps: 2
+  StabilityIterations: 1
+  SolverIterations: 6
+  Omega: 1.2
+  VelocityBlend: 0.0385
+  StaticFriction: 0.5
+  KineticFriction: 0.3
+  XsphRadiusFactor: 7
+  XsphCAtRadiusOne: 217
+  MaxSpeedFactor: 1
+  MaxAcceleration: 50
+  BatchSize: 64

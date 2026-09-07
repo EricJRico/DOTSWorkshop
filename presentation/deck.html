@@ -56,7 +56,7 @@
     }
     .slide > h2 { color: var(--ink); font-size: 1.3em; }
     .slide > .sub { color: var(--accent); font-size: 0.72em; font-weight: 700; margin: 12px 0 0; }
-    .rule { width: 54px; height: 3px; background: var(--accent); border-radius: 2px; margin: 18px 0 30px; }
+    .rule { flex: none; width: 54px; height: 3px; background: var(--accent); border-radius: 2px; margin: 18px 0 30px; }
 
     .pill { font-size: 0.8em; font-weight: 700; letter-spacing: 0.12em; padding: 0.2em 0.7em; border-radius: 5px; }
     .pill.demo { background: var(--accent); color: #141414; }
@@ -92,6 +92,9 @@
     .rows .lbl { color: var(--accent); font-weight: 700; font-size: 0.5em; letter-spacing: 0.12em; text-transform: uppercase; }
     .rows .val { color: var(--body); font-size: 0.78em; line-height: 1.4; }
     .rows .val strong { color: var(--ink); }
+    /* rows sitting in a narrow column, beside code */
+    .rows.tight .row { grid-template-columns: 6.4em 1fr; gap: 1em; }
+    .rows.tight .val { font-size: 0.66em; }
 
     /* ---- screenshot slot ---- */
     .shot {
@@ -201,12 +204,12 @@
 
     /* ---- core lanes ---- */
     .cores { display: flex; gap: 10px; width: 100%; }
-    .core {
+    .cores > .core {
       flex: 1; height: 72px; box-sizing: border-box; border: 1.5px solid var(--line);
       border-radius: 9px; display: flex; align-items: center; justify-content: center;
       color: var(--muted); font-size: 0.4em; font-weight: 700; letter-spacing: 0.1em;
     }
-    .core.busy { border-color: var(--slow); background: rgba(255,122,102,0.32); color: var(--slow); }
+    .cores > .core.busy { border-color: var(--slow); background: rgba(255,122,102,0.32); color: var(--slow); }
 
     /* ---- numbered lab steps ---- */
     .steps { counter-reset: s; list-style: none; margin: 0; padding: 0; }
@@ -250,6 +253,26 @@
     .xlate .from { color: var(--muted); font-family: var(--mono); font-size: 0.48em; text-align: right; }
     .xlate .arw  { color: var(--accent); font-size: 0.44em; font-weight: 700; }
     .xlate .to   { color: var(--accent); font-family: var(--mono); font-size: 0.48em; }
+
+    /* ---- mind map: the same board, redrawn at every stopping point ---- */
+    svg.mindmap { width: 100%; height: 470px; display: block; }
+    .mindmap .lnk       { stroke: rgba(255,255,255,0.16); stroke-width: 1.6; fill: none; }
+    .mindmap .lnk.done  { stroke: rgba(110,231,168,0.45); }
+    .mindmap .lnk.now   { stroke: var(--accent); }
+    .mindmap .hub       { fill: rgba(255,255,255,0.04); stroke: rgba(255,255,255,0.26); stroke-width: 1.6; }
+    .mindmap .hub.done  { fill: rgba(110,231,168,0.07); stroke: rgba(110,231,168,0.5); }
+    .mindmap .hub.now   { fill: rgba(124,197,255,0.12); stroke: var(--accent); }
+    .mindmap .hubt      { fill: var(--muted); font-size: 15px; font-weight: 700; letter-spacing: 0.10em; }
+    .mindmap .hubt.done { fill: var(--fast); }
+    .mindmap .hubt.now  { fill: var(--accent); }
+    .mindmap .leaf      { fill: rgba(255,255,255,0.03); stroke: rgba(255,255,255,0.16); stroke-width: 1.4; }
+    .mindmap .leaf.done { fill: rgba(110,231,168,0.10); stroke: rgba(110,231,168,0.5); }
+    .mindmap .leaf.now  { fill: var(--accent); stroke: var(--accent); }
+    .mindmap .lt        { fill: var(--muted); font-size: 14px; font-weight: 700; }
+    .mindmap .lt.done   { fill: var(--fast); }
+    .mindmap .lt.now    { fill: #141414; }
+    .mindmap .core      { fill: rgba(124,197,255,0.16); stroke: var(--accent); stroke-width: 2; }
+    .mindmap .coret     { fill: var(--accent); font-size: 23px; font-weight: 700; letter-spacing: 0.12em; }
 
     /* ---- takeaway line ---- */
     .takeaway { font-size: 0.8em; color: var(--ink); margin-top: 26px; line-height: 1.4; }
@@ -529,6 +552,18 @@
   </div>
 </section>
 
+<!-- ================= MAP · THE WHOLE DAY ================= -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="eyebrow">The map</div>
+    <h2>Everything we cover today.</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <svg class="mindmap" viewBox="0 0 1136 470" data-done="" data-now=""></svg>
+    </div>
+  </div>
+</section>
+
 <!-- ================= JOBS · THE PROBLEM ================= -->
 <section data-background-color="#141414">
   <div class="slide">
@@ -635,7 +670,7 @@
 <!-- ================= JOBS · LAB ================= -->
 <section data-background-color="#141414">
   <div class="slide">
-    <div class="eyebrow">Jobs &middot; Lab 2 <span class="pill lab">Hands on</span></div>
+    <div class="eyebrow">Jobs &middot; Lab 1 <span class="pill lab">Hands on</span></div>
     <h2>Move the swarm on the other cores.</h2>
     <div class="rule"></div>
     <div class="body">
@@ -701,6 +736,282 @@
   </div>
 </section>
 
+
+
+
+
+
+<!-- ================= MAP · AFTER JOBS ================= -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="eyebrow">Where we are</div>
+    <h2>The whole day, and what is behind us.</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <svg class="mindmap" viewBox="0 0 1136 470"
+           data-done="jobs,burst,collections,mathematics,sched"
+           data-now=""></svg>
+    </div>
+  </div>
+</section>
+
+<!-- ================= ENTITIES · THE VOCABULARY ================= -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="eyebrow">Entities &middot; The vocabulary</div>
+    <h2>ECS means entity, component, system.</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="rows" style="margin-top:8px;">
+        <div class="row">
+          <div class="lbl">Entity</div>
+          <div class="val">An <strong>id</strong>. It holds no data and no code. It identifies a thing; it is not the thing.</div>
+        </div>
+        <div class="row">
+          <div class="lbl">Component</div>
+          <div class="val">A piece of <strong>plain data</strong>, attached to an entity. A position, a speed, a radius. No behaviour on it.</div>
+        </div>
+        <div class="row">
+          <div class="lbl">System</div>
+          <div class="val"><strong>Code that runs</strong> over every entity carrying a given set of components.</div>
+        </div>
+      </div>
+
+      <p class="takeaway" style="margin-top:38px;">A <code>MonoBehaviour</code> is all three at once: identity, data and behaviour in one class. ECS separates them, and every difference for the rest of the day follows from that.</p>
+    </div>
+  </div>
+</section>
+
+
+<!-- ================= ENTITIES · THE ENTITY ================= -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="eyebrow">Entities &middot; The entity</div>
+    <h2>An entity is an id and nothing else.</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="split">
+        <div>
+          <div class="lbl">Unity.Entities &middot; Entity.cs</div>
+<div class="code"><span class="kw">public struct</span> <span class="ty">Entity</span>
+{
+    <span class="kw">public int</span> Index;
+    <span class="kw">public int</span> Version;
+}</div>
+          <p class="takeaway" style="font-size:0.56em; margin-top:18px;">That is the whole thing. No position, no speed, no health.</p>
+        </div>
+        <div>
+          <div class="rows tight">
+            <div class="row"><div class="lbl">Index</div><div class="val">Which entity it is.</div></div>
+            <div class="row"><div class="lbl">Version</div><div class="val">Raised when an entity is destroyed, so an id you kept from a dead one <strong>does not point at whatever reused the slot</strong>.</div></div>
+            <div class="row"><div class="lbl">A struct</div><div class="val">Two <code>int</code>s. Nothing allocated, nothing for the garbage collector to track.</div></div>
+          </div>
+        </div>
+      </div>
+      <p class="takeaway" style="margin-top:30px;">A <code>MonoBehaviour</code> arrives with a <code>GameObject</code>, a <code>Transform</code>, an enabled flag and message plumbing, used or not. An entity carries only what you put on it.</p>
+    </div>
+  </div>
+</section>
+
+
+<!-- ================= ENTITIES · THE COMPONENT ================= -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="eyebrow">Entities &middot; The component</div>
+    <h2>A component is a struct of data on an entity.</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="split">
+        <div>
+          <div class="lbl">Workshop &middot; WorkshopComponents.cs</div>
+<div class="code"><span class="kw">public struct</span> <span class="ty">EnemyTag</span> : <span class="ty">IComponentData</span> { }
+
+<span class="kw">public struct</span> <span class="ty">MoveSpeed</span> : <span class="ty">IComponentData</span>
+{
+    <span class="kw">public float</span> Value;
+}
+
+<span class="kw">public struct</span> <span class="ty">Radius</span> : <span class="ty">IComponentData</span>
+{
+    <span class="kw">public float</span> Value;
+}</div>
+        </div>
+        <div>
+          <div class="rows tight">
+            <div class="row"><div class="lbl">IComponentData</div><div class="val">The interface that lets a struct be put on an entity. No base class, no methods, nothing to override.</div></div>
+            <div class="row"><div class="lbl">A tag</div><div class="val"><code>EnemyTag</code> has no fields. It stores nothing; it only lets code ask <strong>which entities are enemies</strong>.</div></div>
+            <div class="row"><div class="lbl">Unmanaged</div><div class="val">No references to managed objects. That is what lets a component live in native memory and be read by Burst-compiled code.</div></div>
+          </div>
+        </div>
+      </div>
+      <p class="takeaway" style="margin-top:26px;">Position is a component as well: <code>LocalTransform</code>, added for you during baking. There is no separate transform object to reach through.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= ENTITIES · ARCHETYPE AND CHUNK ================= -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="eyebrow">Entities &middot; How they are stored <span class="pill live">Loops</span></div>
+    <h2>An archetype is the exact set of components an entity has.</h2>
+    <div class="rule"></div>
+    <div class="body stagearea">
+      <canvas class="viz" id="viz-chunk" width="2200" height="500" style="height:250px;"></canvas>
+      <div class="ctrls">
+        <button class="ghost" id="chk-toggle">Pause</button>
+      </div>
+      <p class="takeaway">Entities with the same archetype are stored together in a <em>chunk</em>: one block of memory, one array per component type. The packed layout from this morning.</p>
+      <p class="takeaway" style="font-size:0.66em;">Adding or removing a component changes the archetype, so the entity is copied to a different chunk. That is a <strong>structural change</strong>, and the last lab today is about avoiding it.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= ENTITIES · BAKING ================= -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="eyebrow">Entities &middot; Where they come from</div>
+    <h2>Entities are made by baking, and baking only runs in a subscene.</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="rows tight" style="margin-bottom:26px;">
+        <div class="row"><div class="lbl">Subscene</div><div class="val">A scene nested inside another one, marked for baking. Its contents become entity data.</div></div>
+        <div class="row"><div class="lbl">Baking</div><div class="val">The conversion, run <strong>in the editor</strong> while you work, not at load time.</div></div>
+      </div>
+      <div class="stages two">
+        <div class="stage">
+          <div class="n one">In a normal scene</div>
+          <h3>Stays a GameObject</h3>
+          <p>It loads as a GameObject and runs as a GameObject. Nothing is converted.</p>
+          <p class="ans"><strong>The Baker never runs.</strong> No error, no warning, no entity.</p>
+        </div>
+        <div class="stage">
+          <div class="n">In a subscene</div>
+          <h3>Becomes an entity</h3>
+          <p>Unity bakes it in the editor and writes out entity data. At runtime that data loads and no GameObject is made.</p>
+          <p class="ans"><strong>This is where authoring goes.</strong> Open it to edit, close it to see what ships.</p>
+        </div>
+      </div>
+      <p class="takeaway">When your lab does nothing at all, check this before you read your code.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= ENTITIES · THE BAKER ================= -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="eyebrow">Entities &middot; The Baker</div>
+    <h2>One class you fill in, one method that converts it.</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="split">
+        <div>
+          <div class="lbl">Workshop &middot; EnemyAuthoring.cs</div>
+<div class="code"><span class="kw">public class</span> <span class="ty">EnemyAuthoring</span> : <span class="ty">MonoBehaviour</span>
+{
+    <span class="kw">public float</span> MoveSpeed = 2.5f;
+    <span class="kw">public float</span> Radius    = 0.5f;
+
+    <span class="kw">class</span> <span class="ty">Baker</span> : <span class="ty">Baker</span>&lt;<span class="ty">EnemyAuthoring</span>&gt;
+    {
+        <span class="kw">public override void</span> <span class="fn">Bake</span>(<span class="ty">EnemyAuthoring</span> authoring)
+        {
+            <span class="kw">var</span> entity = <span class="fn">GetEntity</span>(<span class="ty">TransformUsageFlags</span>.Dynamic);
+
+            <span class="fn">AddComponent</span>&lt;<span class="ty">EnemyTag</span>&gt;(entity);
+            <span class="fn">AddComponent</span>(entity, <span class="kw">new</span> <span class="ty">MoveSpeed</span> { Value = authoring.MoveSpeed });
+            <span class="fn">AddComponent</span>(entity, <span class="kw">new</span> <span class="ty">Radius</span>    { Value = authoring.Radius });
+        }
+    }
+}</div>
+        </div>
+        <div>
+          <div class="rows tight">
+            <div class="row"><div class="lbl">The class</div><div class="val">A <code>MonoBehaviour</code>, so you get an Inspector. It exists in the editor only.</div></div>
+            <div class="row"><div class="lbl">GetEntity</div><div class="val">The entity this GameObject becomes. <code>Dynamic</code> asks for a <code>LocalTransform</code>, because this one moves.</div></div>
+            <div class="row"><div class="lbl">AddComponent</div><div class="val">Copies an authored value onto the entity. Read from <code>authoring</code>, write onto <code>entity</code>.</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= ENTITIES · LAB ================= -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="eyebrow">Entities &middot; Lab 2 <span class="pill lab">Hands on</span></div>
+    <h2>Bake your own value onto an entity.</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="split" style="grid-template-columns: 1fr 1fr;">
+        <div>
+          <div class="lbl">Before &middot; EnemyAuthoring.Bake</div>
+<div class="code"><span class="kw">public override void</span> <span class="fn">Bake</span>(<span class="ty">EnemyAuthoring</span> authoring)
+{
+    <span class="kw">var</span> entity = <span class="fn">GetEntity</span>(
+        <span class="ty">TransformUsageFlags</span>.Dynamic);
+
+    <span class="fn">AddComponent</span>&lt;<span class="ty">EnemyTag</span>&gt;(entity);
+    <span class="fn">AddComponent</span>(entity,
+        <span class="kw">new</span> <span class="ty">MoveSpeed</span> { Value = authoring.MoveSpeed });
+}</div>
+        </div>
+        <div>
+          <div class="lbl">After &middot; EnemyAuthoring.Bake</div>
+<div class="code" style="border-color: rgba(124,197,255,0.45);"><span class="kw">public override void</span> <span class="fn">Bake</span>(<span class="ty">EnemyAuthoring</span> authoring)
+{
+    <span class="kw">var</span> entity = <span class="fn">GetEntity</span>(
+        <span class="ty">TransformUsageFlags</span>.Dynamic);
+
+    <span class="fn">AddComponent</span>&lt;<span class="ty">EnemyTag</span>&gt;(entity);
+    <span class="fn">AddComponent</span>(entity,
+        <span class="kw">new</span> <span class="ty">MoveSpeed</span> { Value = authoring.MoveSpeed });
+    <span class="fn">AddComponent</span>(entity,
+        <span class="kw">new</span> <span class="ty">Radius</span> { Value = authoring.Radius });
+}</div>
+        </div>
+      </div>
+      <p class="takeaway" style="margin-top:22px;">Add the <code>Radius</code> field to <code>EnemyAuthoring</code> and bake it. Then open <em>Window &rsaquo; Entities &rsaquo; Hierarchy</em>, select the baked enemy, and read <code>Radius</code> back off it.</p>
+
+      <div class="panel stretch" style="margin-top:22px;">
+        <h4>Finished early</h4>
+        <p>Bake a value that is not on the GameObject at all &mdash; a component whose value you work out inside <code>Bake</code>. Baking is code, so it can do arithmetic.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= ENTITIES · DEBRIEF ================= -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="eyebrow">Entities &middot; Debrief <span class="pill demo">Live</span></div>
+    <h2>Your value is on the entity.</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="shot" style="min-height:230px;">
+        <div class="tag">Screenshot &middot; Entities Hierarchy and Inspector</div>
+        <div class="what">The baked enemy selected, listing <code>EnemyTag</code>, <code>LocalTransform</code>, <code>MoveSpeed</code> and the newly added <code>Radius</code>.</div>
+      </div>
+      <p class="takeaway" style="margin-top:26px;">There is no <code>EnemyAuthoring</code> in that list. It ran in the editor and stayed there.</p>
+      <p class="takeaway">Now the failure, on purpose: the same GameObject dragged <em>out</em> of the subscene. Nothing bakes, and nothing tells you.</p>
+      <p class="takeaway" style="font-size:0.66em;">Entities exist and hold your data. Nothing has run yet &mdash; there is no <code>Update</code> anywhere in this project. Systems are next.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= MAP · AFTER ENTITIES ================= -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="eyebrow">Where we are</div>
+    <h2>The whole day, and what is behind us.</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <svg class="mindmap" viewBox="0 0 1136 470"
+           data-done="jobs,burst,collections,mathematics,sched,entity,component,archetype,baking"
+           data-now=""></svg>
+    </div>
+  </div>
+</section>
 
 </div></div>
 
@@ -1158,6 +1469,235 @@
 
     autoLoop(cv, 'sch-toggle', LAST, function (v) { step = v; }, draw, 1300, 2600);
   })();
+
+
+
+  /* =========================================================
+     The mind map, drawn from one definition.
+     Every stopping point is a slide carrying data-done and
+     data-now; the geometry and the topic list live here once,
+     so four slides can never disagree about what the day holds.
+     ========================================================= */
+  (function () {
+    var maps = document.querySelectorAll('svg.mindmap');
+    if (!maps.length) return;
+
+    var BRANCHES = [
+      { label: 'FOUNDATION', side: 'left', row: 'top', leaves: [
+        ['jobs', 'Job system'], ['burst', 'Burst'], ['collections', 'Collections'],
+        ['mathematics', 'Mathematics'], ['sched', 'Scheduling'] ] },
+      { label: 'ENTITIES', side: 'right', row: 'top', leaves: [
+        ['entity', 'Entity'], ['component', 'Component'],
+        ['archetype', 'Archetype, chunk'], ['baking', 'Baking, subscenes'] ] },
+      { label: 'RUNNING CODE', side: 'right', row: 'bottom', leaves: [
+        ['systems', 'Systems'], ['queries', 'Queries'], ['ijobentity', 'IJobEntity'] ] },
+      { label: 'CHANGING STATE', side: 'left', row: 'bottom', leaves: [
+        ['structural', 'Structural change'], ['ecb', 'Command buffers'],
+        ['enableable', 'Enableable'] ] }
+    ];
+
+    /* one fixed layout, so the board never moves between slides */
+    var LEAF_W = 150, LEAF_H = 36, PITCH = 52;
+    var HUB_W = 160, HUB_H = 40;
+    var LEFT_LEAF = 0, LEFT_HUB = 220, RIGHT_HUB = 756, RIGHT_LEAF = 986;
+    var TOP_MID = 140, BOT_MID = 360;
+    var CORE_X = 498, CORE_Y = 230, CORE_W = 140, CORE_H = 60;
+
+    var NS = 'http://www.w3.org/2000/svg';
+    function el(name, attrs, cls, text) {
+      var n = document.createElementNS(NS, name);
+      for (var k in attrs) n.setAttribute(k, attrs[k]);
+      if (cls) n.setAttribute('class', cls);
+      if (text !== undefined) n.textContent = text;
+      return n;
+    }
+    /* a tight S: both handles sit close to the hub end, so sibling
+       links stay in their own lane instead of bowing across each other */
+    function curve(x1, y1, x2, y2) {
+      var c1 = x1 + (x2 - x1) * 0.34, c2 = x1 + (x2 - x1) * 0.62;
+      return 'M' + x1 + ',' + y1 + ' C' + c1 + ',' + y1 + ' ' + c2 + ',' + y2 + ' ' + x2 + ',' + y2;
+    }
+
+    function render(svg) {
+      var done = (svg.getAttribute('data-done') || '').split(',');
+      var now  = (svg.getAttribute('data-now')  || '').split(',');
+      function state(id) {
+        return now.indexOf(id) > -1 ? ' now' : (done.indexOf(id) > -1 ? ' done' : '');
+      }
+
+      var links = document.createDocumentFragment();
+      var nodes = document.createDocumentFragment();
+
+      BRANCHES.forEach(function (br) {
+        var left = br.side === 'left';
+        var mid = br.row === 'top' ? TOP_MID : BOT_MID;
+        var hubX = left ? LEFT_HUB : RIGHT_HUB;
+        var leafX = left ? LEFT_LEAF : RIGHT_LEAF;
+        /* the core is inboard and the leaves outboard, so each link
+           leaves the hub on its own side and never crosses the box */
+        var coreEdge = left ? hubX + HUB_W : hubX;
+        var hubEdge  = left ? hubX : hubX + HUB_W;
+        var leafEdge = left ? leafX + LEAF_W : leafX;
+
+        var n = br.leaves.length;
+        var top = mid - (n * LEAF_H + (n - 1) * (PITCH - LEAF_H)) / 2;
+
+        /* the branch is done only when everything on it is */
+        var states = br.leaves.map(function (lf) { return state(lf[0]); });
+        var hubState = states.indexOf(' now') > -1 ? ' now'
+                     : (states.every(function (s) { return s === ' done'; }) ? ' done' : '');
+
+        /* core to hub */
+        var coreY = br.row === 'top' ? CORE_Y + 18 : CORE_Y + CORE_H - 18;
+        links.appendChild(el('path', {
+          d: curve(left ? CORE_X : CORE_X + CORE_W, coreY, coreEdge, mid)
+        }, 'lnk' + hubState));
+
+        br.leaves.forEach(function (lf, i) {
+          var ly = top + i * PITCH;
+          var st = states[i];
+          links.appendChild(el('path', { d: curve(hubEdge, mid, leafEdge, ly + LEAF_H / 2) }, 'lnk' + st));
+          nodes.appendChild(el('rect', { x: leafX, y: ly, width: LEAF_W, height: LEAF_H, rx: 9 }, 'leaf' + st));
+          nodes.appendChild(el('text', { x: leafX + 14, y: ly + 24 }, 'lt' + st, lf[1]));
+        });
+
+        nodes.appendChild(el('rect', { x: hubX, y: mid - HUB_H / 2, width: HUB_W, height: HUB_H, rx: 11 }, 'hub' + hubState));
+        nodes.appendChild(el('text', { x: hubX + HUB_W / 2, y: mid + 5, 'text-anchor': 'middle' }, 'hubt' + hubState, br.label));
+      });
+
+      nodes.appendChild(el('rect', { x: CORE_X, y: CORE_Y, width: CORE_W, height: CORE_H, rx: 14 }, 'core'));
+      nodes.appendChild(el('text', { x: CORE_X + CORE_W / 2, y: CORE_Y + 38, 'text-anchor': 'middle' }, 'coret', 'DOTS'));
+
+      svg.appendChild(links);
+      svg.appendChild(nodes);
+    }
+
+    Array.prototype.forEach.call(maps, render);
+  })();
+
+
+  /* =========================================================
+     INTERACTIVE - archetype and chunk.
+     One block of memory per archetype, with an array per
+     component type. The motion is the point: give an entity
+     one more component and it can no longer live in the
+     chunk it is in, so it is copied to the one that matches.
+     Component colours are the block 1 ones, kept fixed.
+     ========================================================= */
+  (function () {
+    var cv = document.getElementById('viz-chunk');
+    if (!cv) return;
+    var ctx = cv.getContext('2d');
+    var S = 2;
+    var LAST = 3, step = 0;
+
+    var TFM = '#7CC5FF', SPD = '#C3A6FF', RAD = '#FFD08A', ALV = '#6EE7A8';
+    var MUTED = '#7e828b', INK = '#ffffff', SLOW = '#FF7A66';
+    var LINE = 'rgba(255,255,255,0.13)';
+
+    var IDW = 66, COLW = 98, RH = 28, HH = 25;
+    var AX = 0, BX = 560;
+
+    function txt(x, y, str, colour, size, weight, align) {
+      ctx.fillStyle = colour;
+      ctx.font = (weight || 700) + ' ' + (size || 13) + 'px ui-sans-serif, system-ui, sans-serif';
+      ctx.textAlign = align || 'left';
+      ctx.fillText(str, x, y);
+      ctx.textAlign = 'left';
+    }
+    function hexa(hex, a) {
+      var n = parseInt(hex.slice(1), 16);
+      return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+    }
+    function rr(x, y, w, h, r) {
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(x, y, w, h, r === undefined ? 4 : r);
+      else ctx.rect(x, y, w, h);
+    }
+    function box(x, y, w, h, stroke, fill, dash) {
+      ctx.save();
+      if (dash) ctx.setLineDash([5, 5]);
+      rr(x, y, w, h, 6);
+      if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+      ctx.strokeStyle = stroke; ctx.lineWidth = 1.4; ctx.stroke();
+      ctx.restore();
+    }
+
+    function chunk(x, y, title, cols, rows, hotRow, ghostRow) {
+      var w = IDW + cols.length * COLW;
+      txt(x, y - 28, title, MUTED, 12.5);
+      box(x - 9, y - 17, w + 18, HH + 5 * RH + 22, LINE, 'rgba(124,197,255,0.04)');
+
+      txt(x + 6, y + 16, 'Entity', MUTED, 11.5);
+      cols.forEach(function (c, i) {
+        var cx = x + IDW + i * COLW;
+        rr(cx, y, COLW - 6, HH - 4, 4);
+        ctx.fillStyle = hexa(c[1], 0.20); ctx.fill();
+        ctx.strokeStyle = hexa(c[1], 0.75); ctx.lineWidth = 1.2; ctx.stroke();
+        txt(cx + (COLW - 6) / 2, y + 16, c[0], c[1], 11.5, 700, 'center');
+      });
+
+      rows.forEach(function (id, r) {
+        var ry = y + HH + r * RH;
+        var hot = (id === hotRow), ghost = (id === ghostRow);
+        ctx.globalAlpha = ghost ? 0.3 : 1;
+        txt(x + 6, ry + 19, 'e' + id, hot ? INK : MUTED, 12);
+        cols.forEach(function (c, i) {
+          var cx = x + IDW + i * COLW;
+          rr(cx, ry + 4, COLW - 6, RH - 9, 3);
+          ctx.fillStyle = hexa(c[1], hot ? 0.62 : 0.34); ctx.fill();
+          ctx.strokeStyle = hexa(c[1], hot ? 1 : 0.5); ctx.lineWidth = 1.2; ctx.stroke();
+        });
+        if (hot) box(x - 5, ry, w + 10, RH - 2, INK, null);
+        ctx.globalAlpha = 1;
+      });
+      return w;
+    }
+
+    function arrow(x1, x2, y, colour, label) {
+      ctx.strokeStyle = colour; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(x1, y); ctx.lineTo(x2 - 9, y); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x2, y); ctx.lineTo(x2 - 11, y - 6); ctx.lineTo(x2 - 11, y + 6);
+      ctx.closePath(); ctx.fillStyle = colour; ctx.fill();
+      txt((x1 + x2) / 2, y - 11, label, colour, 12, 700, 'center');
+    }
+
+    function draw() {
+      ctx.setTransform(S, 0, 0, S, 0, 0);
+      ctx.clearRect(0, 0, cv.width, cv.height);
+
+      var colsA = [['LocalTransform', TFM], ['MoveSpeed', SPD], ['Radius', RAD]];
+      var colsB = colsA.concat([['Alive', ALV]]);
+      var y = 44;
+
+      var moved = step >= 3;
+      var rowsA = moved ? [0, 1, 3, 4] : [0, 1, 2, 3, 4];
+      var hotA = (step === 1 || step === 2) ? 2 : -1;
+
+      chunk(AX, y, 'CHUNK · archetype: LocalTransform, MoveSpeed, Radius, EnemyTag',
+            colsA, rowsA, hotA, step === 2 ? 2 : -1);
+
+      if (step === 0) {
+        box(BX - 9, y - 17, IDW + 4 * COLW + 18, HH + 5 * RH + 22, 'rgba(255,255,255,0.18)', null, true);
+        txt(BX + (IDW + 4 * COLW) / 2, y + 92, 'one archetype, so one chunk', MUTED, 12.5, 400, 'center');
+      } else {
+        chunk(BX, y, 'CHUNK · the same archetype, plus Alive',
+              colsB, moved ? [2] : [], moved ? 2 : -1, -1);
+        if (step >= 2) arrow(AX + IDW + 3 * COLW + 20, BX - 20, y + HH + 2 * RH + 10, INK, 'copied');
+      }
+
+      txt(0, 244,
+        step === 0 ? 'Five enemies with the same components, so all five sit in one chunk.'
+        : step === 1 ? 'Add one component to entity 2: Alive.'
+        : step === 2 ? 'Its archetype changed, so it no longer belongs in this chunk.'
+        : 'It is copied to the chunk that matches, and the gap it left is filled.',
+        step === 0 ? MUTED : (step === 3 ? SLOW : INK), 13.5, 400);
+    }
+
+    autoLoop(cv, 'chk-toggle', LAST, function (v) { step = v; }, draw, 1500, 3000);
+  })();
+
 </script>
 </body>
 </html>
