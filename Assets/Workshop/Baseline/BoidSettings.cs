@@ -32,18 +32,9 @@ namespace Workshop
                  "converge better than iterations, because each substep re-linearises the contact " +
                  "set. THAT DOES NOT REPRODUCE HERE. Re-measured at 50,000 agents with " +
                  "Time.captureDeltaTime pinned to 1/60, because otherwise a slower config gets a " +
-                 "bigger dt and its overlap count is not comparable:
-" +
-                 "  8 it x 1 sub   6.15 ms    400 pairs
-" +
-                 "  4 it x 2 sub   6.55 ms    390 pairs
-" +
-                 "  2 it x 4 sub   7.63 ms    430 pairs
-" +
-                 "  3 it x 2 sub   5.58 ms   2250 pairs
-" +
-                 "  4 it x 1 sub   4.45 ms  18000 pairs
-" +
+                 "bigger dt and its overlap count is not comparable. Wall ms / overlap "  +
+                 "pairs: 8x1 = 6.15 / 400, 4x2 = 6.55 / 390, 2x4 = 7.63 / 430, "         +
+                 "3x2 = 5.58 / 2250, 4x1 = 4.45 / 18000. "                               +
                  "Quality tracks the TOTAL number of separation passes and nothing else: the " +
                  "three configurations with 8 passes are indistinguishable at ~400 pairs however " +
                  "they are split, and cutting to 6 or 4 passes falls apart. Substepping only adds " +
