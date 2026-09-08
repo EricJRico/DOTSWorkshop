@@ -1,140 +1,156 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Workshop
 {
     /// <summary>
-    /// Tuning for <see cref="BoidSolver"/>. Defaults are argued, not guessed; the comment on each
-    /// field says where the value comes from.
+    /// Tuning for <see cref="BoidSolver"/>.
+    ///
+    /// The top-level fields are the ones worth changing to make the crowd look and feel different.
+    /// Everything under Advanced is performance and solver internals: it has all been measured, the
+    /// defaults are the measured best, and changing it will cost speed or quality rather than
+    /// change how the crowd behaves.
     /// </summary>
     [CreateAssetMenu(menuName = "Workshop/Boid Settings")]
     public class BoidSettings : ScriptableObject
     {
-        [Header("Population")]
-        public int Count = 5000;
+        [Header("Crowd")]
 
-        [Tooltip("Agent radius. To keep the converged crowd the same size on screen, this must " +
-                 "scale as 1/sqrt(Count): 50,000 agents at 0.0474 occupy the same disc as 5,000 at 0.15.")]
-        public float Radius = 0.15f;
+        [Tooltip("How many agents to spawn. Cost is roughly linear in this - 50,000 is the " +
+                 "benchmark. Changing it does not change how the crowd behaves, only how much of " +
+                 "it there is; if you want the crowd to cover the same ground on screen, scale " +
+                 "Agent Radius and Separation Distance by 1/sqrt of the change.")]
+        [FormerlySerializedAs("Count")]
+        public int AgentCount = 5000;
 
-        [Tooltip("Weiss et al. 2017: collision radius is the agent radius expanded 5%.")]
-        public float CollisionRadiusScale = 1.05f;
+        [Tooltip("How big one agent is. This is what you SEE - it sets the drawn size - and it is " +
+                 "what the overlap readout calls a body. Bigger agents look chunkier and start " +
+                 "overlapping each other sooner. It does NOT change how far apart they stand; " +
+                 "that is Separation Distance.")]
+        [FormerlySerializedAs("Radius")]
+        public float AgentRadius = 0.15f;
 
-        [Header("Motion")]
-        public float Speed = 2.5f;
-        [Tooltip("How fast velocity turns toward the direction of the player. 1 = instant.")]
-        public float SteerBlend = 0.15f;
-        public float MaxSpeedFactor = 1f;
-        public float PlayerRadius = 0.5f;
+        [Tooltip("How far apart agents stand, centre to centre, in world units. Turn it up and the " +
+                 "crowd spreads out and takes more room; turn it down and it packs tighter. " +
+                 "Independent of Agent Radius on purpose - set it below twice the radius and the " +
+                 "bodies will visibly overlap, which is allowed and the overlap readout will show " +
+                 "it.")]
+        public float SeparationDistance = 0.128f;
 
-        [Header("Separation solve")]
-        [Tooltip("Full pipeline repeats per frame, each advancing dt/Substeps. Macklin et al. 2019 " +
-                 "'Small Steps in Physics Simulation' argues that for a fixed budget substeps " +
-                 "converge better than iterations. THAT DOES NOT REPRODUCE HERE - substeps are " +
-                 "both worse and slower. Measured at 50,000 agents with Time.captureDeltaTime " +
-                 "pinned to 1/60, quality as mean penetration against the SOLVE diameter " +
-                 "(wall ms / meanPen): "                                                        +
-                 "8x1 = 6.9 / 4.7%, 4x2 = 7.3 / 7.05%, 2x4 = 8.5 / 6.97%, "                     +
-                 "6x1 = 5.9 / 9.0%, 5x1 = 5.4 / 10.7%, 12x1 = 9.0 / 4.7%, 16x1 = 11.2 / 3.5%. " +
-                 "All three 8-pass configs cost the same 8 separation passes, and the one that " +
-                 "spends them as 8 iterations over ONE grid build is 35% better than either " +
-                 "substepped split as well as the cheapest - substepping only adds grid " +
-                 "rebuilds. 8x1 is the knee: 6 passes doubles the penetration and 12 buys " +
-                 "nothing. Leave it at 1. " +
-                 "An earlier version of this table said quality tracked total passes only and " +
-                 "the split did not matter. That was measured with the old overlap test, which " +
-                 "counted against 2*Radius while the solver targets 2*Radius*1.35 - 35% of " +
-                 "slack, so every config scored ~400 and the metric could barely fail.")]
-        public int Substeps = 1;
+        [Header("Movement")]
 
-        [Tooltip("Jacobi position-correction passes per frame over one grid build. " +
-                 "Weiss ran 14; the whole point of this solver is that a capped, sorted scan needs far fewer.")]
-        public int Iterations = 2;
+        [Tooltip("How fast agents move toward the target, in world units per second. This is a " +
+                 "flat-out speed - a jammed agent will not reach it because the crowd is in the way.")]
+        [FormerlySerializedAs("Speed")]
+        public float MoveSpeed = 2.5f;
 
-        [Tooltip("Successive over-relaxation. Bender/Muller/Macklin EG2015 give 1 <= omega <= 2.")]
-        public float Omega = 1.4f;
+        [Tooltip("How sharply agents turn toward the target. 1 turns on a coin and looks robotic; " +
+                 "small values make wide, drifting arcs and a crowd that takes a while to change " +
+                 "direction. Around 0.05 reads as heavy and momentum-driven.")]
+        [FormerlySerializedAs("SteerBlend")]
+        public float TurnResponsiveness = 0.15f;
 
-        [Tooltip("Safety valve on neighbours processed per agent, not a quality knob. At close-pack " +
-                 "density a 3x3 scan at cell = collision diameter yields ~6 in-radius neighbours " +
-                 "(hex packing, and the number Ballerini 2008 measured in starlings: 6.5 +/- 0.9), " +
-                 "so this cap is almost never reached. It bounds the cost of a pathological pile-up. " +
-                 "Unreal Mass caps at 6 because it gathers 24+ candidates from 27 cells; our grid is " +
-                 "tight enough that we do not have to throw good neighbours away.")]
-        public int MaxNeighbours = 8;
+        [Tooltip("How far the player shoves agents away, in world units. Turn it up for a bigger " +
+                 "bubble of clear space around the player. Purely cosmetic - it does not affect " +
+                 "how agents treat each other.")]
+        [FormerlySerializedAs("PlayerRadius")]
+        public float PlayerPushRadius = 0.5f;
 
-        [Header("Avoidance (Weiss et al. 2017 section 4.5)")]
-        [Tooltip("Remove the component of velocity that drives into the contact normal, so a blocked " +
-                 "agent slides around the pack instead of pushing into it. One dot product in Finalize.")]
-        public bool TangentialSlide = true;
+        [Header("Crowd behaviour")]
 
-        [Tooltip("Verlet skin. Neighbours are gathered out to CollisionDiameter * (1 + this) so " +
-                 "the cached list survives all the iterations. Costs a wider scan; without it the " +
-                 "cache silently loses contacts that form mid-solve.")]
-        public float GatherSkin = 0.5f;
+        [Tooltip("How hard the solver works each frame to push overlapping agents apart. More " +
+                 "passes means a tidier crowd with fewer agents clipping through each other, and " +
+                 "costs proportionally more time - each pass is about 0.4 ms at 50,000 agents. " +
+                 "Six is the knee: five nearly doubles the number of overlapping bodies, and more " +
+                 "than six buys very little.")]
+        [FormerlySerializedAs("Iterations")]
+        public int SolverPasses = 6;
 
-        [Tooltip("Cache each agent neighbours in a list and have the separation passes read it " +
-                 "instead of re-walking the grid. MEASURED NOT WORTH IT, and the reason changed. " +
-                 "The old note said it was 1.5x faster but left 8x the overlap. The overlap half " +
-                 "was an artefact: GatherJob wrote the GATHER count into NeighbourCount, and it " +
-                 "gathers at diameter * (1 + skin), so FinalizeJob congestion gate saw ~2.25x the " +
-                 "neighbours and stripped the seek drive far harder on this path than on the grid " +
-                 "path. It was comparing two different simulations. With the count fixed, quality " +
-                 "matches: 6.98% mean penetration against 6.61% uncached, inside the run-to-run " +
-                 "noise. But the speed win is gone too, because the cost it existed to avoid was " +
-                 "the old branchy grid walk, and SeparateCompactJob already removed that. " +
-                 "Measured wall: 6.76 ms at GatherEvery 8 against 6.96 ms uncached - 3%, for 3.2 " +
-                 "MB and an extra dispatch. Rebuilding more often only costs: 8.03 ms every 4, " +
-                 "10.65 ms every 2.")]
-        public bool CacheNeighbours;
+        [Tooltip("Blocked agents slide around whatever is in front of them instead of shoving " +
+                 "straight into it. Off, the crowd piles up and shoves; on, it flows around " +
+                 "obstacles and looks far more deliberate.")]
+        [FormerlySerializedAs("TangentialSlide")]
+        public bool SlideAroundBlockers = true;
 
-        [Tooltip("Rebuild the neighbour list every N separation iterations. 1 = rebuild every pass " +
-                 "(most accurate, most expensive); Iterations = build once per frame (cheapest). " +
-                 "Pairs that come into contact mid-solve beyond the skin are invisible until the " +
-                 "next rebuild, which is why gathering once plateaus no matter how many passes run.")]
-        public int GatherEvery = 4;
+        [Tooltip("How many neighbours an agent tolerates before it starts giving up on reaching " +
+                 "the target. Lower makes agents surrender to the crush sooner, so the crowd " +
+                 "settles rather than grinding forward. Has no effect unless Fully Blocked At is " +
+                 "higher than this.")]
+        [FormerlySerializedAs("CrowdFree")]
+        public float CrowdedAt = 4f;
 
-        [Header("Congestion gate")]
-        [Tooltip("Neighbour count at which an agent starts losing its toward-target drive.")]
-        public float CrowdFree = 4f;
-        [Tooltip("Neighbour count at which toward-target drive is fully removed. Set CrowdFull <= " +
-                 "CrowdFree to disable the gate entirely.")]
-        public float CrowdFull = 7f;
+        [Tooltip("How many neighbours it takes before an agent stops pushing toward the target " +
+                 "entirely and just gets carried by the crowd. Set this at or below Crowded At to " +
+                 "switch the whole behaviour off and have every agent push regardless.")]
+        [FormerlySerializedAs("CrowdFull")]
+        public float FullyBlockedAt = 7f;
 
-        [Header("Separation implementation")]
-        [Tooltip("0 = SeparateJob, one loop that tests and accumulates per candidate. " +
-                 "1 = SeparateCompactJob, which splits it: one loop records which candidates " +
-                 "survive the distance test, a second does the contact math over the survivors. " +
-                 "MEASURED: 0.844 -> 0.631 ms/dispatch, solver wall 7.9 -> 6.0 ms at 50k on 4 " +
-                 "workers, and the positions are bit-identical (max delta exactly 0). Left as a " +
-                 "switch because the reason is worth showing: rewriting the reject branchless in " +
-                 "place buys nothing at all (ablation stage 7 == stage 6). The cost is the " +
-                 "conditional accumulation, not the branch. " +
-                 "2 = SeparateSimdJob, the compact job walking four candidates at a time. " +
-                 "MEASURED WORSE at 0.879: the scalar loop was not latency-bound, and blocking " +
-                 "four candidates together removes the overlap that was hiding the cursor "  +
-                 "updates. Kept as the negative result.")]
-        public int SeparateVariant = 1;
+        [Header("Advanced")]
 
-        [Tooltip("Floor on the divisor used to average the contact corrections. The solver divides " +
-                 "by the live contact count, which is the safe Jacobi averaging but under-corrects " +
-                 "the dense clusters that dominate the penetration metric. A floor lets a sparse " +
-                 "agent take a fuller step while a buried one stays damped. 1 = original behaviour. " +
-                 "Only the coloured Gauss-Seidel path reads this.")]
-        public int MinDivisor = 1;
+        [Tooltip("Performance and solver internals. All measured, all already at their best " +
+                 "value. Changing anything here trades speed or quality; it will not make the " +
+                 "crowd behave differently.")]
+        public AdvancedSettings Advanced = new AdvancedSettings();
 
+        /// <summary>
+        /// Grouped in a nested class purely so Unity draws it as one collapsed foldout. Nothing in
+        /// here is a design knob - see docs/solver-perf-handoff.md for what each was measured at.
+        /// </summary>
+        [System.Serializable]
+        public class AdvancedSettings
+        {
+            [Tooltip("How aggressively each solver pass corrects an overlap. Below 1 under-corrects " +
+                     "and the crowd stays mushy; above 2 overshoots and jitters. 1.8 measured best " +
+                     "- lower values were worse at every setting tried.")]
+            public float Relaxation = 1.8f;
 
-        [Header("Jobs")]
-        public int BatchSize = 128;
+            [Tooltip("Ceiling on how many neighbours one agent will resolve against in a pass. A " +
+                     "safety valve for pile-ups, not a quality knob: the crowd averages about 6, " +
+                     "so this is almost never reached. The shipping solver ignores it entirely.")]
+            public int MaxNeighbours = 16;
 
-        [Tooltip("Inner-loop batch for the coloured Gauss-Seidel passes, counted in CELLS not " +
-                 "agents - a cell holds about 1.3 agents at converged density, so 64 cells is " +
-                 "roughly 80 agents.")]
-        public int ColourBatch = 64;
+            [Tooltip("Which separation implementation runs. 8 is the one that ships - 8-wide SIMD " +
+                     "over split position streams, 2.25 ms at 50,000 agents. 3 and 5 are the older " +
+                     "scalar versions, kept because every performance measurement is made by " +
+                     "comparing against them in the same play session. Falls back to 5 on a CPU " +
+                     "without AVX2, such as Apple Silicon.")]
+            public int SeparateVariant = 8;
 
-        [Tooltip("Cell budget as a multiple of Count. If the crowd's bounding box needs more cells " +
-                 "than this, the cell grows instead - which costs candidates, never correctness.")]
-        public int CellsPerAgent = 4;
+            [Tooltip("Work-chunk size for the per-agent jobs. Measured: 64, 128, 256 and 512 all " +
+                     "land inside the noise. Not a lever.")]
+            [FormerlySerializedAs("BatchSize")]
+            public int AgentBatchSize = 128;
 
-        public float CollisionDiameter => Radius * 2f * CollisionRadiusScale;
-        public float MaxSpeed => Speed * MaxSpeedFactor;
+            [Tooltip("Work-chunk size for the separation passes, counted in grid CELLS rather than " +
+                     "agents - a cell holds about 1.3 agents. Measured: 16, 32 and 64 are within " +
+                     "noise of each other, larger is slightly worse.")]
+            [FormerlySerializedAs("ColourBatch")]
+            public int CellBatchSize = 64;
+
+            [Tooltip("How much grid to allocate, as a multiple of Agent Count. If the crowd spreads " +
+                     "wider than the budget the grid coarsens itself, which costs speed but never " +
+                     "correctness. Raise it only if the crowd covers a much larger area.")]
+            public int CellsPerAgent = 4;
+        }
+
+        /// <summary>The distance the solver drives agents apart to. What every job calls Diameter.</summary>
+        public float CollisionDiameter => SeparationDistance;
+
+        /// <summary>The physical body. Only the drawing and the overlap metric care about this.</summary>
+        public float BodyDiameter => AgentRadius * 2f;
+
+        public float MaxSpeed => MoveSpeed;
+
+#if UNITY_EDITOR
+        void OnValidate()
+        {
+            // Not clamped, just reported: a separation under the body diameter is a legitimate
+            // thing to ask for and the overlap readout will show it honestly.
+            if (SeparationDistance < BodyDiameter)
+                Debug.LogWarning(
+                    $"{name}: Separation Distance ({SeparationDistance:F4}) is under the body " +
+                    $"diameter ({BodyDiameter:F4}), so agents will overlap on purpose.", this);
+        }
+#endif
     }
 }

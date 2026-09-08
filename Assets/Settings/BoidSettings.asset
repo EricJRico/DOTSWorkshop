@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Workshop.Runtime::Workshop.BoidSettings
   Count: 50000
   Radius: 0.047434
-  CollisionRadiusScale: 1.35
+  SeparationDistance: 0.1280718
   Speed: 0.79
   SteerBlend: 0.047434
   MaxSpeedFactor: 1

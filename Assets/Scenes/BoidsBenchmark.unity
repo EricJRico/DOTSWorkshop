@@ -276,7 +276,7 @@ MonoBehaviour:
   Seed: 1
   Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
   Material: {fileID: 2100000, guid: 346ea04c36f6307449ccd3ea2d3c9161, type: 2}
-  DrawScale: 0.0949
+  DrawScale: 1
   Draw: 1
   ColorSlow: {r: 0.2, g: 0.45, b: 1, a: 1}
   ColorMid: {r: 1, g: 0.9, b: 0.2, a: 1}

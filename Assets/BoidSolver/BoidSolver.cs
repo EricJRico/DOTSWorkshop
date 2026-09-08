@@ -76,9 +76,7 @@ namespace Workshop
         NativeArray<float2> _sortVelocity;
         NativeArray<float2> _contactNormal;
         NativeArray<int> _neighbourCount;
-        NativeArray<int> _gatherCount;
         NativeArray<int> _candidateCount;
-        NativeArray<int> _neighbours;
         NativeArray<float4> _instances;
         NativeArray<int> _cellOf;
         NativeArray<int> _cellCount;
@@ -143,7 +141,7 @@ namespace Workshop
             // Halving the cell to scan 5x5 quadruples the cell count, so the budget has to hold
             // the largest radius that will be measured or GridSetupJob grows the cell instead -
             // which silently turns a radius-3 run back into a radius-1 run with extra colours.
-            var baseCells = math.max(65536, count * _settings.CellsPerAgent);
+            var baseCells = math.max(65536, count * _settings.Advanced.CellsPerAgent);
             var maxCells = baseCells * SeparateColouredRJob.MaxRadius * SeparateColouredRJob.MaxRadius;
             _slices = math.max(1, math.min(64, count / 2048));
 
@@ -156,11 +154,9 @@ namespace Workshop
             _sortVelocity = new NativeArray<float2>(count, Allocator.Persistent);
             _contactNormal = new NativeArray<float2>(count, Allocator.Persistent);
             _neighbourCount = new NativeArray<int>(count, Allocator.Persistent);
-            _gatherCount = new NativeArray<int>(count, Allocator.Persistent);
             _candidateCount = new NativeArray<int>(count, Allocator.Persistent);
             // Fixed stride, so MaxNeighbours can be retuned at runtime without reallocating -
             // and, more to the point, without GatherJob writing past the end of a shorter array.
-            _neighbours = new NativeArray<int>(count * MaxNeighbourStride, Allocator.Persistent);
             _instances = new NativeArray<float4>(count, Allocator.Persistent);
             _cellOf = new NativeArray<int>(count, Allocator.Persistent);
             _cellCount = new NativeArray<int>(maxCells, Allocator.Persistent);
@@ -208,40 +204,40 @@ namespace Workshop
         {
             if (!_allocated || _count == 0) return default;
             var s = _settings;
-            var batch = s.BatchSize;
+            var batch = s.Advanced.AgentBatchSize;
             var stride = (_count + _slices - 1) / _slices;
 
             ScheduleMarker.Begin();
 
             var handle = default(JobHandle);
-            var substeps = math.max(1, s.Substeps);
-            var sdt = deltaTime / substeps;
-            var reach = s.Radius + s.PlayerRadius;
+            var sdt = deltaTime;
+            var reach = s.AgentRadius + s.PlayerPushRadius;
 
             // 4 = parameterised radius, 5 = + rsqrt instead of sqrt-then-divide,
             // 6 = + phase 1 hands phase 2 the delta and r2 it already had. All three share the
             // grid, the colouring and the dispatch shape, so a sweep row isolates one change.
-            var variant = s.SeparateVariant;
+            var variant = s.Advanced.SeparateVariant;
             // Variant 8 is hand-written AVX2 + FMA. On a machine without them the intrinsics
             // would trap, so fall back to variant 5 - same geometry, same colouring, just scalar.
             // Checked here on the main thread rather than inside the job, so the fallback picks a
             // different job rather than branching in the inner loop.
             if (variant == 8 && !_simdSupported) variant = 5;
 
-            var radiusPath = !s.CacheNeighbours && variant >= 4 && variant <= 8;
+            var radiusPath = variant >= 4 && variant <= 8;
             // Variant 8 works on float streams. The pipeline stays AoS: deinterleave once before
             // the passes, run all of them in place on the streams, interleave back for Finalize.
-            var soaPath = !s.CacheNeighbours && variant == 8;
+            var soaPath = variant == 8;
             var radius = radiusPath ? math.clamp(ScanRadius, 1, SeparateColouredRJob.MaxRadius) : 1;
             var spacing = radius + 1;
             var colours = spacing * spacing;
 
-            for (var sub = 0; sub < substeps; sub++)
+            // One pass over the pipeline. Substepping was measured worse AND slower - it only
+            // adds grid rebuilds - so the loop it used to need is gone.
             {
                 handle = new SteerJob
                 {
                     Position = _position, Velocity = _velocity, Predicted = _predicted,
-                    Target = target, Speed = s.Speed, Blend = s.SteerBlend, DeltaTime = sdt
+                    Target = target, Speed = s.MoveSpeed, Blend = s.TurnResponsiveness, DeltaTime = sdt
                 }.Schedule(_count, batch, handle);
 
                 handle = new BoundsJob
@@ -252,13 +248,11 @@ namespace Workshop
                 handle = new GridSetupJob
                 {
                     Partial = _partialBounds, Info = _info,
-                    // Cell = the GATHER radius, not the solve radius: a 3x3 scan only reaches one
-                    // cell out, so the skin has to be inside the cell or the gather misses it.
-                    // On the radius path the cell is the diameter divided by R instead, because
-                    // the scan reaches R cells - the product, and so the reach, is unchanged.
-                    CellSize = s.CacheNeighbours
-                        ? s.CollisionDiameter * (1f + s.GatherSkin)
-                        : s.CollisionDiameter * (radiusPath ? math.max(0.25f, CellScale) : 1f) / radius,
+                    // Cell = the separation distance, so a 3x3 scan reaches exactly one of them.
+                    // On the radius path it is divided by R because the scan reaches R cells - the
+                    // product, and so the reach, is unchanged.
+                    CellSize = s.CollisionDiameter
+                               * (radiusPath ? math.max(0.25f, CellScale) : 1f) / radius,
                     MaxCells = _cellCount.Length, Count = _count, Pad = radius + 1
                 }.Schedule(handle);
 
@@ -287,12 +281,6 @@ namespace Workshop
                 Swap(ref _predicted, ref _sortPredicted);
                 Swap(ref _velocity, ref _sortVelocity);
 
-                // Gather neighbours, then iterate over the cached list. Measured: the grid walk
-                // was 78% of every old separation pass (3.81 ms of 5.5 ms), so re-walking it for
-                // all 8 iterations was the whole cost. Re-gathering every GatherEvery passes
-                // trades a little of that back for contacts that form mid-solve.
-                var gatherEvery = math.max(1, s.GatherEvery);
-
                 // Snapshot AFTER the sort so the indices match the ones the solve will write, and
                 // before any separation pass, so what is measured is the solve correction alone -
                 // not the steering, which moves every agent whether it is jammed or not.
@@ -305,7 +293,7 @@ namespace Workshop
                     }.Schedule(_count, batch, handle);
                 }
 
-                var coloured = !s.CacheNeighbours && s.SeparateVariant == 3;
+                var coloured = s.Advanced.SeparateVariant == 3;
                 if (radiusPath)
                 {
                     // One job per colour, all in parallel off the same grid: a colour owns a fixed
@@ -341,42 +329,15 @@ namespace Workshop
                     }.Schedule(_count, batch, handle);
                 }
 
-                for (var it = 0; it < s.Iterations; it++)
+                for (var it = 0; it < s.SolverPasses; it++)
                 {
-                    if (s.CacheNeighbours)
-                    {
-                        if (it % gatherEvery == 0)
-                        {
-                            handle = new GatherJob
-                            {
-                                Predicted = _predicted, Offset = _offset, Info = _info,
-                                Neighbours = _neighbours, GatherCount = _gatherCount,
-                                GatherDiameter = s.CollisionDiameter * (1f + s.GatherSkin),
-                                MaxNeighbours = math.min(s.MaxNeighbours, MaxNeighbourStride),
-                                Stride = MaxNeighbourStride
-                            }.Schedule(_count, batch, handle);
-                        }
-
-                        handle = new SeparateCachedJob
-                        {
-                            Predicted = _predicted, Neighbours = _neighbours,
-                            GatherCount = _gatherCount,
-                            Result = _scratch, ContactNormal = _contactNormal,
-                            NeighbourCount = _neighbourCount,
-                            Diameter = s.CollisionDiameter, Omega = s.Omega,
-                            MaxNeighbours = math.min(s.MaxNeighbours, SeparateCompactJob.Cap - 1),
-                            Stride = MaxNeighbourStride,
-                            PlayerPosition = target, PlayerReach = reach
-                        }.Schedule(_count, batch, handle);
-                    }
-                    else if (radiusPath)
+                    if (radiusPath)
                     {
                         // (R+1)^2 dispatches instead of 4, each depending on the last, because the
                         // ordering IS the Gauss-Seidel step. This chain is the cost the smaller
                         // candidate list has to beat.
-                        var cb = math.max(1, s.ColourBatch);
-                        var maxN = math.min(s.MaxNeighbours, SeparateCompactJob.Cap - 1);
-                        var minDiv = math.max(1, s.MinDivisor);
+                        var cb = math.max(1, s.Advanced.CellBatchSize);
+                        var maxN = math.min(s.Advanced.MaxNeighbours, SeparateCompactJob.Cap - 1);
                         for (var c = 0; c < colours; c++)
                         {
                             var cells = _colourR[c];
@@ -387,8 +348,7 @@ namespace Workshop
                                     PredX = _predX, PredY = _predY,
                                     Offset = _offset, Info = _info,
                                     ContactNormal = _contactNormal, NeighbourCount = _neighbourCount,
-                                    Diameter = s.CollisionDiameter, Omega = s.Omega,
-                                    MinDivisor = minDiv, ScanRadius = radius,
+                                    Diameter = s.CollisionDiameter, Omega = s.Advanced.Relaxation, ScanRadius = radius,
                                     PlayerPosition = target, PlayerReach = reach
                                 }.Schedule(cells, cb, handle);
                             else if (variant == 7)
@@ -397,8 +357,8 @@ namespace Workshop
                                     Cells = cells.AsDeferredJobArray(),
                                     Predicted = _predicted, Offset = _offset, Info = _info,
                                     ContactNormal = _contactNormal, NeighbourCount = _neighbourCount,
-                                    Diameter = s.CollisionDiameter, Omega = s.Omega,
-                                    MaxNeighbours = maxN, MinDivisor = minDiv, ScanRadius = radius,
+                                    Diameter = s.CollisionDiameter, Omega = s.Advanced.Relaxation,
+                                    MaxNeighbours = maxN, ScanRadius = radius,
                                     PlayerPosition = target, PlayerReach = reach
                                 }.Schedule(cells, cb, handle);
                             else if (variant == 6)
@@ -407,8 +367,8 @@ namespace Workshop
                                     Cells = cells.AsDeferredJobArray(),
                                     Predicted = _predicted, Offset = _offset, Info = _info,
                                     ContactNormal = _contactNormal, NeighbourCount = _neighbourCount,
-                                    Diameter = s.CollisionDiameter, Omega = s.Omega,
-                                    MaxNeighbours = maxN, MinDivisor = minDiv, ScanRadius = radius,
+                                    Diameter = s.CollisionDiameter, Omega = s.Advanced.Relaxation,
+                                    MaxNeighbours = maxN, ScanRadius = radius,
                                     PlayerPosition = target, PlayerReach = reach
                                 }.Schedule(cells, cb, handle);
                             else if (variant == 5)
@@ -417,8 +377,8 @@ namespace Workshop
                                     Cells = cells.AsDeferredJobArray(),
                                     Predicted = _predicted, Offset = _offset, Info = _info,
                                     ContactNormal = _contactNormal, NeighbourCount = _neighbourCount,
-                                    Diameter = s.CollisionDiameter, Omega = s.Omega,
-                                    MaxNeighbours = maxN, MinDivisor = minDiv, ScanRadius = radius,
+                                    Diameter = s.CollisionDiameter, Omega = s.Advanced.Relaxation,
+                                    MaxNeighbours = maxN, ScanRadius = radius,
                                     PlayerPosition = target, PlayerReach = reach
                                 }.Schedule(cells, cb, handle);
                             else
@@ -427,8 +387,8 @@ namespace Workshop
                                     Cells = cells.AsDeferredJobArray(),
                                     Predicted = _predicted, Offset = _offset, Info = _info,
                                     ContactNormal = _contactNormal, NeighbourCount = _neighbourCount,
-                                    Diameter = s.CollisionDiameter, Omega = s.Omega,
-                                    MaxNeighbours = maxN, MinDivisor = minDiv, ScanRadius = radius,
+                                    Diameter = s.CollisionDiameter, Omega = s.Advanced.Relaxation,
+                                    MaxNeighbours = maxN, ScanRadius = radius,
                                     PlayerPosition = target, PlayerReach = reach
                                 }.Schedule(cells, cb, handle);
                         }
@@ -447,34 +407,33 @@ namespace Workshop
                                 Cells = cells.AsDeferredJobArray(),
                                 Predicted = _predicted, Offset = _offset, Info = _info,
                                 ContactNormal = _contactNormal, NeighbourCount = _neighbourCount,
-                                Diameter = s.CollisionDiameter, Omega = s.Omega,
-                                MaxNeighbours = math.min(s.MaxNeighbours, SeparateCompactJob.Cap - 1),
-                                MinDivisor = math.max(1, s.MinDivisor),
+                                Diameter = s.CollisionDiameter, Omega = s.Advanced.Relaxation,
+                                MaxNeighbours = math.min(s.Advanced.MaxNeighbours, SeparateCompactJob.Cap - 1),
                                 PlayerPosition = target, PlayerReach = reach
-                            }.Schedule(cells, math.max(1, s.ColourBatch), handle);
+                            }.Schedule(cells, math.max(1, s.Advanced.CellBatchSize), handle);
                         }
                     }
-                    else if (s.SeparateVariant == 2)
+                    else if (s.Advanced.SeparateVariant == 2)
                     {
                         handle = new SeparateSimdJob
                         {
                             Predicted = _predicted, Offset = _offset, Info = _info,
                             Result = _scratch, ContactNormal = _contactNormal,
                             NeighbourCount = _neighbourCount,
-                            Diameter = s.CollisionDiameter, Omega = s.Omega,
-                            MaxNeighbours = math.min(s.MaxNeighbours, SeparateCompactJob.Cap - 1),
+                            Diameter = s.CollisionDiameter, Omega = s.Advanced.Relaxation,
+                            MaxNeighbours = math.min(s.Advanced.MaxNeighbours, SeparateCompactJob.Cap - 1),
                             PlayerPosition = target, PlayerReach = reach
                         }.Schedule(_count, batch, handle);
                     }
-                    else if (s.SeparateVariant == 1)
+                    else if (s.Advanced.SeparateVariant == 1)
                     {
                         handle = new SeparateCompactJob
                         {
                             Predicted = _predicted, Offset = _offset, Info = _info,
                             Result = _scratch, ContactNormal = _contactNormal,
                             NeighbourCount = _neighbourCount,
-                            Diameter = s.CollisionDiameter, Omega = s.Omega,
-                            MaxNeighbours = math.min(s.MaxNeighbours, SeparateCompactJob.Cap - 1),
+                            Diameter = s.CollisionDiameter, Omega = s.Advanced.Relaxation,
+                            MaxNeighbours = math.min(s.Advanced.MaxNeighbours, SeparateCompactJob.Cap - 1),
                             PlayerPosition = target, PlayerReach = reach
                         }.Schedule(_count, batch, handle);
                     }
@@ -485,8 +444,8 @@ namespace Workshop
                             Predicted = _predicted, Offset = _offset, Info = _info,
                             Result = _scratch, ContactNormal = _contactNormal,
                             NeighbourCount = _neighbourCount,
-                            Diameter = s.CollisionDiameter, Omega = s.Omega,
-                            MaxNeighbours = math.min(s.MaxNeighbours, SeparateCompactJob.Cap - 1),
+                            Diameter = s.CollisionDiameter, Omega = s.Advanced.Relaxation,
+                            MaxNeighbours = math.min(s.Advanced.MaxNeighbours, SeparateCompactJob.Cap - 1),
                             PlayerPosition = target, PlayerReach = reach
                         }.Schedule(_count, batch, handle);
                     }
@@ -581,9 +540,9 @@ namespace Workshop
                     ContactNormal = _contactNormal, NeighbourCount = _neighbourCount,
                     Instances = _instances, Target = target,
                     InvDeltaTime = 1f / sdt, MaxSpeed = s.MaxSpeed,
-                    TangentialSlide = s.TangentialSlide,
-                    WriteInstances = sub == substeps - 1,
-                    CrowdFree = s.CrowdFree, CrowdFull = s.CrowdFull
+                    TangentialSlide = s.SlideAroundBlockers,
+                    WriteInstances = true,
+                    CrowdFree = s.CrowdedAt, CrowdFull = s.FullyBlockedAt
                 }.Schedule(_count, batch, handle);
             }
 
@@ -635,7 +594,7 @@ namespace Workshop
                 handle = new OverlapJob
                 {
                     Position = _position, Offset = _offset, Info = _info,
-                    SolveDiameter = s.CollisionDiameter, BodyDiameter = s.Radius * 2f,
+                    SolveDiameter = s.CollisionDiameter, BodyDiameter = s.BodyDiameter,
                     Stats = _stats
                 }.Schedule(_count, batch, handle);
 
@@ -666,8 +625,8 @@ namespace Workshop
         {
             if (!_allocated || _count == 0 || reps <= 0) return 0d;
             var s = _settings;
-            var reach = s.Radius + s.PlayerRadius;
-            var batch = s.BatchSize;
+            var reach = s.AgentRadius + s.PlayerPushRadius;
+            var batch = s.Advanced.AgentBatchSize;
 
             var watch = System.Diagnostics.Stopwatch.StartNew();
             for (var r = 0; r < reps; r++)
@@ -680,8 +639,8 @@ namespace Workshop
                         Predicted = _predicted, Offset = _offset, Info = _info,
                         Result = _scratch, ContactNormal = _contactNormal,
                         NeighbourCount = _neighbourCount,
-                        Diameter = s.CollisionDiameter, Omega = s.Omega,
-                        MaxNeighbours = math.min(s.MaxNeighbours, SeparateCompactJob.Cap - 1),
+                        Diameter = s.CollisionDiameter, Omega = s.Advanced.Relaxation,
+                        MaxNeighbours = math.min(s.Advanced.MaxNeighbours, SeparateCompactJob.Cap - 1),
                         PlayerPosition = target, PlayerReach = reach
                     }.Schedule(_count, batch);
                 }
@@ -692,8 +651,8 @@ namespace Workshop
                         Predicted = _predicted, Offset = _offset, Info = _info,
                         Result = _scratch, ContactNormal = _contactNormal,
                         NeighbourCount = _neighbourCount,
-                        Diameter = s.CollisionDiameter, Omega = s.Omega,
-                        MaxNeighbours = math.min(s.MaxNeighbours, SeparateCompactJob.Cap - 1),
+                        Diameter = s.CollisionDiameter, Omega = s.Advanced.Relaxation,
+                        MaxNeighbours = math.min(s.Advanced.MaxNeighbours, SeparateCompactJob.Cap - 1),
                         PlayerPosition = target, PlayerReach = reach
                     }.Schedule(_count, batch);
                 }
@@ -704,8 +663,8 @@ namespace Workshop
                         Predicted = _predicted, Offset = _offset, Info = _info,
                         Result = _scratch, ContactNormal = _contactNormal,
                         NeighbourCount = _neighbourCount,
-                        Diameter = s.CollisionDiameter, Omega = s.Omega,
-                        MaxNeighbours = math.min(s.MaxNeighbours, SeparateCompactJob.Cap - 1),
+                        Diameter = s.CollisionDiameter, Omega = s.Advanced.Relaxation,
+                        MaxNeighbours = math.min(s.Advanced.MaxNeighbours, SeparateCompactJob.Cap - 1),
                         PlayerPosition = target, PlayerReach = reach
                     }.Schedule(_count, batch);
                 }
@@ -723,7 +682,7 @@ namespace Workshop
         public double TimeAblation(int stage, int reps)
         {
             if (!_allocated || _count == 0 || reps <= 0) return 0d;
-            var batch = _settings.BatchSize;
+            var batch = _settings.Advanced.AgentBatchSize;
             var dia = _settings.CollisionDiameter;
 
             var watch = System.Diagnostics.Stopwatch.StartNew();
@@ -829,7 +788,7 @@ namespace Workshop
             if (!_allocated || _count == 0 || reps <= 0) return;
 
             var s = _settings;
-            var batch = s.BatchSize;
+            var batch = s.Advanced.AgentBatchSize;
             var stride = (_count + _slices - 1) / _slices;
             var watch = new System.Diagnostics.Stopwatch();
 
@@ -840,7 +799,7 @@ namespace Workshop
                 new SteerJob
                 {
                     Position = _position, Velocity = _sortVelocity, Predicted = _sortPredicted,
-                    Target = float2.zero, Speed = s.Speed, Blend = s.SteerBlend, DeltaTime = 1f / 60f
+                    Target = float2.zero, Speed = s.MoveSpeed, Blend = s.TurnResponsiveness, DeltaTime = 1f / 60f
                 }.Schedule(_count, batch).Complete();
             ms[0] = watch.Elapsed.TotalMilliseconds / reps;
 
@@ -867,8 +826,8 @@ namespace Workshop
                     Position = _sortPosition, Velocity = _sortVelocity, Predicted = _predicted,
                     ContactNormal = _contactNormal, NeighbourCount = _neighbourCount,
                     Instances = _instances, Target = float2.zero, InvDeltaTime = 60f,
-                    MaxSpeed = s.MaxSpeed, TangentialSlide = s.TangentialSlide,
-                    WriteInstances = true, CrowdFree = s.CrowdFree, CrowdFull = s.CrowdFull
+                    MaxSpeed = s.MaxSpeed, TangentialSlide = s.SlideAroundBlockers,
+                    WriteInstances = true, CrowdFree = s.CrowdedAt, CrowdFull = s.FullyBlockedAt
                 }.Schedule(_count, batch).Complete();
             ms[3] = watch.Elapsed.TotalMilliseconds / reps;
 
@@ -882,7 +841,7 @@ namespace Workshop
                 h = new OverlapJob
                 {
                     Position = _position, Offset = _offset, Info = _info,
-                    SolveDiameter = s.CollisionDiameter, BodyDiameter = s.Radius * 2f, Stats = _stats
+                    SolveDiameter = s.CollisionDiameter, BodyDiameter = s.BodyDiameter, Stats = _stats
                 }.Schedule(_count, batch, h);
                 new ReduceStatsJob
                 {
@@ -946,8 +905,8 @@ namespace Workshop
         {
             if (!_allocated || _count == 0 || reps <= 0) return 0d;
             var s = _settings;
-            var batch = math.max(1, s.ColourBatch);
-            var reach = s.Radius + s.PlayerRadius;
+            var batch = math.max(1, s.Advanced.CellBatchSize);
+            var reach = s.AgentRadius + s.PlayerPushRadius;
             var dia = s.CollisionDiameter;
 
             var watch = System.Diagnostics.Stopwatch.StartNew();
@@ -1001,9 +960,8 @@ namespace Workshop
                             {
                                 Cells = arr, Predicted = _scratch, Offset = _offset, Info = _info,
                                 ContactNormal = _contactNormal, NeighbourCount = _neighbourCount,
-                                Diameter = dia, Omega = s.Omega,
-                                MaxNeighbours = math.min(s.MaxNeighbours, SeparateCompactJob.Cap - 1),
-                                MinDivisor = math.max(1, s.MinDivisor),
+                                Diameter = dia, Omega = s.Advanced.Relaxation,
+                                MaxNeighbours = math.min(s.Advanced.MaxNeighbours, SeparateCompactJob.Cap - 1),
                                 PlayerPosition = float2.zero, PlayerReach = reach
                             }.Schedule(cells, batch, h);
                             break;
@@ -1051,11 +1009,11 @@ namespace Workshop
             var r = math.clamp(radius, 1, SeparateColouredRJob.MaxRadius);
             var spacing = r + 1;
             var colours = spacing * spacing;
-            var batch = math.max(1, s.ColourBatch);
+            var batch = math.max(1, s.Advanced.CellBatchSize);
             var stride = (_count + _slices - 1) / _slices;
-            var reach = s.Radius + s.PlayerRadius;
+            var reach = s.AgentRadius + s.PlayerPushRadius;
 
-            GridChain(stride, s.BatchSize, s.CollisionDiameter / r, r + 1).Complete();
+            GridChain(stride, s.Advanced.AgentBatchSize, s.CollisionDiameter / r, r + 1).Complete();
             Swap(ref _position, ref _sortPosition);
             Swap(ref _predicted, ref _sortPredicted);
             Swap(ref _velocity, ref _sortVelocity);
@@ -1078,7 +1036,7 @@ namespace Workshop
             new DeinterleaveJob
             {
                 Source = _predicted, X = _predX, Y = _predY
-            }.Schedule(_count, s.BatchSize).Complete();
+            }.Schedule(_count, s.Advanced.AgentBatchSize).Complete();
 
             JobHandle SimdWalk()
             {
@@ -1090,7 +1048,7 @@ namespace Workshop
                         PredX = _predX, PredY = _predY,
                         Sink = _scratch, Candidates = _candidateCount, Hits = _hitCount,
                         Normals = _contactNormal,
-                        Diameter = s.CollisionDiameter, Omega = s.Omega, ScanRadius = r
+                        Diameter = s.CollisionDiameter, Omega = s.Advanced.Relaxation, ScanRadius = r
                     }.Schedule(_colourR[c], batch, h);
                 return h;
             }
@@ -1118,9 +1076,8 @@ namespace Workshop
                         // Writes the scratch buffer, so timing it does not advance the crowd.
                         Predicted = _scratch, Offset = _offset, Info = _info,
                         ContactNormal = _contactNormal, NeighbourCount = _neighbourCount,
-                        Diameter = s.CollisionDiameter, Omega = s.Omega,
-                        MaxNeighbours = math.min(s.MaxNeighbours, SeparateCompactJob.Cap - 1),
-                        MinDivisor = math.max(1, s.MinDivisor), ScanRadius = r,
+                        Diameter = s.CollisionDiameter, Omega = s.Advanced.Relaxation,
+                        MaxNeighbours = math.min(s.Advanced.MaxNeighbours, SeparateCompactJob.Cap - 1), ScanRadius = r,
                         PlayerPosition = float2.zero, PlayerReach = reach
                     }.Schedule(_colourR[c], batch, h);
                 return h;
@@ -1135,9 +1092,8 @@ namespace Workshop
                         Cells = _colourR[c].AsDeferredJobArray(),
                         Predicted = _scratch, Offset = _offset, Info = _info,
                         ContactNormal = _contactNormal, NeighbourCount = _neighbourCount,
-                        Diameter = s.CollisionDiameter, Omega = s.Omega,
-                        MaxNeighbours = math.min(s.MaxNeighbours, SeparateCompactJob.Cap - 1),
-                        MinDivisor = math.max(1, s.MinDivisor), ScanRadius = r,
+                        Diameter = s.CollisionDiameter, Omega = s.Advanced.Relaxation,
+                        MaxNeighbours = math.min(s.Advanced.MaxNeighbours, SeparateCompactJob.Cap - 1), ScanRadius = r,
                         PlayerPosition = float2.zero, PlayerReach = reach
                     }.Schedule(_colourR[c], batch, h);
                 return h;
@@ -1152,9 +1108,8 @@ namespace Workshop
                         Cells = _colourR[c].AsDeferredJobArray(),
                         Predicted = _scratch, Offset = _offset, Info = _info,
                         ContactNormal = _contactNormal, NeighbourCount = _neighbourCount,
-                        Diameter = s.CollisionDiameter, Omega = s.Omega,
-                        MaxNeighbours = math.min(s.MaxNeighbours, SeparateCompactJob.Cap - 1),
-                        MinDivisor = math.max(1, s.MinDivisor), ScanRadius = r,
+                        Diameter = s.CollisionDiameter, Omega = s.Advanced.Relaxation,
+                        MaxNeighbours = math.min(s.Advanced.MaxNeighbours, SeparateCompactJob.Cap - 1), ScanRadius = r,
                         PlayerPosition = float2.zero, PlayerReach = reach
                     }.Schedule(_colourR[c], batch, h);
                 return h;
@@ -1215,9 +1170,7 @@ namespace Workshop
             _sortVelocity.Dispose();
             _contactNormal.Dispose();
             _neighbourCount.Dispose();
-            _gatherCount.Dispose();
             _candidateCount.Dispose();
-            _neighbours.Dispose();
             _instances.Dispose();
             _cellOf.Dispose();
             _cellCount.Dispose();

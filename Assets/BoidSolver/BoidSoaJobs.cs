@@ -62,7 +62,6 @@ namespace Workshop
         [NativeDisableParallelForRestriction] [WriteOnly] public NativeArray<int> NeighbourCount;
         public float Diameter;
         public float Omega;
-        public int MinDivisor;
         public int ScanRadius;
         public float2 PlayerPosition;
         public float PlayerReach;
@@ -262,7 +261,7 @@ namespace Workshop
                 found++;
             }
 
-            var div = math.max(found, MinDivisor);
+            var div = found;
             if (found > 0)
             {
                 var scale = Omega / div;

@@ -29,7 +29,6 @@ namespace Workshop
         [Header("Draw")]
         public Mesh Mesh;
         public Material Material;
-        public float DrawScale = 0.3f;
         public bool Draw = true;
         public Color ColorSlow = new Color(0.20f, 0.45f, 1.00f);
         public Color ColorMid = new Color(1.00f, 0.90f, 0.20f);
@@ -150,14 +149,14 @@ namespace Workshop
 
         public void Rebuild()
         {
-            Solver.Allocate(Settings.Count, SpawnMinRadius, SpawnMaxRadius, Seed);
+            Solver.Allocate(Settings.AgentCount, SpawnMinRadius, SpawnMaxRadius, Seed);
             ReleaseBuffers();
 
-            _agentBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, Settings.Count, sizeof(float) * 4);
+            _agentBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, Settings.AgentCount, sizeof(float) * 4);
             _argsBuffer = new GraphicsBuffer(GraphicsBuffer.Target.IndirectArguments, 1,
                 GraphicsBuffer.IndirectDrawIndexedArgs.size);
             _props = new MaterialPropertyBlock();
-            _allocatedFor = Settings.Count;
+            _allocatedFor = Settings.AgentCount;
             PushArgs();
         }
 
@@ -166,7 +165,7 @@ namespace Workshop
             if (Mesh == null || _argsBuffer == null) return;
             var args = new GraphicsBuffer.IndirectDrawIndexedArgs[1];
             args[0].indexCountPerInstance = Mesh.GetIndexCount(0);
-            args[0].instanceCount = (uint)Settings.Count;
+            args[0].instanceCount = (uint)Settings.AgentCount;
             args[0].startIndex = Mesh.GetIndexStart(0);
             args[0].baseVertexIndex = Mesh.GetBaseVertex(0);
             args[0].startInstance = 0;
@@ -176,7 +175,7 @@ namespace Workshop
         void Update()
         {
             if (Solver == null) return;
-            if (_allocatedFor != Settings.Count) Rebuild();
+            if (_allocatedFor != Settings.AgentCount) Rebuild();
 
             // The sweep needs a flowing crowd, so it forces the circling target while it runs -
             // as an override, not by writing the field.
@@ -233,7 +232,7 @@ namespace Workshop
 
             DrawMarker.Begin();
             _props.SetBuffer(AgentsId, _agentBuffer);
-            _props.SetFloat(ScaleId, DrawScale);
+            _props.SetFloat(ScaleId, Settings.BodyDiameter);
             _props.SetFloat(MaxSpeedId, Settings.MaxSpeed);
             _props.SetVector(ColorSlowId, ColorSlow);
             _props.SetVector(ColorMidId, ColorMid);
@@ -271,9 +270,9 @@ namespace Workshop
             var threads = Unity.Jobs.LowLevel.Unsafe.JobsUtility.JobWorkerCount + 1;
             UnityEngine.Debug.Log(
                 $"SEP| branchy={ms[0]:F3} compact={ms[1]:F3} simd={ms[2]:F3} ms wall/dispatch"
-              + $" | frame {ms[0] * threads * Settings.Iterations:F2}"
-              + $" -> {ms[1] * threads * Settings.Iterations:F2}"
-              + $" -> {ms[2] * threads * Settings.Iterations:F2} ms all threads"
+              + $" | frame {ms[0] * threads * Settings.SolverPasses:F2}"
+              + $" -> {ms[1] * threads * Settings.SolverPasses:F2}"
+              + $" -> {ms[2] * threads * Settings.SolverPasses:F2} ms all threads"
               + $" | {ms[0] / math.max(1e-9, ms[1]):F2}x then {ms[1] / math.max(1e-9, ms[2]):F2}x"
               + $" | delta compact={delta[1]:E2} simd={delta[2]:E2}"
               + $" | pairs={Solver.OverlapPairs}");
@@ -378,11 +377,6 @@ namespace Workshop
             public int Variant;
             public int Iterations;
             public float Omega;
-            public int MinDivisor;
-            [Tooltip("Use the cached neighbour list instead of re-walking the grid each pass.")]
-            public bool Cache;
-            [Tooltip("Rebuild the cached list every N passes. Ignored unless Cache is on.")]
-            public int GatherEvery;
             [Tooltip("Inner-loop batch in CELLS for the coloured passes. 0 leaves it alone.")]
             public int ColourBatch;
             [Tooltip("Scan radius. Variants 4, 5 and 6 read it. 0 means 1.")]
@@ -419,28 +413,28 @@ namespace Workshop
         {
             // Discarded: absorbs the settling transient so the bookends compare like with like.
             // Measured at ~1.4 points of penetration on the first row across three runs.
-            new SweepConfig { Variant = 3, Iterations = 6, Omega = 1.8f, MinDivisor = 1, Overlap = true, Discard = true },
+            new SweepConfig { Variant = 3, Iterations = 6, Omega = 1.8f, Overlap = true, Discard = true },
 
             // Every config twice, check on then check off, in ONE session. The check-on row is the
             // only one that can carry a quality number; the check-off row is the only one that is
             // the cost that would actually ship.
-            new SweepConfig { Variant = 3, Iterations = 6, Omega = 1.8f, MinDivisor = 1, Overlap = true },
-            new SweepConfig { Variant = 3, Iterations = 6, Omega = 1.8f, MinDivisor = 1, Overlap = false },
+            new SweepConfig { Variant = 3, Iterations = 6, Omega = 1.8f, Overlap = true },
+            new SweepConfig { Variant = 3, Iterations = 6, Omega = 1.8f, Overlap = false },
 
-            new SweepConfig { Variant = 5, Iterations = 6, Omega = 1.8f, MinDivisor = 1, ScanRadius = 1, CellScale = 1.0f, Overlap = true },
-            new SweepConfig { Variant = 5, Iterations = 6, Omega = 1.8f, MinDivisor = 1, ScanRadius = 1, CellScale = 1.0f, Overlap = false },
+            new SweepConfig { Variant = 5, Iterations = 6, Omega = 1.8f, ScanRadius = 1, CellScale = 1.0f, Overlap = true },
+            new SweepConfig { Variant = 5, Iterations = 6, Omega = 1.8f, ScanRadius = 1, CellScale = 1.0f, Overlap = false },
 
             // Fewer row-run entries per agent by holding more agents per cell. Costs candidates as
             // the square, so this is where the two terms cross.
-            new SweepConfig { Variant = 5, Iterations = 6, Omega = 1.8f, MinDivisor = 1, ScanRadius = 1, CellScale = 1.4f, Overlap = true },
-            new SweepConfig { Variant = 5, Iterations = 6, Omega = 1.8f, MinDivisor = 1, ScanRadius = 1, CellScale = 1.4f, Overlap = false },
+            new SweepConfig { Variant = 5, Iterations = 6, Omega = 1.8f, ScanRadius = 1, CellScale = 1.4f, Overlap = true },
+            new SweepConfig { Variant = 5, Iterations = 6, Omega = 1.8f, ScanRadius = 1, CellScale = 1.4f, Overlap = false },
 
-            new SweepConfig { Variant = 5, Iterations = 6, Omega = 1.8f, MinDivisor = 1, ScanRadius = 1, CellScale = 2.0f, Overlap = true },
-            new SweepConfig { Variant = 5, Iterations = 6, Omega = 1.8f, MinDivisor = 1, ScanRadius = 1, CellScale = 2.0f, Overlap = false },
+            new SweepConfig { Variant = 5, Iterations = 6, Omega = 1.8f, ScanRadius = 1, CellScale = 2.0f, Overlap = true },
+            new SweepConfig { Variant = 5, Iterations = 6, Omega = 1.8f, ScanRadius = 1, CellScale = 2.0f, Overlap = false },
 
             // Bookend B. Wall against bookend A is the noise floor for every number above.
-            new SweepConfig { Variant = 3, Iterations = 6, Omega = 1.8f, MinDivisor = 1, Overlap = true },
-            new SweepConfig { Variant = 3, Iterations = 6, Omega = 1.8f, MinDivisor = 1, Overlap = false },
+            new SweepConfig { Variant = 3, Iterations = 6, Omega = 1.8f, Overlap = true },
+            new SweepConfig { Variant = 3, Iterations = 6, Omega = 1.8f, Overlap = false },
         };
 
         int _sweepIndex = -1;
@@ -450,10 +444,9 @@ namespace Workshop
         int _sweepSamples;
         bool _sweepSaved;
         bool _sweepDone;
-        int _savedVariant, _savedIterations, _savedMinDivisor, _savedGatherEvery, _savedColourBatch;
+        int _savedVariant, _savedIterations, _savedColourBatch;
         int _savedBatchSize;
         float _savedOmega;
-        bool _savedCache;
         float _savedCaptureDt;
 
         /// <summary>
@@ -476,14 +469,11 @@ namespace Workshop
 
             if (!_sweepSaved)
             {
-                _savedVariant = Settings.SeparateVariant;
-                _savedIterations = Settings.Iterations;
-                _savedOmega = Settings.Omega;
-                _savedMinDivisor = Settings.MinDivisor;
-                _savedCache = Settings.CacheNeighbours;
-                _savedGatherEvery = Settings.GatherEvery;
-                _savedColourBatch = Settings.ColourBatch;
-                _savedBatchSize = Settings.BatchSize;
+                _savedVariant = Settings.Advanced.SeparateVariant;
+                _savedIterations = Settings.SolverPasses;
+                _savedOmega = Settings.Advanced.Relaxation;
+                _savedColourBatch = Settings.Advanced.CellBatchSize;
+                _savedBatchSize = Settings.Advanced.AgentBatchSize;
                 _savedCaptureDt = Time.captureDeltaTime;
                 _sweepSaved = true;
                 _sweepActive = true;
@@ -538,9 +528,9 @@ namespace Workshop
                 }
                 UnityEngine.Debug.Log(
                     $"SWEEP| variant={c.Variant} R={_sweepScanRadius} it={c.Iterations} omega={c.Omega:F2}"
-                  + $" minDiv={c.MinDivisor}"
-                  + $" cache={c.Cache} every={c.GatherEvery} colourBatch={Settings.ColourBatch}"
-                  + $" batchSize={Settings.BatchSize}"
+                  + $""
+                  + $" colourBatch={Settings.Advanced.CellBatchSize}"
+                  + $" batchSize={Settings.Advanced.AgentBatchSize}"
                   + $" cellScale={_sweepCellScale:F2} overlap={c.Overlap}"
                   + $" | wall={_sweepWall / n:F2}ms {quality} samples={n}");
             }
@@ -566,14 +556,11 @@ namespace Workshop
         void ApplySweep(int index)
         {
             var c = Sweep[index];
-            Settings.SeparateVariant = c.Variant;
-            Settings.Iterations = c.Iterations;
-            Settings.Omega = c.Omega;
-            Settings.MinDivisor = math.max(1, c.MinDivisor);
-            Settings.CacheNeighbours = c.Cache;
-            if (c.Cache) Settings.GatherEvery = math.max(1, c.GatherEvery);
-            if (c.ColourBatch > 0) Settings.ColourBatch = c.ColourBatch;
-            if (c.BatchSize > 0) Settings.BatchSize = c.BatchSize;
+            Settings.Advanced.SeparateVariant = c.Variant;
+            Settings.SolverPasses = c.Iterations;
+            Settings.Advanced.Relaxation = c.Omega;
+            if (c.ColourBatch > 0) Settings.Advanced.CellBatchSize = c.ColourBatch;
+            if (c.BatchSize > 0) Settings.Advanced.AgentBatchSize = c.BatchSize;
             // Overrides, not the serialized fields - see the _sweep* declarations.
             _sweepScanRadius = math.clamp(c.ScanRadius <= 0 ? 1 : c.ScanRadius, 1, MaxRadius);
             _sweepCellScale = c.CellScale <= 0f ? 1f : c.CellScale;
@@ -583,14 +570,11 @@ namespace Workshop
         void RestoreSweep()
         {
             if (!_sweepSaved) return;
-            Settings.SeparateVariant = _savedVariant;
-            Settings.Iterations = _savedIterations;
-            Settings.Omega = _savedOmega;
-            Settings.MinDivisor = _savedMinDivisor;
-            Settings.CacheNeighbours = _savedCache;
-            Settings.GatherEvery = _savedGatherEvery;
-            Settings.ColourBatch = _savedColourBatch;
-            Settings.BatchSize = _savedBatchSize;
+            Settings.Advanced.SeparateVariant = _savedVariant;
+            Settings.SolverPasses = _savedIterations;
+            Settings.Advanced.Relaxation = _savedOmega;
+            Settings.Advanced.CellBatchSize = _savedColourBatch;
+            Settings.Advanced.AgentBatchSize = _savedBatchSize;
             Time.captureDeltaTime = _savedCaptureDt;
             _sweepActive = false;
             _sweepSaved = false;
@@ -630,7 +614,7 @@ namespace Workshop
             var text =
                 $"agents             {Solver.Count:N0}\n"
               + $"solver wall        {_solveMs:F2} ms  (worst {_worstMs:F2})\n"
-              + $"solve diameter     {Settings.CollisionDiameter:F5}  (body {Settings.Radius * 2f:F5})\n"
+              + $"solve diameter     {Settings.CollisionDiameter:F5}  (body {Settings.BodyDiameter:F5})\n"
               + $"FAILING PAIRS      {pairs:N0}  (body {Solver.BodyOverlapPairs:N0})\n"
               + $"agents overlapping {Solver.OverlapAgents:N0} ({100f * Solver.OverlapAgents / Solver.Count:F2}%)\n"
               + $"worst penetration  {Solver.WorstPenetration * 100f:F2}% of solve dia\n"

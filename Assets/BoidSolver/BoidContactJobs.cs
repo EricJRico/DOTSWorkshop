@@ -51,7 +51,6 @@ namespace Workshop
         public float Diameter;
         public float Omega;
         public int MaxNeighbours;
-        public int MinDivisor;
         public int ScanRadius;
         public float2 PlayerPosition;
         public float PlayerReach;
@@ -136,7 +135,7 @@ namespace Workshop
                     found++;
                 }
 
-                var div = math.max(found, MinDivisor);
+                var div = found;
                 pred[i] = found > 0 ? pi + sum * (Omega / div) : pi;
                 ContactNormal[i] = normal;
                 NeighbourCount[i] = found;
@@ -163,7 +162,6 @@ namespace Workshop
         public float Diameter;
         public float Omega;
         public int MaxNeighbours;
-        public int MinDivisor;
         public int ScanRadius;
         public float2 PlayerPosition;
         public float PlayerReach;
@@ -251,7 +249,7 @@ namespace Workshop
                     found++;
                 }
 
-                var div = math.max(found, MinDivisor);
+                var div = found;
                 pred[i] = found > 0 ? pi + sum * (Omega / div) : pi;
                 ContactNormal[i] = normal;
                 NeighbourCount[i] = found;

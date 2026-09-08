@@ -668,7 +668,6 @@ namespace Workshop
         public float Diameter;
         public float Omega;
         public int MaxNeighbours;
-        public int MinDivisor;
         public float2 PlayerPosition;
         public float PlayerReach;
 
@@ -744,7 +743,7 @@ namespace Workshop
                 // under-corrects exactly the dense clusters that dominate the penetration metric.
                 // A floor on the divisor lets a sparse agent take a fuller step while a buried one
                 // stays damped. MinDivisor = 1 reproduces the original behaviour.
-                var div = math.max(found, MinDivisor);
+                var div = found;
                 pred[i] = found > 0 ? pi + sum * (Omega / div) : pi;
                 ContactNormal[i] = normal;
                 NeighbourCount[i] = found;
@@ -825,145 +824,6 @@ namespace Workshop
             Velocity[i] = v;
             // Only the last substep's positions are drawn, so the upload buffer is written once.
             if (WriteInstances) Instances[i] = new float4(p.x, p.y, speed, 0f);
-        }
-    }
-
-    /// <summary>
-    /// Walk the grid ONCE per frame and record each agent's neighbours. Every separation pass
-    /// after this reads the list instead of re-traversing 3x3 cells, which is where nearly all
-    /// the cost was: 8 iterations meant 8 full grid traversals to solve the same contact set.
-    /// Building the list once per frame and reusing it across the iterations is the standard
-    /// PBD arrangement (Macklin et al. 2014 do exactly this).
-    ///
-    /// The list is gathered on the predicted positions and the solve then moves agents by at
-    /// most the overlap depth, so a pair that was outside the radius at gather time cannot
-    /// become deeply overlapped within the frame - the next frame's gather catches it.
-    /// </summary>
-    [BurstCompile(FloatMode = FloatMode.Fast, FloatPrecision = FloatPrecision.Low)]
-    public struct GatherJob : IJobParallelFor
-    {
-        [ReadOnly] public NativeArray<float2> Predicted;
-        [ReadOnly] public NativeArray<int> Offset;
-        [ReadOnly] public NativeArray<GridInfo> Info;
-        [NativeDisableParallelForRestriction] [WriteOnly] public NativeArray<int> Neighbours;
-        /// <summary>How many entries this agent has in the list. NOT the contact count - it is
-        /// gathered at GatherDiameter, which is the solve diameter plus the skin, so it is about
-        /// 2.25x larger. Writing it into NeighbourCount is what made the cached path look bad:
-        /// FinalizeJob congestion gate reads NeighbourCount and stripped the seek drive far
-        /// harder on this path than on the grid path.</summary>
-        [WriteOnly] public NativeArray<int> GatherCount;
-        /// <summary>Gather radius: the solve diameter plus a skin, so the list stays valid as the
-        /// iterations move agents. Straight out of Verlet neighbour lists in molecular dynamics -
-        /// without it, pairs that come into contact during the solve are never recorded and the
-        /// overlap count explodes (measured: 30 pairs -> 11,062).</summary>
-        public float GatherDiameter;
-        public int MaxNeighbours;
-        public int Stride;
-
-        public void Execute(int i)
-        {
-            var g = Info[0];
-            var pi = Predicted[i];
-            var d2 = GatherDiameter * GatherDiameter;
-            var found = 0;
-            var b0 = i * Stride;
-
-            var cx = (int)((pi.x - g.Min.x) * g.InvCell);
-            var cy = (int)((pi.y - g.Min.y) * g.InvCell);
-            cx = math.clamp(cx, 1, g.Cols - 2);
-            cy = math.clamp(cy, 1, g.Rows - 2);
-
-            for (var pass = 0; pass < 3 && found < MaxNeighbours; pass++)
-            {
-                var y = cy + (pass == 0 ? 0 : (pass == 1 ? -1 : 1));
-                var b = y * g.Cols + cx;
-                var end = Offset[b + 2];
-                for (var k = Offset[b - 1]; k < end; k++)
-                {
-                    if (k == i) continue;
-                    var d = pi - Predicted[k];
-                    if (math.lengthsq(d) >= d2) continue;
-                    Neighbours[b0 + found] = k;
-                    if (++found >= MaxNeighbours) break;
-                }
-            }
-
-            GatherCount[i] = found;
-        }
-    }
-
-    /// <summary>
-    /// One Jacobi separation pass over the cached neighbour list. No grid traversal and no
-    /// distance culling of candidates that were never going to be neighbours - just the pairs
-    /// that actually touch.
-    /// </summary>
-    [BurstCompile(FloatMode = FloatMode.Fast, FloatPrecision = FloatPrecision.Low)]
-    public struct SeparateCachedJob : IJobParallelFor
-    {
-        [ReadOnly] public NativeArray<float2> Predicted;
-        [ReadOnly] public NativeArray<int> Neighbours;
-        [ReadOnly] public NativeArray<int> GatherCount;
-        [WriteOnly] public NativeArray<float2> Result;
-        [WriteOnly] public NativeArray<float2> ContactNormal;
-        /// <summary>The CONTACT count, matching what the grid path reports, so FinalizeJob
-        /// congestion gate behaves identically on both paths.</summary>
-        [WriteOnly] public NativeArray<int> NeighbourCount;
-        public float Diameter;
-        public float Omega;
-        public int MaxNeighbours;
-        public int Stride;
-        public float2 PlayerPosition;
-        public float PlayerReach;
-
-        public void Execute(int i)
-        {
-            var pi = Predicted[i];
-            var sum = float2.zero;
-            var normal = float2.zero;
-            var used = 0;
-
-            var count = GatherCount[i];
-            var b0 = i * Stride;
-            for (var m = 0; m < count && used < MaxNeighbours; m++)
-            {
-                var k = Neighbours[b0 + m];
-                var d = pi - Predicted[k];
-                var r2 = math.lengthsq(d);
-                if (r2 >= Diameter * Diameter) continue;
-
-                var dist = math.sqrt(r2);
-                float2 n;
-                if (dist > 1e-6f)
-                {
-                    n = d / dist;
-                }
-                else
-                {
-                    var h = (uint)(i * 73856093) ^ (uint)(k * 19349663);
-                    var a = (h & 1023u) * (6.2831853f / 1024f);
-                    n = new float2(math.cos(a), math.sin(a));
-                    dist = 0f;
-                }
-
-                sum += 0.5f * (Diameter - dist) * n;
-                normal += n;
-                used++;
-            }
-
-            var toPlayer = pi - PlayerPosition;
-            var pd2 = math.lengthsq(toPlayer);
-            if (pd2 < PlayerReach * PlayerReach)
-            {
-                var dist = math.sqrt(pd2);
-                var n = dist > 1e-6f ? toPlayer / dist : new float2(1f, 0f);
-                sum += (PlayerReach - dist) * n;
-                normal += n;
-                used++;
-            }
-
-            Result[i] = used > 0 ? pi + sum * (Omega / used) : pi;
-            ContactNormal[i] = normal;
-            NeighbourCount[i] = used;
         }
     }
 
