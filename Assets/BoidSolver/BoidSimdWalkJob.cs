@@ -57,6 +57,13 @@ namespace Workshop
 
         public void Execute(int m)
         {
+            // Positive `if` WRAPPING the body. Burst's CPU-feature analysis is per
+            // block: an early return does not establish the feature set, and nor does a
+            // compound `a && b` condition - both report `block only supports None` and
+            // fail the Arm build. Measurement probe, so non-x86 is a no-op.
+            if (Avx2.IsAvx2Supported)
+            {
+            // and an early return does NOT satisfy it - unguarded, this breaks the build on Apple
             var g = Info[0];
             var b = Cells[m];
             var px = (float*)PredX.GetUnsafeReadOnlyPtr();
@@ -146,22 +153,27 @@ namespace Workshop
                 Candidates[i] = cand;
                 Hits[i] = found;
                 var div = math.max(found, 1);
-                var sx = HSum(sumx) * (Omega / div);
-                var sy = HSum(sumy) * (Omega / div);
+                // Horizontal reduces inline: a helper is its own block and fails the Arm build.
+                var hx = Sse.add_ps(Avx.mm256_castps256_ps128(sumx), Avx.mm256_extractf128_ps(sumx, 1));
+                hx = Sse.add_ps(hx, Sse.movehl_ps(hx, hx));
+                hx = Sse.add_ss(hx, Sse.shuffle_ps(hx, hx, 0x55));
+                var hy = Sse.add_ps(Avx.mm256_castps256_ps128(sumy), Avx.mm256_extractf128_ps(sumy, 1));
+                hy = Sse.add_ps(hy, Sse.movehl_ps(hy, hy));
+                hy = Sse.add_ss(hy, Sse.shuffle_ps(hy, hy, 0x55));
+                var hnx = Sse.add_ps(Avx.mm256_castps256_ps128(nrmx), Avx.mm256_extractf128_ps(nrmx, 1));
+                hnx = Sse.add_ps(hnx, Sse.movehl_ps(hnx, hnx));
+                hnx = Sse.add_ss(hnx, Sse.shuffle_ps(hnx, hnx, 0x55));
+                var hny = Sse.add_ps(Avx.mm256_castps256_ps128(nrmy), Avx.mm256_extractf128_ps(nrmy, 1));
+                hny = Sse.add_ps(hny, Sse.movehl_ps(hny, hny));
+                hny = Sse.add_ss(hny, Sse.shuffle_ps(hny, hny, 0x55));
+                var sx = Sse.cvtss_f32(hx) * (Omega / div);
+                var sy = Sse.cvtss_f32(hy) * (Omega / div);
                 Sink[i] = new float2(px[i] + sx, py[i] + sy);
-                Normals[i] = new float2(HSum(nrmx), HSum(nrmy));
+                Normals[i] = new float2(Sse.cvtss_f32(hnx), Sse.cvtss_f32(hny));
+            }
             }
         }
 
-        static float HSum(v256 v)
-        {
-            var hi = Avx.mm256_extractf128_ps(v, 1);
-            var lo = Avx.mm256_castps256_ps128(v);
-            var s = Sse.add_ps(lo, hi);
-            s = Sse.add_ps(s, Sse.movehl_ps(s, s));
-            s = Sse.add_ss(s, Sse.shuffle_ps(s, s, 0x55));
-            return Sse.cvtss_f32(s);
-        }
     }
 
     /// <summary>Deinterleave float2 positions into the two float streams the SIMD walk reads.</summary>

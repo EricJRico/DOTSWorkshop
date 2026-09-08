@@ -165,6 +165,34 @@ Confirmed in a second session, and the quality question settled:
 Body overlaps identical, penetration slightly better, and 2.25 / 2.26 / 2.25 across three
 measurements in two sessions.
 
+### Portability: variant 8 is AVX2, and guarding it correctly is fiddly
+
+Apple Silicon is Arm and has no AVX2. Burst does not silently fall back - it validates instructions
+against the target CPU and **emits a compiler error**, so an unguarded AVX2 job means the project
+FAILS TO COMPILE on an M-series Mac, in the editor as much as in a player. Intel Macs are fine.
+
+Four guard formulations were tried and **all four failed**, each caught only by actually compiling
+the job for `ARMV8A_AARCH64` and counting `BC1200` errors:
+
+| guard | result |
+|---|---|
+| test in the caller, intrinsics in a helper | 49 errors - analysis is per BLOCK, does not follow a call |
+| `[MethodImpl(AggressiveInlining)]` on that helper | 37 errors |
+| `if (!supported) return;` early return | 4 errors |
+| `if (IsAvx2Supported && IsFmaSupported) { ... }` | 49 errors, all reporting `block only supports None` |
+| **`if (IsAvx2Supported) { ... }`, body inline** | **0 errors** |
+
+Two things to remember. The condition must be a **single property** - a compound `a && b` splits the
+basic block and the feature set comes back as `None`. And the intrinsics must be **inline in that
+block**, which is why the horizontal reduces are written out longhand four times instead of going
+through a `HSum` helper; the helper is its own block and fails.
+
+Burst's AVX2 target implies FMA, so testing `IsAvx2Supported` alone covers `mm256_fmadd_ps`.
+
+The scalar `else` branch is the Arm path and doubles as the readable statement of what the 8-wide
+block does. Verified: 0 `BC1200` for both SIMD jobs at `ARMV8A_AARCH64`, and x86 performance
+unchanged after the restructure (2.26 / 2.30 ms against variant 5 at 3.60).
+
 ### The AVX2 guard that silently measured the wrong job
 
 Worth recording because it is the same failure mode as the rest of this document. Variant 8 needs
