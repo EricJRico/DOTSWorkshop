@@ -189,9 +189,25 @@ through a `HSum` helper; the helper is its own block and fails.
 
 Burst's AVX2 target implies FMA, so testing `IsAvx2Supported` alone covers `mm256_fmadd_ps`.
 
-The scalar `else` branch is the Arm path and doubles as the readable statement of what the 8-wide
-block does. Verified: 0 `BC1200` for both SIMD jobs at `ARMV8A_AARCH64`, and x86 performance
-unchanged after the restructure (2.26 / 2.30 ms against variant 5 at 3.60).
+**On Arm the scalar `else` branch is DEAD CODE and never runs.** `CpuFeatureJob` returns false
+there, so `BoidSolver.Schedule` routes variant 8 to variant 5 before the job is ever scheduled. The
+`else` exists only so Burst will compile the job at all. That is just as well: it is a naive fused
+test-and-accumulate loop, and this project already measured that shape losing badly - variant 0 at
+0.844 against 0.631 for the compaction split. If it ever does become the Arm path it should be
+replaced, not trusted.
+
+Verified: 0 `BC1200` for both SIMD jobs at `ARMV8A_AARCH64`, and x86 performance unchanged after the
+restructure (2.26 / 2.30 ms against variant 5 at 3.60).
+
+### None of the Arm behaviour has been RUN, only compiled
+
+There is no M-series machine here. What is verified is that it builds and which branch it takes;
+what is NOT verified is how fast any of it is on Apple Silicon. **The 43% is an x86 result.** A Mac
+gets variant 5's behaviour, and even variant 5's 3.6 ms does not transfer - different CPU, clocks
+and memory system. A NEON path is writable (Burst exposes `Unity.Burst.Intrinsics.Arm.Neon`, and the
+SoA groundwork is done) but should not be written blind: every SIMD prediction in this session was
+wrong until measured. Run `SweepConfigs` on an M-series machine first; the harness needs no setup
+beyond pressing play.
 
 ### The AVX2 guard that silently measured the wrong job
 
