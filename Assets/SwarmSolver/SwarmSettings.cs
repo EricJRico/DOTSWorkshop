@@ -25,10 +25,11 @@ namespace Workshop
         [FormerlySerializedAs("Radius")]
         public float EnemyRadius = 0.15f;
 
-        [Tooltip("How much room each enemy keeps between itself and its neighbours. Turn it up " +
-                 "and the crowd spreads out; turn it down and it packs in tighter. If you set it " +
-                 "smaller than an enemy is wide, they will visibly overlap.")]
-        public float Separation = 0.315f;
+        [Tooltip("The gap each enemy keeps between its edge and its neighbours' edges. Turn it " +
+                 "up and the crowd spreads out; set it to 0 and they pack in shoulder to " +
+                 "shoulder. This is space ON TOP OF their size, so changing Enemy Radius does not " +
+                 "change the gap and changing the gap does not change their size.")]
+        public float Separation = 0.015f;
 
         [Header("Movement")]
 
@@ -113,8 +114,11 @@ namespace Workshop
             public int BatchSize = 64;
         }
 
-        /// <summary>The distance the solver drives enemies apart to.</summary>
-        public float CollisionDiameter => Separation;
+        /// <summary>
+        /// Centre-to-centre distance the solver drives enemies apart to. Separation is a GAP
+        /// between edges, not this number - see BoidSettings.CollisionDiameter for why.
+        /// </summary>
+        public float CollisionDiameter => BodyDiameter + Mathf.Max(0f, Separation);
 
         /// <summary>The physical body. Only drawing and overlap reporting care about this.</summary>
         public float BodyDiameter => EnemyRadius * 2f;

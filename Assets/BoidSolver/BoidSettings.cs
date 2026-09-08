@@ -25,11 +25,12 @@ namespace Workshop
         [FormerlySerializedAs("Radius")] [FormerlySerializedAs("AgentRadius")]
         public float EnemyRadius = 0.15f;
 
-        [Tooltip("How much room each enemy keeps between itself and its neighbours. Turn it up " +
-                 "and the crowd spreads out; turn it down and it packs in tighter. If you set it " +
-                 "smaller than an enemy is wide, they will visibly overlap.")]
+        [Tooltip("The gap each enemy keeps between its edge and its neighbours' edges. Turn it up " +
+                 "and the crowd spreads out; set it to 0 and they pack in shoulder to shoulder. " +
+                 "This is space ON TOP OF their size, so changing Enemy Radius does not change " +
+                 "the gap and changing the gap does not change their size.")]
         [FormerlySerializedAs("SeparationDistance")]
-        public float Separation = 0.128f;
+        public float Separation = 0.033f;
 
         [Header("Movement")]
 
@@ -117,8 +118,17 @@ namespace Workshop
             public int CellsPerAgent = 4;
         }
 
-        /// <summary>The distance the solver drives enemies apart to. What every job calls Diameter.</summary>
-        public float CollisionDiameter => Separation;
+        /// <summary>
+        /// Centre-to-centre distance the solver drives enemies apart to. What every job calls
+        /// Diameter.
+        ///
+        /// Separation is a GAP between edges, not this number. An earlier version exposed the
+        /// centre distance directly and it was unusable: setting a radius of 0.5 and a separation
+        /// of 0.25 asked for centres a quarter apart inside bodies a full unit wide, so the crowd
+        /// piled into itself. Adding the gap to the body means the two settings genuinely do not
+        /// affect each other, which is the whole point of splitting them.
+        /// </summary>
+        public float CollisionDiameter => BodyDiameter + Mathf.Max(0f, Separation);
 
         /// <summary>The physical body. Only the drawing and the overlap metric care about this.</summary>
         public float BodyDiameter => EnemyRadius * 2f;
@@ -128,12 +138,10 @@ namespace Workshop
 #if UNITY_EDITOR
         void OnValidate()
         {
-            // Not clamped, just reported: overlapping on purpose is a legitimate thing to ask for
-            // and the overlap readout will show it honestly.
-            if (Separation < BodyDiameter)
+            if (Separation < 0f)
                 Debug.LogWarning(
-                    $"{name}: Separation ({Separation:F4}) is smaller than an enemy is wide " +
-                    $"({BodyDiameter:F4}), so enemies will overlap.", this);
+                    $"{name}: Separation is a gap and cannot be negative - treating it as 0, " +
+                    "which packs enemies shoulder to shoulder.", this);
         }
 #endif
     }
