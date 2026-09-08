@@ -31,6 +31,7 @@ MonoBehaviour:
   CrowdFull: 0
   AblationStage: 0
   SeparateVariant: 1
+  MinDivisor: 1
   SeparateBenchmark: 0
   CheckOverlap: 1
   BatchSize: 128

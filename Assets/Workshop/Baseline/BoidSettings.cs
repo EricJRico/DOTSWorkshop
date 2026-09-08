@@ -116,6 +116,13 @@ namespace Workshop
                  "updates. Kept as the negative result.")]
         public int SeparateVariant = 1;
 
+        [Tooltip("Floor on the divisor used to average the contact corrections. The solver divides " +
+                 "by the live contact count, which is the safe Jacobi averaging but under-corrects " +
+                 "the dense clusters that dominate the penetration metric. A floor lets a sparse " +
+                 "agent take a fuller step while a buried one stays damped. 1 = original behaviour. " +
+                 "Only the coloured Gauss-Seidel path reads this.")]
+        public int MinDivisor = 1;
+
         [Tooltip("After the crowd converges, time both separation variants back to back on the " +
                  "SAME crowd state and log the result. Timing them on separate runs is no good - " +
                  "the crowd is never in the same place twice.")]

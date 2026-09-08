@@ -570,6 +570,178 @@ namespace Workshop
     }
 
     /// <summary>
+    /// Buckets every non-empty cell into one of four colour lists, by whether its column and row
+    /// indices are odd or even. Two cells of the same colour are always 2 apart, and an agent only
+    /// ever reads one cell out, so no two agents of the same colour can be in contact. A colour
+    /// can therefore be solved fully in parallel, in place, with no ping-pong buffer.
+    ///
+    /// Single-threaded over the cells, like ScanJob and for the same reason: it is a scan over
+    /// ~39,000 cells, it skips the empty ones, and it runs once per grid build rather than once
+    /// per pass.
+    /// </summary>
+    [BurstCompile]
+    public struct ColourCellsJob : IJob
+    {
+        [ReadOnly] public NativeArray<int> Offset;
+        [ReadOnly] public NativeArray<GridInfo> Info;
+        public NativeList<int> Colour0;
+        public NativeList<int> Colour1;
+        public NativeList<int> Colour2;
+        public NativeList<int> Colour3;
+
+        public void Execute()
+        {
+            var g = Info[0];
+            Colour0.Clear();
+            Colour1.Clear();
+            Colour2.Clear();
+            Colour3.Clear();
+
+            // The border ring is skipped here rather than tested per work item: GridSetupJob pads
+            // the grid by 2 cells a side, so those cells are empty anyway and the 3x3 scan of an
+            // interior cell never leaves the grid.
+            for (var cy = 1; cy < g.Rows - 1; cy++)
+            {
+                var row = cy * g.Cols;
+                for (var cx = 1; cx < g.Cols - 1; cx++)
+                {
+                    var b = row + cx;
+                    if (Offset[b] == Offset[b + 1]) continue;   // empty cell
+                    switch ((cx & 1) + 2 * (cy & 1))
+                    {
+                        case 0: Colour0.Add(b); break;
+                        case 1: Colour1.Add(b); break;
+                        case 2: Colour2.Add(b); break;
+                        default: Colour3.Add(b); break;
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gauss-Seidel separation over one colour of cells. Same contact math and the same compacted
+    /// candidate walk as <see cref="SeparateCompactJob"/>; what differs is WHEN an agent sees the
+    /// corrections made to its neighbours.
+    ///
+    /// Jacobi reads a frozen snapshot, so a correction takes a whole pass to reach the agent next
+    /// to you. Here the four colours run one after another, so by the time colour 1 runs it reads
+    /// colour 0 positions that have already been corrected, and information crosses the crowd
+    /// within a single pass instead of one cell per pass. For this class of problem that is worth
+    /// roughly a factor of two in passes.
+    ///
+    /// Safety comes from the colouring, not from a barrier: same-colour cells are 2 apart and the
+    /// scan reaches 1 cell, so no two work items in this dispatch can touch the same agent. That
+    /// makes the in-place write sound AND deterministic - unlike an unordered Gauss-Seidel, the
+    /// result does not depend on which worker picked up which cell.
+    ///
+    /// Agents inside ONE cell are the same colour and do touch each other. They are handled
+    /// sequentially inside the work item, in index order, so they do see each other updated. Still
+    /// deterministic, because the sort fixes that order.
+    ///
+    /// Omega has to come DOWN from the Jacobi value. 1.8 was compensating for Jacobi averaging
+    /// being conservative, and keeping it here over-corrects.
+    /// </summary>
+    [BurstCompile(FloatMode = FloatMode.Fast, FloatPrecision = FloatPrecision.Low)]
+    public unsafe struct SeparateColouredJob : IJobParallelForDefer
+    {
+        public const int Cap = BoidSolver.MaxNeighbourStride;
+
+        /// <summary>Cell indices of this colour. One work item per CELL, not per agent.</summary>
+        [ReadOnly] public NativeArray<int> Cells;
+        [NativeDisableParallelForRestriction] public NativeArray<float2> Predicted;
+        [ReadOnly] public NativeArray<int> Offset;
+        [ReadOnly] public NativeArray<GridInfo> Info;
+        [NativeDisableParallelForRestriction] [WriteOnly] public NativeArray<float2> ContactNormal;
+        [NativeDisableParallelForRestriction] [WriteOnly] public NativeArray<int> NeighbourCount;
+        public float Diameter;
+        public float Omega;
+        public int MaxNeighbours;
+        public int MinDivisor;
+        public float2 PlayerPosition;
+        public float PlayerReach;
+
+        public void Execute(int m)
+        {
+            var g = Info[0];
+            var b = Cells[m];
+            var cy = b / g.Cols;
+            var cx = b - cy * g.Cols;
+
+            var pred = (float2*)Predicted.GetUnsafePtr();
+            var d2 = Diameter * Diameter;
+            var cand = stackalloc int[Cap];
+
+            var last = Offset[b + 1];
+            for (var i = Offset[b]; i < last; i++)
+            {
+                var pi = pred[i];
+
+                var n = 0;
+                for (var pass = 0; pass < 3; pass++)
+                {
+                    var y = cy + (pass == 0 ? 0 : (pass == 1 ? -1 : 1));
+                    var bb = y * g.Cols + cx;
+                    var end = Offset[bb + 2];
+                    for (var k = Offset[bb - 1]; k < end; k++)
+                    {
+                        var d = pi - pred[k];
+                        var r2 = math.lengthsq(d);
+                        var w = math.min(n, Cap - 1);
+                        cand[w] = k;
+                        n = math.min(n + math.select(0, 1, r2 < d2 & k != i), Cap);
+                    }
+                }
+
+                var sum = float2.zero;
+                var normal = float2.zero;
+                var found = math.min(n, MaxNeighbours);
+                for (var q = 0; q < found; q++)
+                {
+                    var k = cand[q];
+                    var d = pi - pred[k];
+                    var dist = math.length(d);
+                    float2 nrm;
+                    if (dist > 1e-6f)
+                    {
+                        nrm = d / dist;
+                    }
+                    else
+                    {
+                        var h = (uint)(i * 73856093) ^ (uint)(k * 19349663);
+                        var a = (h & 1023u) * (6.2831853f / 1024f);
+                        nrm = new float2(math.cos(a), math.sin(a));
+                        dist = 0f;
+                    }
+
+                    sum += 0.5f * (Diameter - dist) * nrm;
+                    normal += nrm;
+                }
+
+                var toPlayer = pi - PlayerPosition;
+                var pd2 = math.lengthsq(toPlayer);
+                if (pd2 < PlayerReach * PlayerReach)
+                {
+                    var dist = math.sqrt(pd2);
+                    var nrm = dist > 1e-6f ? toPlayer / dist : new float2(1f, 0f);
+                    sum += (PlayerReach - dist) * nrm;
+                    normal += nrm;
+                    found++;
+                }
+
+                // Dividing by the live contact count is the safe Jacobi averaging, but it
+                // under-corrects exactly the dense clusters that dominate the penetration metric.
+                // A floor on the divisor lets a sparse agent take a fuller step while a buried one
+                // stays damped. MinDivisor = 1 reproduces the original behaviour.
+                var div = math.max(found, MinDivisor);
+                pred[i] = found > 0 ? pi + sum * (Omega / div) : pi;
+                ContactNormal[i] = normal;
+                NeighbourCount[i] = found;
+            }
+        }
+    }
+
+    /// <summary>
     /// Derive velocity from the solved positions and commit. With TangentialSlide on, the part of
     /// velocity that drives straight into the contact normal is removed, so a blocked agent slides
     /// around the pack rather than shoving into it - Weiss et al. 2017 section 4.5, reduced to one

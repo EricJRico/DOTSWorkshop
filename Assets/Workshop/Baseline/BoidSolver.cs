@@ -42,6 +42,7 @@ namespace Workshop
         NativeArray<float4> _partialBounds;
         NativeArray<GridInfo> _info;
         NativeArray<int> _stats;
+        NativeList<int> _colour0, _colour1, _colour2, _colour3;
 
         int _count;
         int _slices;
@@ -98,6 +99,11 @@ namespace Workshop
             _offset = new NativeArray<int>(maxCells + 1, Allocator.Persistent);
             _partialBounds = new NativeArray<float4>(_slices, Allocator.Persistent);
             _info = new NativeArray<GridInfo>(1, Allocator.Persistent);
+            var colourCap = math.max(1024, maxCells / 4);
+            _colour0 = new NativeList<int>(colourCap, Allocator.Persistent);
+            _colour1 = new NativeList<int>(colourCap, Allocator.Persistent);
+            _colour2 = new NativeList<int>(colourCap, Allocator.Persistent);
+            _colour3 = new NativeList<int>(colourCap, Allocator.Persistent);
             _stats = new NativeArray<int>(
                 Unity.Jobs.LowLevel.Unsafe.JobsUtility.ThreadIndexCount * OverlapJob.Stride,
                 Allocator.Persistent);
@@ -181,6 +187,19 @@ namespace Workshop
                 // trades a little of that back for contacts that form mid-solve.
                 var gatherEvery = math.max(1, s.GatherEvery);
 
+                var coloured = !s.CacheNeighbours && s.SeparateVariant == 3;
+                if (coloured)
+                {
+                    // Once per grid build, not once per pass: the buckets only change when the
+                    // sort changes.
+                    handle = new ColourCellsJob
+                    {
+                        Offset = _offset, Info = _info,
+                        Colour0 = _colour0, Colour1 = _colour1,
+                        Colour2 = _colour2, Colour3 = _colour3
+                    }.Schedule(handle);
+                }
+
                 for (var it = 0; it < s.Iterations; it++)
                 {
                     if (s.CacheNeighbours)
@@ -206,6 +225,27 @@ namespace Workshop
                             Stride = MaxNeighbourStride,
                             PlayerPosition = target, PlayerReach = reach
                         }.Schedule(_count, batch, handle);
+                    }
+                    else if (coloured)
+                    {
+                        // Four dispatches, one per colour, each writing in place. They must run in
+                        // order - that ordering IS the Gauss-Seidel step - so each depends on the
+                        // previous, and the chain is the whole point rather than a missed
+                        // parallelisation.
+                        for (var c = 0; c < 4; c++)
+                        {
+                            var cells = c == 0 ? _colour0 : c == 1 ? _colour1 : c == 2 ? _colour2 : _colour3;
+                            handle = new SeparateColouredJob
+                            {
+                                Cells = cells.AsDeferredJobArray(),
+                                Predicted = _predicted, Offset = _offset, Info = _info,
+                                ContactNormal = _contactNormal, NeighbourCount = _neighbourCount,
+                                Diameter = s.CollisionDiameter, Omega = s.Omega,
+                                MaxNeighbours = math.min(s.MaxNeighbours, SeparateCompactJob.Cap - 1),
+                                MinDivisor = math.max(1, s.MinDivisor),
+                                PlayerPosition = target, PlayerReach = reach
+                            }.Schedule(cells, 64, handle);
+                        }
                     }
                     else if (s.SeparateVariant == 2)
                     {
@@ -243,7 +283,8 @@ namespace Workshop
                             PlayerPosition = target, PlayerReach = reach
                         }.Schedule(_count, batch, handle);
                     }
-                    Swap(ref _predicted, ref _scratch);
+                    // The coloured job corrects in place, so there is no second buffer to swap.
+                    if (!coloured) Swap(ref _predicted, ref _scratch);
 
                     // Ablation variants run IN ADDITION to the real solve, writing to a throwaway
                     // buffer, so the crowd state they measure is the real one.
@@ -560,6 +601,10 @@ namespace Workshop
             _partialBounds.Dispose();
             _info.Dispose();
             _stats.Dispose();
+            _colour0.Dispose();
+            _colour1.Dispose();
+            _colour2.Dispose();
+            _colour3.Dispose();
             _allocated = false;
             _count = 0;
         }
