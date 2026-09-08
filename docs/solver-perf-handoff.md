@@ -8,8 +8,12 @@ threads), Unity 6000.3.22f1, editor play mode.
 | | check on | check off |
 |---|---|---|
 | start of session | 7.9 ms | |
-| previous shipping job, variant 3 | 5.50 / 5.60 ms | 4.06 / 4.01 ms |
-| **now, variant 5** | **5.12 ms** | **3.62 ms** |
+| variant 3, the job this session started with | 5.50 / 5.60 ms | 4.06 / 4.01 / 3.97 ms |
+| variant 5, rsqrt in the contact math | 5.12 ms | 3.62 / 3.50 / 3.51 ms |
+| **now, variant 8, 8-wide masked SoA** | **3.78 ms** | **2.25 ms** |
+
+**3.97 -> 2.25 ms over the session, 43%, with the quality metric slightly BETTER at the end than
+at the start.**
 
 Reproduced in a second session, same shape: variant 3 bookends 3.94 / 4.03 check off, variant 5 at
 **3.50**. So the win is 0.42 and 0.49 ms across two independent sessions - call it **~0.45 ms,
@@ -124,6 +128,56 @@ in-frame cost. The ranking between them holds; the absolute values do not.
 - **Batch size** — not a lever. `ColourBatch` 16/32/64 all land at 5.51–5.54 ms; larger is slightly
   worse. `BatchSize` is now a `SweepConfig` field too; see the sweep below for the result.
 - **Distance LOD** — does not apply. The whole crowd is on screen at one camera distance.
+
+## Variant 8: 8-wide masked accumulation over SoA - 3.66 -> 2.25 ms
+
+The one that worked, and it only worked because BOTH blockers went at once. Burst's remarks (below)
+say the scalar loop is stopped by the compaction index AND by `float2`, separately - probes that
+removed only one changed nothing. Variant 8 removes both and hand-writes the 8-wide block rather
+than trusting the auto-vectoriser, which at 3.70 candidates per run never reaches its own >= 8 guard.
+
+The candidate list is gone. Phase 2 is fused into phase 1 and the contact math runs on all 8 lanes
+under a mask, so ~24 lanes of masked work replaces ~11 candidates of scalar collection plus ~6
+keepers of scalar contact math. That trade is only favourable because a masked lane costs under a
+cycle while a scalar keeper measured ~16.
+
+One session, interleaved so each row inherits the same crowd:
+
+| config | wall, check off | mean pen | body overlaps |
+|---|---|---|---|
+| variant 5 (reference A) | 3.63 ms | 6.65% | 464 |
+| **variant 8** | **2.25 ms** | 7.22% | **402** |
+| variant 5 (reference B) | 3.69 ms | 7.28% | 558 |
+| variant 3 | 3.97 ms | | |
+
+The two references agree to **0.06 ms** against a 1.41 ms effect. **Quality improved**: body
+overlaps 402 against 464 and 558, below both, with mean penetration between them. That is the
+correctness check that matters - a job quietly missing neighbours would read WORSE, not better.
+Better is what removing the `MaxNeighbours` cap should do, since more contacts get counted.
+
+### What made it work where three previous SIMD attempts failed
+
+- The 4-wide attempt kept the compaction store, so it kept the barrier. This deletes it.
+- `ColouredAblate3` vectorized but its 32-wide path never ran. This is unconditional, no guard.
+- SoA was dismissed on its own and does nothing on its own. It is a PREREQUISITE, not a fix.
+
+### The pipeline stays AoS
+
+Only the separation loop is SoA: one deinterleave before the six passes, one interleave after, about
+0.06 ms of linear work. `ScatterJob`, `SteerJob`, `FinalizeJob` and all ten variant jobs are
+untouched - which is what keeps variants 3 and 5 alive as bookends. Converting the whole pipeline
+would have put the measurement methodology at risk for no extra speed.
+
+### Two deliberate behaviour changes
+
+`MaxNeighbours` is not applied - a masked accumulation has no "first 16" - and the rsqrt is raw
+`vrsqrtps` with no Newton step. Both are judged by the body-overlap column above, which improved.
+
+### Where it does NOT help
+
+The SIMD walk LOSES at larger scan radii: 0.94x at R=2 and 0.76x at R=3, because runs there hold
+1.52 and 1.01 candidates and eight lanes are mostly waste. R=1 packs 3.70 into a block. This is
+more evidence that the tight 3x3 grid is the right structure, not just the default.
 
 ## What Burst actually says, and how to ask it
 

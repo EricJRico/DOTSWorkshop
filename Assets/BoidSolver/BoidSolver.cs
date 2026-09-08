@@ -213,7 +213,10 @@ namespace Workshop
             // 6 = + phase 1 hands phase 2 the delta and r2 it already had. All three share the
             // grid, the colouring and the dispatch shape, so a sweep row isolates one change.
             var variant = s.SeparateVariant;
-            var radiusPath = !s.CacheNeighbours && variant >= 4 && variant <= 7;
+            var radiusPath = !s.CacheNeighbours && variant >= 4 && variant <= 8;
+            // Variant 8 works on float streams. The pipeline stays AoS: deinterleave once before
+            // the passes, run all of them in place on the streams, interleave back for Finalize.
+            var soaPath = !s.CacheNeighbours && variant == 8;
             var radius = radiusPath ? math.clamp(ScanRadius, 1, SeparateColouredRJob.MaxRadius) : 1;
             var spacing = radius + 1;
             var colours = spacing * spacing;
@@ -315,6 +318,14 @@ namespace Workshop
                     }.Schedule(handle);
                 }
 
+                if (soaPath)
+                {
+                    handle = new DeinterleaveJob
+                    {
+                        Source = _predicted, X = _predX, Y = _predY
+                    }.Schedule(_count, batch, handle);
+                }
+
                 for (var it = 0; it < s.Iterations; it++)
                 {
                     if (s.CacheNeighbours)
@@ -354,7 +365,18 @@ namespace Workshop
                         for (var c = 0; c < colours; c++)
                         {
                             var cells = _colourR[c];
-                            if (variant == 7)
+                            if (variant == 8)
+                                handle = new SeparateSoaMaskedJob
+                                {
+                                    Cells = cells.AsDeferredJobArray(),
+                                    PredX = _predX, PredY = _predY,
+                                    Offset = _offset, Info = _info,
+                                    ContactNormal = _contactNormal, NeighbourCount = _neighbourCount,
+                                    Diameter = s.CollisionDiameter, Omega = s.Omega,
+                                    MinDivisor = minDiv, ScanRadius = radius,
+                                    PlayerPosition = target, PlayerReach = reach
+                                }.Schedule(cells, cb, handle);
+                            else if (variant == 7)
                                 handle = new SeparateColouredSplitJob
                                 {
                                     Cells = cells.AsDeferredJobArray(),
@@ -514,6 +536,14 @@ namespace Workshop
                             }.Schedule(_count, batch, handle);
                             break;
                     }
+                }
+
+                if (soaPath)
+                {
+                    handle = new InterleaveJob
+                    {
+                        X = _predX, Y = _predY, Destination = _predicted
+                    }.Schedule(_count, batch, handle);
                 }
 
                 if (MeasureMotion)
