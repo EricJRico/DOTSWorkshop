@@ -208,6 +208,14 @@ namespace Workshop
               + $" | delta compact={delta[1]:E2} simd={delta[2]:E2}"
               + $" | pairs={Solver.OverlapPairs}");
 
+            var stage = new double[5];
+            Solver.TimeStages(stage, 6);
+            var names = new[] { "steer", "gridBuild", "colour", "finalize", "overlapCheck" };
+            var line = "STAGE|";
+            var total = 0d;
+            for (var q = 0; q < stage.Length; q++) { line += $" {names[q]}={stage[q]:F3}"; total += stage[q]; }
+            UnityEngine.Debug.Log(line + $" | total={total:F3} ms");
+
             // Where the 0.46 ms step between stage 5 and stage 6 actually goes. 7 is the same
             // reject written as a mask, 8 adds the compaction store, 9 walks it four at a time.
             for (var st = 5; st <= 9; st++) Solver.TimeAblation(st, 2);

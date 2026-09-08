@@ -135,9 +135,13 @@ namespace Workshop
         public bool SeparateBenchmark;
 
         [Header("Verification")]
-        [Tooltip("Count genuinely interpenetrating pairs (centres closer than 2*Radius) every " +
-                 "frame, on the solved positions. This is the solver's correctness check, so it " +
-                 "is on by default; it costs one extra grid build.")]
+        [Tooltip("Count pairs closer than the constraint the solver targets, every frame, on the " +
+                 "solved positions. This is the solver correctness check, so it is on by default - " +
+                 "but know what it costs. MEASURED 1.58 ms of a 5.4 ms frame at 50,000 agents, " +
+                 "because it needs a SECOND full grid build on the solved positions and then scans " +
+                 "at the solve diameter, which fires on ~137,000 pairs. Turning it off takes the " +
+                 "frame to 4.02 ms. None of it would ship, so quote 4.02 as the solver cost and " +
+                 "5.4 as the cost of measuring it.")]
         public bool CheckOverlap = true;
 
         [Header("Jobs")]

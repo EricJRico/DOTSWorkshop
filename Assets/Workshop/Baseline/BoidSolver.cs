@@ -580,6 +580,126 @@ namespace Workshop
             for (var v = 0; v < variants; v++) ms[v] /= reps;
         }
 
+        /// <summary>
+        /// Time the non-separation work in the frame. The separation job has an ablation harness
+        /// and an A/B timer; nothing else ever had either, so its cost was only ever inferred by
+        /// subtracting the pass slope from the total.
+        ///
+        /// The grid chain is timed as ONE unit rather than job by job, because Hash, Scan and
+        /// Scatter are only idempotent as a cycle: Hash fills CellCount, Scan turns it into Offset
+        /// AND zeroes CellCount for next time, and Scatter decrements Offset down to the cell
+        /// starts. Timing Scatter on its own in a loop decrements Offset once per rep and it walks
+        /// off the front of the array - which is exactly what the first version of this did.
+        ///
+        /// Everything here writes to buffers the next frame overwrites, and the chain leaves
+        /// CellCount zeroed and Offset in the layout the solver expects, so running it mid-play
+        /// does not disturb the simulation.
+        /// </summary>
+        public void TimeStages(double[] ms, int reps)
+        {
+            for (var i = 0; i < ms.Length; i++) ms[i] = 0d;
+            if (!_allocated || _count == 0 || reps <= 0) return;
+
+            var s = _settings;
+            var batch = s.BatchSize;
+            var stride = (_count + _slices - 1) / _slices;
+            var watch = new System.Diagnostics.Stopwatch();
+
+            // 0 Steer. Writes the SORT buffers, not the live velocity - running the real one six
+            // times would integrate the crowd six extra frames.
+            watch.Restart();
+            for (var r = 0; r < reps; r++)
+                new SteerJob
+                {
+                    Position = _position, Velocity = _sortVelocity, Predicted = _sortPredicted,
+                    Target = float2.zero, Speed = s.Speed, Blend = s.SteerBlend, DeltaTime = 1f / 60f
+                }.Schedule(_count, batch).Complete();
+            ms[0] = watch.Elapsed.TotalMilliseconds / reps;
+
+            // 1 Whole grid build: bounds reduce, sizing, hash, prefix scan, counting-sort scatter.
+            watch.Restart();
+            for (var r = 0; r < reps; r++) GridChain(stride, batch).Complete();
+            ms[1] = watch.Elapsed.TotalMilliseconds / reps;
+
+            // 2 Colour bucketing, coloured path only.
+            watch.Restart();
+            for (var r = 0; r < reps; r++)
+                new ColourCellsJob
+                {
+                    Offset = _offset, Info = _info,
+                    Colour0 = _colour0, Colour1 = _colour1, Colour2 = _colour2, Colour3 = _colour3
+                }.Schedule().Complete();
+            ms[2] = watch.Elapsed.TotalMilliseconds / reps;
+
+            // 3 Finalize.
+            watch.Restart();
+            for (var r = 0; r < reps; r++)
+                new FinalizeJob
+                {
+                    Position = _sortPosition, Velocity = _sortVelocity, Predicted = _predicted,
+                    ContactNormal = _contactNormal, NeighbourCount = _neighbourCount,
+                    Instances = _instances, Target = float2.zero, InvDeltaTime = 60f,
+                    MaxSpeed = s.MaxSpeed, TangentialSlide = s.TangentialSlide,
+                    WriteInstances = true, CrowdFree = s.CrowdFree, CrowdFull = s.CrowdFull
+                }.Schedule(_count, batch).Complete();
+            ms[3] = watch.Elapsed.TotalMilliseconds / reps;
+
+            // 4 The verification check: a SECOND full grid build plus the overlap scan and reduce.
+            // This is the number that matters most here, because none of it would ship.
+            watch.Restart();
+            for (var r = 0; r < reps; r++)
+            {
+                var h = GridChain(stride, batch);
+                h = new ClearStatsJob { Stats = _stats }.Schedule(h);
+                h = new OverlapJob
+                {
+                    Position = _position, Offset = _offset, Info = _info,
+                    SolveDiameter = s.CollisionDiameter, BodyDiameter = s.Radius * 2f, Stats = _stats
+                }.Schedule(_count, batch, h);
+                new ReduceStatsJob
+                {
+                    Stats = _stats, Threads = Unity.Jobs.LowLevel.Unsafe.JobsUtility.ThreadIndexCount
+                }.Schedule(h).Complete();
+            }
+            ms[4] = watch.Elapsed.TotalMilliseconds / reps;
+        }
+
+        /// <summary>
+        /// One full grid build against the live positions, writing the sort buffers. Self
+        /// contained and repeatable: Scan zeroes CellCount behind itself and Scatter consumes the
+        /// Offset that Scan just wrote, so the arrays end where they started.
+        /// </summary>
+        JobHandle GridChain(int stride, int batch)
+        {
+            var handle = new BoundsJob
+            {
+                Position = _position, Partial = _partialBounds, Stride = stride
+            }.Schedule(_slices, 1);
+
+            handle = new GridSetupJob
+            {
+                Partial = _partialBounds, Info = _info, CellSize = _settings.CollisionDiameter,
+                MaxCells = _cellCount.Length, Count = _count
+            }.Schedule(handle);
+
+            handle = new HashJob
+            {
+                Position = _position, Info = _info, CellOf = _cellOf, CellCount = _cellCount
+            }.Schedule(_count, batch, handle);
+
+            handle = new ScanJob
+            {
+                CellCount = _cellCount, Offset = _offset, Info = _info, Count = _count
+            }.Schedule(handle);
+
+            return new ScatterJob
+            {
+                CellOf = _cellOf, Position = _position, Predicted = _predicted, Velocity = _velocity,
+                Offset = _offset, SortedPosition = _sortPosition,
+                SortedPredicted = _sortPredicted, SortedVelocity = _sortVelocity
+            }.Schedule(_count, batch, handle);
+        }
+
         static void Swap(ref NativeArray<float2> a, ref NativeArray<float2> b)
         {
             (a, b) = (b, a);
