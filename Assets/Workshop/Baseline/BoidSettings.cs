@@ -71,13 +71,19 @@ namespace Workshop
                  "cache silently loses contacts that form mid-solve.")]
         public float GatherSkin = 0.5f;
 
-        [Tooltip("Cache each agent's neighbours in a list and have the separation passes read it " +
-                 "instead of re-walking the grid. MEASURED WORSE, left here because the result is " +
-                 "counter-intuitive: it is 1.5x faster (5.16 ms vs 7.98 ms wall at 50k on 4 " +
-                 "workers) but leaves 8x the overlap (242 pairs vs 30), because the contact set " +
-                 "changes too much within a frame for a cached list to stay valid. Re-gathering " +
-                 "more often does not rescue it - every 1 pass instead of every 8 was both slower " +
-                 "(16.50 ms) and worse (784 pairs).")]
+        [Tooltip("Cache each agent neighbours in a list and have the separation passes read it " +
+                 "instead of re-walking the grid. MEASURED NOT WORTH IT, and the reason changed. " +
+                 "The old note said it was 1.5x faster but left 8x the overlap. The overlap half " +
+                 "was an artefact: GatherJob wrote the GATHER count into NeighbourCount, and it " +
+                 "gathers at diameter * (1 + skin), so FinalizeJob congestion gate saw ~2.25x the " +
+                 "neighbours and stripped the seek drive far harder on this path than on the grid " +
+                 "path. It was comparing two different simulations. With the count fixed, quality " +
+                 "matches: 6.98% mean penetration against 6.61% uncached, inside the run-to-run " +
+                 "noise. But the speed win is gone too, because the cost it existed to avoid was " +
+                 "the old branchy grid walk, and SeparateCompactJob already removed that. " +
+                 "Measured wall: 6.76 ms at GatherEvery 8 against 6.96 ms uncached - 3%, for 3.2 " +
+                 "MB and an extra dispatch. Rebuilding more often only costs: 8.03 ms every 4, " +
+                 "10.65 ms every 2.")]
         public bool CacheNeighbours;
 
         [Tooltip("Rebuild the neighbour list every N separation iterations. 1 = rebuild every pass " +

@@ -34,6 +34,7 @@ namespace Workshop
         NativeArray<float2> _sortVelocity;
         NativeArray<float2> _contactNormal;
         NativeArray<int> _neighbourCount;
+        NativeArray<int> _gatherCount;
         NativeArray<int> _neighbours;
         NativeArray<float4> _instances;
         NativeArray<int> _cellOf;
@@ -90,6 +91,7 @@ namespace Workshop
             _sortVelocity = new NativeArray<float2>(count, Allocator.Persistent);
             _contactNormal = new NativeArray<float2>(count, Allocator.Persistent);
             _neighbourCount = new NativeArray<int>(count, Allocator.Persistent);
+            _gatherCount = new NativeArray<int>(count, Allocator.Persistent);
             // Fixed stride, so MaxNeighbours can be retuned at runtime without reallocating -
             // and, more to the point, without GatherJob writing past the end of a shorter array.
             _neighbours = new NativeArray<int>(count * MaxNeighbourStride, Allocator.Persistent);
@@ -209,7 +211,7 @@ namespace Workshop
                             handle = new GatherJob
                             {
                                 Predicted = _predicted, Offset = _offset, Info = _info,
-                                Neighbours = _neighbours, NeighbourCount = _neighbourCount,
+                                Neighbours = _neighbours, GatherCount = _gatherCount,
                                 GatherDiameter = s.CollisionDiameter * (1f + s.GatherSkin),
                                 MaxNeighbours = math.min(s.MaxNeighbours, MaxNeighbourStride),
                                 Stride = MaxNeighbourStride
@@ -219,9 +221,11 @@ namespace Workshop
                         handle = new SeparateCachedJob
                         {
                             Predicted = _predicted, Neighbours = _neighbours,
-                            NeighbourCount = _neighbourCount,
+                            GatherCount = _gatherCount,
                             Result = _scratch, ContactNormal = _contactNormal,
+                            NeighbourCount = _neighbourCount,
                             Diameter = s.CollisionDiameter, Omega = s.Omega,
+                            MaxNeighbours = math.min(s.MaxNeighbours, SeparateCompactJob.Cap - 1),
                             Stride = MaxNeighbourStride,
                             PlayerPosition = target, PlayerReach = reach
                         }.Schedule(_count, batch, handle);
@@ -593,6 +597,7 @@ namespace Workshop
             _sortVelocity.Dispose();
             _contactNormal.Dispose();
             _neighbourCount.Dispose();
+            _gatherCount.Dispose();
             _neighbours.Dispose();
             _instances.Dispose();
             _cellOf.Dispose();

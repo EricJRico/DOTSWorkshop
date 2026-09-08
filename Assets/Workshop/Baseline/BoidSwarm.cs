@@ -224,6 +224,10 @@ namespace Workshop
             public int Iterations;
             public float Omega;
             public int MinDivisor;
+            [Tooltip("Use the cached neighbour list instead of re-walking the grid each pass.")]
+            public bool Cache;
+            [Tooltip("Rebuild the cached list every N passes. Ignored unless Cache is on.")]
+            public int GatherEvery;
         }
 
         [Header("Config sweep")]
@@ -237,15 +241,13 @@ namespace Workshop
         public float SweepDwell = 8f;
         public SweepConfig[] Sweep =
         {
-            new SweepConfig { Variant = 1, Iterations = 8, Omega = 1.8f, MinDivisor = 1 },
-            new SweepConfig { Variant = 3, Iterations = 8, Omega = 1.8f, MinDivisor = 1 },
             new SweepConfig { Variant = 3, Iterations = 6, Omega = 1.8f, MinDivisor = 1 },
-            new SweepConfig { Variant = 3, Iterations = 4, Omega = 1.8f, MinDivisor = 1 },
-            new SweepConfig { Variant = 3, Iterations = 4, Omega = 1.4f, MinDivisor = 1 },
-            new SweepConfig { Variant = 3, Iterations = 4, Omega = 1.0f, MinDivisor = 1 },
-            new SweepConfig { Variant = 3, Iterations = 4, Omega = 1.4f, MinDivisor = 3 },
-            new SweepConfig { Variant = 3, Iterations = 4, Omega = 1.0f, MinDivisor = 3 },
-            new SweepConfig { Variant = 1, Iterations = 4, Omega = 1.8f, MinDivisor = 1 },
+            new SweepConfig { Variant = 1, Iterations = 8, Omega = 1.8f, MinDivisor = 1 },
+            new SweepConfig { Variant = 1, Iterations = 8, Omega = 1.8f, MinDivisor = 1, Cache = true, GatherEvery = 8 },
+            new SweepConfig { Variant = 1, Iterations = 8, Omega = 1.8f, MinDivisor = 1, Cache = true, GatherEvery = 4 },
+            new SweepConfig { Variant = 1, Iterations = 8, Omega = 1.8f, MinDivisor = 1, Cache = true, GatherEvery = 2 },
+            new SweepConfig { Variant = 1, Iterations = 12, Omega = 1.8f, MinDivisor = 1, Cache = true, GatherEvery = 4 },
+            new SweepConfig { Variant = 3, Iterations = 6, Omega = 1.8f, MinDivisor = 1 },
         };
 
         int _sweepIndex = -1;
@@ -255,8 +257,9 @@ namespace Workshop
         int _sweepSamples;
         bool _sweepSaved;
         bool _sweepDone;
-        int _savedVariant, _savedIterations, _savedMinDivisor;
+        int _savedVariant, _savedIterations, _savedMinDivisor, _savedGatherEvery;
         float _savedOmega;
+        bool _savedCache;
         bool _savedAutoTarget;
         float _savedCaptureDt;
 
@@ -284,6 +287,8 @@ namespace Workshop
                 _savedIterations = Settings.Iterations;
                 _savedOmega = Settings.Omega;
                 _savedMinDivisor = Settings.MinDivisor;
+                _savedCache = Settings.CacheNeighbours;
+                _savedGatherEvery = Settings.GatherEvery;
                 _savedAutoTarget = AutoTarget;
                 _savedCaptureDt = Time.captureDeltaTime;
                 _sweepSaved = true;
@@ -312,6 +317,7 @@ namespace Workshop
             var n = math.max(1, _sweepSamples);
             UnityEngine.Debug.Log(
                 $"SWEEP| variant={c.Variant} it={c.Iterations} omega={c.Omega:F2} minDiv={c.MinDivisor}"
+              + $" cache={c.Cache} every={c.GatherEvery}"
               + $" | wall={_sweepWall / n:F2}ms meanPen={_sweepPen / n * 100f:F2}%"
               + $" | pairs={Solver.OverlapPairs} body={Solver.BodyOverlapPairs} samples={n}");
 
@@ -340,6 +346,8 @@ namespace Workshop
             Settings.Iterations = c.Iterations;
             Settings.Omega = c.Omega;
             Settings.MinDivisor = math.max(1, c.MinDivisor);
+            Settings.CacheNeighbours = c.Cache;
+            if (c.Cache) Settings.GatherEvery = math.max(1, c.GatherEvery);
         }
 
         void RestoreSweep()
@@ -349,6 +357,8 @@ namespace Workshop
             Settings.Iterations = _savedIterations;
             Settings.Omega = _savedOmega;
             Settings.MinDivisor = _savedMinDivisor;
+            Settings.CacheNeighbours = _savedCache;
+            Settings.GatherEvery = _savedGatherEvery;
             AutoTarget = _savedAutoTarget;
             Time.captureDeltaTime = _savedCaptureDt;
             _sweepSaved = false;

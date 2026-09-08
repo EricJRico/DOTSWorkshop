@@ -835,7 +835,12 @@ namespace Workshop
         [ReadOnly] public NativeArray<int> Offset;
         [ReadOnly] public NativeArray<GridInfo> Info;
         [NativeDisableParallelForRestriction] [WriteOnly] public NativeArray<int> Neighbours;
-        [WriteOnly] public NativeArray<int> NeighbourCount;
+        /// <summary>How many entries this agent has in the list. NOT the contact count - it is
+        /// gathered at GatherDiameter, which is the solve diameter plus the skin, so it is about
+        /// 2.25x larger. Writing it into NeighbourCount is what made the cached path look bad:
+        /// FinalizeJob congestion gate reads NeighbourCount and stripped the seek drive far
+        /// harder on this path than on the grid path.</summary>
+        [WriteOnly] public NativeArray<int> GatherCount;
         /// <summary>Gather radius: the solve diameter plus a skin, so the list stays valid as the
         /// iterations move agents. Straight out of Verlet neighbour lists in molecular dynamics -
         /// without it, pairs that come into contact during the solve are never recorded and the
@@ -872,7 +877,7 @@ namespace Workshop
                 }
             }
 
-            NeighbourCount[i] = found;
+            GatherCount[i] = found;
         }
     }
 
@@ -886,11 +891,15 @@ namespace Workshop
     {
         [ReadOnly] public NativeArray<float2> Predicted;
         [ReadOnly] public NativeArray<int> Neighbours;
-        [ReadOnly] public NativeArray<int> NeighbourCount;
+        [ReadOnly] public NativeArray<int> GatherCount;
         [WriteOnly] public NativeArray<float2> Result;
         [WriteOnly] public NativeArray<float2> ContactNormal;
+        /// <summary>The CONTACT count, matching what the grid path reports, so FinalizeJob
+        /// congestion gate behaves identically on both paths.</summary>
+        [WriteOnly] public NativeArray<int> NeighbourCount;
         public float Diameter;
         public float Omega;
+        public int MaxNeighbours;
         public int Stride;
         public float2 PlayerPosition;
         public float PlayerReach;
@@ -902,9 +911,9 @@ namespace Workshop
             var normal = float2.zero;
             var used = 0;
 
-            var count = NeighbourCount[i];
+            var count = GatherCount[i];
             var b0 = i * Stride;
-            for (var m = 0; m < count; m++)
+            for (var m = 0; m < count && used < MaxNeighbours; m++)
             {
                 var k = Neighbours[b0 + m];
                 var d = pi - Predicted[k];
@@ -943,6 +952,7 @@ namespace Workshop
 
             Result[i] = used > 0 ? pi + sum * (Omega / used) : pi;
             ContactNormal[i] = normal;
+            NeighbourCount[i] = used;
         }
     }
 
