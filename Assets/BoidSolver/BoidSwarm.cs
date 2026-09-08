@@ -149,14 +149,14 @@ namespace Workshop
 
         public void Rebuild()
         {
-            Solver.Allocate(Settings.AgentCount, SpawnMinRadius, SpawnMaxRadius, Seed);
+            Solver.Allocate(Settings.EnemyCount, SpawnMinRadius, SpawnMaxRadius, Seed);
             ReleaseBuffers();
 
-            _agentBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, Settings.AgentCount, sizeof(float) * 4);
+            _agentBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, Settings.EnemyCount, sizeof(float) * 4);
             _argsBuffer = new GraphicsBuffer(GraphicsBuffer.Target.IndirectArguments, 1,
                 GraphicsBuffer.IndirectDrawIndexedArgs.size);
             _props = new MaterialPropertyBlock();
-            _allocatedFor = Settings.AgentCount;
+            _allocatedFor = Settings.EnemyCount;
             PushArgs();
         }
 
@@ -165,7 +165,7 @@ namespace Workshop
             if (Mesh == null || _argsBuffer == null) return;
             var args = new GraphicsBuffer.IndirectDrawIndexedArgs[1];
             args[0].indexCountPerInstance = Mesh.GetIndexCount(0);
-            args[0].instanceCount = (uint)Settings.AgentCount;
+            args[0].instanceCount = (uint)Settings.EnemyCount;
             args[0].startIndex = Mesh.GetIndexStart(0);
             args[0].baseVertexIndex = Mesh.GetBaseVertex(0);
             args[0].startInstance = 0;
@@ -175,7 +175,7 @@ namespace Workshop
         void Update()
         {
             if (Solver == null) return;
-            if (_allocatedFor != Settings.AgentCount) Rebuild();
+            if (_allocatedFor != Settings.EnemyCount) Rebuild();
 
             // The sweep needs a flowing crowd, so it forces the circling target while it runs -
             // as an override, not by writing the field.
@@ -270,9 +270,9 @@ namespace Workshop
             var threads = Unity.Jobs.LowLevel.Unsafe.JobsUtility.JobWorkerCount + 1;
             UnityEngine.Debug.Log(
                 $"SEP| branchy={ms[0]:F3} compact={ms[1]:F3} simd={ms[2]:F3} ms wall/dispatch"
-              + $" | frame {ms[0] * threads * Settings.SolverPasses:F2}"
-              + $" -> {ms[1] * threads * Settings.SolverPasses:F2}"
-              + $" -> {ms[2] * threads * Settings.SolverPasses:F2} ms all threads"
+              + $" | frame {ms[0] * threads * Settings.OverlapCleanup:F2}"
+              + $" -> {ms[1] * threads * Settings.OverlapCleanup:F2}"
+              + $" -> {ms[2] * threads * Settings.OverlapCleanup:F2} ms all threads"
               + $" | {ms[0] / math.max(1e-9, ms[1]):F2}x then {ms[1] / math.max(1e-9, ms[2]):F2}x"
               + $" | delta compact={delta[1]:E2} simd={delta[2]:E2}"
               + $" | pairs={Solver.OverlapPairs}");
@@ -470,7 +470,7 @@ namespace Workshop
             if (!_sweepSaved)
             {
                 _savedVariant = Settings.Advanced.SeparateVariant;
-                _savedIterations = Settings.SolverPasses;
+                _savedIterations = Settings.OverlapCleanup;
                 _savedOmega = Settings.Advanced.Relaxation;
                 _savedColourBatch = Settings.Advanced.CellBatchSize;
                 _savedBatchSize = Settings.Advanced.AgentBatchSize;
@@ -557,7 +557,7 @@ namespace Workshop
         {
             var c = Sweep[index];
             Settings.Advanced.SeparateVariant = c.Variant;
-            Settings.SolverPasses = c.Iterations;
+            Settings.OverlapCleanup = c.Iterations;
             Settings.Advanced.Relaxation = c.Omega;
             if (c.ColourBatch > 0) Settings.Advanced.CellBatchSize = c.ColourBatch;
             if (c.BatchSize > 0) Settings.Advanced.AgentBatchSize = c.BatchSize;
@@ -571,7 +571,7 @@ namespace Workshop
         {
             if (!_sweepSaved) return;
             Settings.Advanced.SeparateVariant = _savedVariant;
-            Settings.SolverPasses = _savedIterations;
+            Settings.OverlapCleanup = _savedIterations;
             Settings.Advanced.Relaxation = _savedOmega;
             Settings.Advanced.CellBatchSize = _savedColourBatch;
             Settings.Advanced.AgentBatchSize = _savedBatchSize;

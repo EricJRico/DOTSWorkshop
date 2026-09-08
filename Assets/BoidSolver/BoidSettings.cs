@@ -6,150 +6,134 @@ namespace Workshop
     /// <summary>
     /// Tuning for <see cref="BoidSolver"/>.
     ///
-    /// The top-level fields are the ones worth changing to make the crowd look and feel different.
-    /// Everything under Advanced is performance and solver internals: it has all been measured, the
-    /// defaults are the measured best, and changing it will cost speed or quality rather than
-    /// change how the crowd behaves.
+    /// The top-level fields change how the crowd looks and feels. Everything under Advanced is
+    /// performance and solver internals - already measured, already at its best value - and
+    /// changing it costs speed or quality rather than changing how the crowd behaves.
     /// </summary>
     [CreateAssetMenu(menuName = "Workshop/Boid Settings")]
     public class BoidSettings : ScriptableObject
     {
-        [Header("Crowd")]
+        [Header("Enemies")]
 
-        [Tooltip("How many agents to spawn. Cost is roughly linear in this - 50,000 is the " +
-                 "benchmark. Changing it does not change how the crowd behaves, only how much of " +
-                 "it there is; if you want the crowd to cover the same ground on screen, scale " +
-                 "Agent Radius and Separation Distance by 1/sqrt of the change.")]
-        [FormerlySerializedAs("Count")]
-        public int AgentCount = 5000;
+        [Tooltip("How many enemies there are.")]
+        [FormerlySerializedAs("Count")] [FormerlySerializedAs("AgentCount")]
+        public int EnemyCount = 5000;
 
-        [Tooltip("How big one agent is. This is what you SEE - it sets the drawn size - and it is " +
-                 "what the overlap readout calls a body. Bigger agents look chunkier and start " +
-                 "overlapping each other sooner. It does NOT change how far apart they stand; " +
-                 "that is Separation Distance.")]
-        [FormerlySerializedAs("Radius")]
-        public float AgentRadius = 0.15f;
+        [Tooltip("How big each enemy is, measured from its centre to its edge. Bigger enemies " +
+                 "take up more room and start bumping into each other sooner. This is only their " +
+                 "size - it does not change how far apart they stand.")]
+        [FormerlySerializedAs("Radius")] [FormerlySerializedAs("AgentRadius")]
+        public float EnemyRadius = 0.15f;
 
-        [Tooltip("How far apart agents stand, centre to centre, in world units. Turn it up and the " +
-                 "crowd spreads out and takes more room; turn it down and it packs tighter. " +
-                 "Independent of Agent Radius on purpose - set it below twice the radius and the " +
-                 "bodies will visibly overlap, which is allowed and the overlap readout will show " +
-                 "it.")]
-        public float SeparationDistance = 0.128f;
+        [Tooltip("How much room each enemy keeps between itself and its neighbours. Turn it up " +
+                 "and the crowd spreads out; turn it down and it packs in tighter. If you set it " +
+                 "smaller than an enemy is wide, they will visibly overlap.")]
+        [FormerlySerializedAs("SeparationDistance")]
+        public float Separation = 0.128f;
 
         [Header("Movement")]
 
-        [Tooltip("How fast agents move toward the target, in world units per second. This is a " +
-                 "flat-out speed - a jammed agent will not reach it because the crowd is in the way.")]
-        [FormerlySerializedAs("Speed")]
+        [Tooltip("How fast enemies move when they have clear space. In a crush they will move " +
+                 "slower than this because the crowd is in the way.")]
+        [FormerlySerializedAs("Speed")] [FormerlySerializedAs("MoveSpeed")]
         public float MoveSpeed = 2.5f;
 
-        [Tooltip("How sharply agents turn toward the target. 1 turns on a coin and looks robotic; " +
-                 "small values make wide, drifting arcs and a crowd that takes a while to change " +
-                 "direction. Around 0.05 reads as heavy and momentum-driven.")]
-        [FormerlySerializedAs("SteerBlend")]
-        public float TurnResponsiveness = 0.15f;
+        [Tooltip("How quickly enemies change direction. High values snap round instantly and look " +
+                 "mechanical. Low values swing round in long curves and make the crowd feel heavy.")]
+        [FormerlySerializedAs("SteerBlend")] [FormerlySerializedAs("TurnResponsiveness")]
+        public float TurnSpeed = 0.15f;
 
-        [Tooltip("How far the player shoves agents away, in world units. Turn it up for a bigger " +
-                 "bubble of clear space around the player. Purely cosmetic - it does not affect " +
-                 "how agents treat each other.")]
-        [FormerlySerializedAs("PlayerRadius")]
-        public float PlayerPushRadius = 0.5f;
+        [Tooltip("How much space the player clears around itself as it moves through the crowd.")]
+        [FormerlySerializedAs("PlayerRadius")] [FormerlySerializedAs("PlayerPushRadius")]
+        public float PlayerPush = 0.5f;
 
         [Header("Crowd behaviour")]
 
-        [Tooltip("How hard the solver works each frame to push overlapping agents apart. More " +
-                 "passes means a tidier crowd with fewer agents clipping through each other, and " +
-                 "costs proportionally more time - each pass is about 0.4 ms at 50,000 agents. " +
-                 "Six is the knee: five nearly doubles the number of overlapping bodies, and more " +
-                 "than six buys very little.")]
-        [FormerlySerializedAs("Iterations")]
-        public int SolverPasses = 6;
+        [Tooltip("How much effort goes into stopping enemies from standing inside each other. " +
+                 "Turn it up for a cleaner-looking crowd; turn it down to save performance and " +
+                 "accept more of them clipping through each other. Below 6 they start to overlap " +
+                 "noticeably.")]
+        [FormerlySerializedAs("Iterations")] [FormerlySerializedAs("SolverPasses")]
+        public int OverlapCleanup = 6;
 
-        [Tooltip("Blocked agents slide around whatever is in front of them instead of shoving " +
-                 "straight into it. Off, the crowd piles up and shoves; on, it flows around " +
-                 "obstacles and looks far more deliberate.")]
-        [FormerlySerializedAs("TangentialSlide")]
-        public bool SlideAroundBlockers = true;
+        [Tooltip("Enemies who cannot get through slip around whatever is blocking them instead of " +
+                 "shoving straight into it. Turn it off and the crowd piles up and grinds.")]
+        [FormerlySerializedAs("TangentialSlide")] [FormerlySerializedAs("SlideAroundBlockers")]
+        public bool SlidePastOthers = true;
 
-        [Tooltip("How many neighbours an agent tolerates before it starts giving up on reaching " +
-                 "the target. Lower makes agents surrender to the crush sooner, so the crowd " +
-                 "settles rather than grinding forward. Has no effect unless Fully Blocked At is " +
-                 "higher than this.")]
-        [FormerlySerializedAs("CrowdFree")]
-        public float CrowdedAt = 4f;
+        [Tooltip("How many neighbours it takes before an enemy starts to give up on reaching the " +
+                 "player. Lower means they surrender to the crush sooner.")]
+        [FormerlySerializedAs("CrowdFree")] [FormerlySerializedAs("CrowdedAt")]
+        public float StartsGivingUpAt = 4f;
 
-        [Tooltip("How many neighbours it takes before an agent stops pushing toward the target " +
-                 "entirely and just gets carried by the crowd. Set this at or below Crowded At to " +
-                 "switch the whole behaviour off and have every agent push regardless.")]
-        [FormerlySerializedAs("CrowdFull")]
-        public float FullyBlockedAt = 7f;
+        [Tooltip("How many neighbours it takes before an enemy stops trying entirely and just " +
+                 "gets carried along by the crowd. Set this to the same as Starts Giving Up At, " +
+                 "or lower, and enemies will never give up.")]
+        [FormerlySerializedAs("CrowdFull")] [FormerlySerializedAs("FullyBlockedAt")]
+        public float GivesUpEntirelyAt = 7f;
 
         [Header("Advanced")]
 
-        [Tooltip("Performance and solver internals. All measured, all already at their best " +
-                 "value. Changing anything here trades speed or quality; it will not make the " +
-                 "crowd behave differently.")]
+        [Tooltip("Performance and solver internals. These have all been measured and are already " +
+                 "at their best values - changing them trades away speed or quality rather than " +
+                 "changing how the crowd behaves.")]
         public AdvancedSettings Advanced = new AdvancedSettings();
 
         /// <summary>
-        /// Grouped in a nested class purely so Unity draws it as one collapsed foldout. Nothing in
-        /// here is a design knob - see docs/solver-perf-handoff.md for what each was measured at.
+        /// Grouped in a nested class purely so Unity draws it as one collapsed foldout. These are
+        /// engineering knobs - see docs/solver-perf-handoff.md for what each was measured at.
         /// </summary>
         [System.Serializable]
         public class AdvancedSettings
         {
-            [Tooltip("How aggressively each solver pass corrects an overlap. Below 1 under-corrects " +
-                     "and the crowd stays mushy; above 2 overshoots and jitters. 1.8 measured best " +
-                     "- lower values were worse at every setting tried.")]
+            [Tooltip("How hard each cleanup pass shoves overlapping enemies apart. Too low and " +
+                     "the crowd stays soft and mushy; too high and it jitters. 1.8 measured best.")]
+            [FormerlySerializedAs("Omega")]
             public float Relaxation = 1.8f;
 
-            [Tooltip("Ceiling on how many neighbours one agent will resolve against in a pass. A " +
-                     "safety valve for pile-ups, not a quality knob: the crowd averages about 6, " +
-                     "so this is almost never reached. The shipping solver ignores it entirely.")]
+            [Tooltip("Most neighbours one enemy will deal with at once. A safety valve for " +
+                     "pile-ups, not a quality setting - the crowd averages about six.")]
             public int MaxNeighbours = 16;
 
-            [Tooltip("Which separation implementation runs. 8 is the one that ships - 8-wide SIMD " +
-                     "over split position streams, 2.25 ms at 50,000 agents. 3 and 5 are the older " +
-                     "scalar versions, kept because every performance measurement is made by " +
-                     "comparing against them in the same play session. Falls back to 5 on a CPU " +
-                     "without AVX2, such as Apple Silicon.")]
+            [Tooltip("Which separation implementation runs. 8 is the fast one and what ships. " +
+                     "3 and 5 are older, slower versions kept only so performance can be compared " +
+                     "against them in the same play session. On a CPU without AVX2, such as Apple " +
+                     "Silicon, 8 falls back to 5 automatically.")]
             public int SeparateVariant = 8;
 
-            [Tooltip("Work-chunk size for the per-agent jobs. Measured: 64, 128, 256 and 512 all " +
-                     "land inside the noise. Not a lever.")]
-            [FormerlySerializedAs("BatchSize")]
+            [Tooltip("Threading chunk size for the per-enemy work. Measured: 64 through 512 all " +
+                     "land inside the noise, so this is not a lever.")]
+            [FormerlySerializedAs("BatchSize")] [FormerlySerializedAs("AgentBatchSize")]
             public int AgentBatchSize = 128;
 
-            [Tooltip("Work-chunk size for the separation passes, counted in grid CELLS rather than " +
-                     "agents - a cell holds about 1.3 agents. Measured: 16, 32 and 64 are within " +
-                     "noise of each other, larger is slightly worse.")]
-            [FormerlySerializedAs("ColourBatch")]
+            [Tooltip("Threading chunk size for the separation passes, counted in grid cells " +
+                     "rather than enemies. Measured: not a lever either.")]
+            [FormerlySerializedAs("ColourBatch")] [FormerlySerializedAs("CellBatchSize")]
             public int CellBatchSize = 64;
 
-            [Tooltip("How much grid to allocate, as a multiple of Agent Count. If the crowd spreads " +
-                     "wider than the budget the grid coarsens itself, which costs speed but never " +
-                     "correctness. Raise it only if the crowd covers a much larger area.")]
+            [Tooltip("How much lookup grid to allocate, per enemy. If the crowd spreads wider " +
+                     "than the budget allows, the grid coarsens itself, which costs speed but " +
+                     "never correctness. Raise it only if the crowd covers a much bigger area.")]
             public int CellsPerAgent = 4;
         }
 
-        /// <summary>The distance the solver drives agents apart to. What every job calls Diameter.</summary>
-        public float CollisionDiameter => SeparationDistance;
+        /// <summary>The distance the solver drives enemies apart to. What every job calls Diameter.</summary>
+        public float CollisionDiameter => Separation;
 
         /// <summary>The physical body. Only the drawing and the overlap metric care about this.</summary>
-        public float BodyDiameter => AgentRadius * 2f;
+        public float BodyDiameter => EnemyRadius * 2f;
 
         public float MaxSpeed => MoveSpeed;
 
 #if UNITY_EDITOR
         void OnValidate()
         {
-            // Not clamped, just reported: a separation under the body diameter is a legitimate
-            // thing to ask for and the overlap readout will show it honestly.
-            if (SeparationDistance < BodyDiameter)
+            // Not clamped, just reported: overlapping on purpose is a legitimate thing to ask for
+            // and the overlap readout will show it honestly.
+            if (Separation < BodyDiameter)
                 Debug.LogWarning(
-                    $"{name}: Separation Distance ({SeparationDistance:F4}) is under the body " +
-                    $"diameter ({BodyDiameter:F4}), so agents will overlap on purpose.", this);
+                    $"{name}: Separation ({Separation:F4}) is smaller than an enemy is wide " +
+                    $"({BodyDiameter:F4}), so enemies will overlap.", this);
         }
 #endif
     }

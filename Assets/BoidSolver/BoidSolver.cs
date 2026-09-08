@@ -211,7 +211,7 @@ namespace Workshop
 
             var handle = default(JobHandle);
             var sdt = deltaTime;
-            var reach = s.AgentRadius + s.PlayerPushRadius;
+            var reach = s.EnemyRadius + s.PlayerPush;
 
             // 4 = parameterised radius, 5 = + rsqrt instead of sqrt-then-divide,
             // 6 = + phase 1 hands phase 2 the delta and r2 it already had. All three share the
@@ -237,7 +237,7 @@ namespace Workshop
                 handle = new SteerJob
                 {
                     Position = _position, Velocity = _velocity, Predicted = _predicted,
-                    Target = target, Speed = s.MoveSpeed, Blend = s.TurnResponsiveness, DeltaTime = sdt
+                    Target = target, Speed = s.MoveSpeed, Blend = s.TurnSpeed, DeltaTime = sdt
                 }.Schedule(_count, batch, handle);
 
                 handle = new BoundsJob
@@ -329,7 +329,7 @@ namespace Workshop
                     }.Schedule(_count, batch, handle);
                 }
 
-                for (var it = 0; it < s.SolverPasses; it++)
+                for (var it = 0; it < s.OverlapCleanup; it++)
                 {
                     if (radiusPath)
                     {
@@ -540,9 +540,9 @@ namespace Workshop
                     ContactNormal = _contactNormal, NeighbourCount = _neighbourCount,
                     Instances = _instances, Target = target,
                     InvDeltaTime = 1f / sdt, MaxSpeed = s.MaxSpeed,
-                    TangentialSlide = s.SlideAroundBlockers,
+                    TangentialSlide = s.SlidePastOthers,
                     WriteInstances = true,
-                    CrowdFree = s.CrowdedAt, CrowdFull = s.FullyBlockedAt
+                    CrowdFree = s.StartsGivingUpAt, CrowdFull = s.GivesUpEntirelyAt
                 }.Schedule(_count, batch, handle);
             }
 
@@ -625,7 +625,7 @@ namespace Workshop
         {
             if (!_allocated || _count == 0 || reps <= 0) return 0d;
             var s = _settings;
-            var reach = s.AgentRadius + s.PlayerPushRadius;
+            var reach = s.EnemyRadius + s.PlayerPush;
             var batch = s.Advanced.AgentBatchSize;
 
             var watch = System.Diagnostics.Stopwatch.StartNew();
@@ -799,7 +799,7 @@ namespace Workshop
                 new SteerJob
                 {
                     Position = _position, Velocity = _sortVelocity, Predicted = _sortPredicted,
-                    Target = float2.zero, Speed = s.MoveSpeed, Blend = s.TurnResponsiveness, DeltaTime = 1f / 60f
+                    Target = float2.zero, Speed = s.MoveSpeed, Blend = s.TurnSpeed, DeltaTime = 1f / 60f
                 }.Schedule(_count, batch).Complete();
             ms[0] = watch.Elapsed.TotalMilliseconds / reps;
 
@@ -826,8 +826,8 @@ namespace Workshop
                     Position = _sortPosition, Velocity = _sortVelocity, Predicted = _predicted,
                     ContactNormal = _contactNormal, NeighbourCount = _neighbourCount,
                     Instances = _instances, Target = float2.zero, InvDeltaTime = 60f,
-                    MaxSpeed = s.MaxSpeed, TangentialSlide = s.SlideAroundBlockers,
-                    WriteInstances = true, CrowdFree = s.CrowdedAt, CrowdFull = s.FullyBlockedAt
+                    MaxSpeed = s.MaxSpeed, TangentialSlide = s.SlidePastOthers,
+                    WriteInstances = true, CrowdFree = s.StartsGivingUpAt, CrowdFull = s.GivesUpEntirelyAt
                 }.Schedule(_count, batch).Complete();
             ms[3] = watch.Elapsed.TotalMilliseconds / reps;
 
@@ -906,7 +906,7 @@ namespace Workshop
             if (!_allocated || _count == 0 || reps <= 0) return 0d;
             var s = _settings;
             var batch = math.max(1, s.Advanced.CellBatchSize);
-            var reach = s.AgentRadius + s.PlayerPushRadius;
+            var reach = s.EnemyRadius + s.PlayerPush;
             var dia = s.CollisionDiameter;
 
             var watch = System.Diagnostics.Stopwatch.StartNew();
@@ -1011,7 +1011,7 @@ namespace Workshop
             var colours = spacing * spacing;
             var batch = math.max(1, s.Advanced.CellBatchSize);
             var stride = (_count + _slices - 1) / _slices;
-            var reach = s.AgentRadius + s.PlayerPushRadius;
+            var reach = s.EnemyRadius + s.PlayerPush;
 
             GridChain(stride, s.Advanced.AgentBatchSize, s.CollisionDiameter / r, r + 1).Complete();
             Swap(ref _position, ref _sortPosition);
