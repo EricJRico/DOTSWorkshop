@@ -281,11 +281,11 @@ MonoBehaviour:
   ColorSlow: {r: 0.2, g: 0.45, b: 1, a: 1}
   ColorMid: {r: 1, g: 0.9, b: 0.2, a: 1}
   ColorFast: {r: 0.95, g: 0.15, b: 0.15, a: 1}
-  AutoTarget: 1
+  AutoTarget: 0
   AutoRadius: 8
   AutoSpeed: 0.15
-  ShowStats: 1
-  CheckOverlap: 1
+  ShowStats: 0
+  CheckOverlap: 0
   LogBenchmark: 0
   BenchmarkWarmupSeconds: 70
   BenchmarkSamples: 10
@@ -294,13 +294,13 @@ MonoBehaviour:
   MeasureMotion: 0
   AblationStage: 0
   SeparateBenchmark: 0
-  RadiusBenchmark: 1
+  RadiusBenchmark: 0
   MaxRadius: 3
   RadiusBenchmarkReps: 32
   SweepConfigs: 0
   SweepDwell: 8
   Sweep:
-  - Variant: 5
+  - Variant: 8
     Iterations: 6
     Omega: 1.8
     MinDivisor: 1
@@ -312,7 +312,7 @@ MonoBehaviour:
     BatchSize: 0
     CellScale: 1
     Discard: 1
-  - Variant: 5
+  - Variant: 8
     Iterations: 6
     Omega: 1.8
     MinDivisor: 1
@@ -324,19 +324,7 @@ MonoBehaviour:
     BatchSize: 0
     CellScale: 1
     Discard: 0
-  - Variant: 5
-    Iterations: 5
-    Omega: 1.8
-    MinDivisor: 1
-    Cache: 0
-    GatherEvery: 0
-    ColourBatch: 0
-    ScanRadius: 1
-    Overlap: 1
-    BatchSize: 0
-    CellScale: 1
-    Discard: 0
-  - Variant: 5
+  - Variant: 8
     Iterations: 6
     Omega: 1.8
     MinDivisor: 1
@@ -344,12 +332,12 @@ MonoBehaviour:
     GatherEvery: 0
     ColourBatch: 0
     ScanRadius: 1
-    Overlap: 1
+    Overlap: 0
     BatchSize: 0
     CellScale: 1
     Discard: 0
   - Variant: 5
-    Iterations: 4
+    Iterations: 6
     Omega: 1.8
     MinDivisor: 1
     Cache: 0
@@ -368,7 +356,19 @@ MonoBehaviour:
     GatherEvery: 0
     ColourBatch: 0
     ScanRadius: 1
-    Overlap: 1
+    Overlap: 0
+    BatchSize: 0
+    CellScale: 1
+    Discard: 0
+  - Variant: 8
+    Iterations: 6
+    Omega: 1.8
+    MinDivisor: 1
+    Cache: 0
+    GatherEvery: 0
+    ColourBatch: 0
+    ScanRadius: 1
+    Overlap: 0
     BatchSize: 0
     CellScale: 1
     Discard: 0

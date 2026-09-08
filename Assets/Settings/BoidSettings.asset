@@ -29,7 +29,7 @@ MonoBehaviour:
   GatherEvery: 8
   CrowdFree: 9
   CrowdFull: 0
-  SeparateVariant: 5
+  SeparateVariant: 8
   MinDivisor: 1
   BatchSize: 128
   ColourBatch: 64

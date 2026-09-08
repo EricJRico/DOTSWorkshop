@@ -60,7 +60,7 @@ namespace Workshop
                  "full grid build on the solved positions and then scans at the solve diameter, " +
                  "which fires on ~137,000 pairs. Off takes the frame to 4.02 ms, so quote 4.02 as " +
                  "the solver and 5.4 as the cost of proving it correct.")]
-        public bool CheckOverlap = true;
+        public bool CheckOverlap;
         [Tooltip("Log a BOID| line every second after the crowd converges. For player runs.")]
         public bool LogBenchmark;
         public float BenchmarkWarmupSeconds = 70f;
@@ -103,7 +103,7 @@ namespace Workshop
                  "part per CANDIDATE: R=2 cuts candidates ~31% and raises row runs from 3 to 5, so " +
                  "two radii give two equations. Runs before the sweep starts, and reorders the " +
                  "crowd without moving it.")]
-        public bool RadiusBenchmark = true;
+        public bool RadiusBenchmark;
         [Tooltip("Largest scan radius the radius benchmark and the sweep may ask for.")]
         public int MaxRadius = 3;
         [Tooltip("Repetitions per stage in the radius benchmark. 8 was too few - the run-to-run " +
@@ -178,8 +178,12 @@ namespace Workshop
             if (Solver == null) return;
             if (_allocatedFor != Settings.Count) Rebuild();
 
+            // The sweep needs a flowing crowd, so it forces the circling target while it runs -
+            // as an override, not by writing the field.
+            var autoTarget = AutoTarget || _sweepActive;
+
             float2 target;
-            if (AutoTarget)
+            if (autoTarget)
             {
                 var a = Time.time * AutoSpeed;
                 target = new float2(math.cos(a), math.sin(a)) * AutoRadius;
@@ -193,12 +197,10 @@ namespace Workshop
             }
 
             _lastTarget = target;
-            // CheckOverlap is a field on this component, and the sweep drives it, so this reads
-            // whatever the running config asked for.
-            Solver.CheckOverlap = CheckOverlap;
+            Solver.CheckOverlap = _sweepActive ? _sweepOverlap : CheckOverlap;
             Solver.AblationStage = AblationStage;
-            Solver.ScanRadius = ScanRadius;
-            Solver.CellScale = CellScale;
+            Solver.ScanRadius = _sweepActive ? _sweepScanRadius : ScanRadius;
+            Solver.CellScale = _sweepActive ? _sweepCellScale : CellScale;
             Solver.MeasureMotion = MeasureMotion;
             _handle = Solver.Schedule(target, Time.deltaTime);
         }
@@ -307,6 +309,16 @@ namespace Workshop
         }
 
         int _radiusRuns;
+
+        // Sweep overrides. The sweep used to assign AutoTarget / CheckOverlap / ScanRadius /
+        // CellScale directly and restore them afterwards, which meant a play session stopped at the
+        // wrong moment left the scene with the check off and the target parked - exactly the state
+        // someone hitting play to look at the crowd does not want. These are private, so a normal
+        // play session reads the inspector values and nothing can be left behind.
+        bool _sweepActive;
+        bool _sweepOverlap;
+        int _sweepScanRadius = 1;
+        float _sweepCellScale = 1f;
 
         /// <summary>
         /// The measurement that decides lead 2 before the sweep even runs, and explains the walk
@@ -440,12 +452,8 @@ namespace Workshop
         bool _sweepDone;
         int _savedVariant, _savedIterations, _savedMinDivisor, _savedGatherEvery, _savedColourBatch;
         int _savedBatchSize;
-        int _savedScanRadius;
-        bool _savedCheckOverlap;
-        float _savedCellScale;
         float _savedOmega;
         bool _savedCache;
-        bool _savedAutoTarget;
         float _savedCaptureDt;
 
         /// <summary>
@@ -476,13 +484,9 @@ namespace Workshop
                 _savedGatherEvery = Settings.GatherEvery;
                 _savedColourBatch = Settings.ColourBatch;
                 _savedBatchSize = Settings.BatchSize;
-                _savedAutoTarget = AutoTarget;
                 _savedCaptureDt = Time.captureDeltaTime;
-                _savedScanRadius = ScanRadius;
-                _savedCheckOverlap = CheckOverlap;
-                _savedCellScale = CellScale;
                 _sweepSaved = true;
-                AutoTarget = true;
+                _sweepActive = true;
                 Time.captureDeltaTime = 1f / 60f;
                 _sweepIndex = 0;
                 ApplySweep(0);
@@ -508,8 +512,8 @@ namespace Workshop
             if (c.Discard)
             {
                 // Dwelt on, deliberately not logged. See SweepConfig.Discard.
-                UnityEngine.Debug.Log($"SWEEP|discard variant={c.Variant} R={ScanRadius}"
-                                    + $" cellScale={CellScale:F2}"
+                UnityEngine.Debug.Log($"SWEEP|discard variant={c.Variant} R={_sweepScanRadius}"
+                                    + $" cellScale={_sweepCellScale:F2}"
                                     + $" wall={_sweepWall / n:F2}ms (settling row, not a result)");
             }
             else
@@ -533,11 +537,11 @@ namespace Workshop
                       + $" more={100f * Solver.MotionBand(4) / tot:F1}%");
                 }
                 UnityEngine.Debug.Log(
-                    $"SWEEP| variant={c.Variant} R={ScanRadius} it={c.Iterations} omega={c.Omega:F2}"
+                    $"SWEEP| variant={c.Variant} R={_sweepScanRadius} it={c.Iterations} omega={c.Omega:F2}"
                   + $" minDiv={c.MinDivisor}"
                   + $" cache={c.Cache} every={c.GatherEvery} colourBatch={Settings.ColourBatch}"
                   + $" batchSize={Settings.BatchSize}"
-                  + $" cellScale={CellScale:F2} overlap={c.Overlap}"
+                  + $" cellScale={_sweepCellScale:F2} overlap={c.Overlap}"
                   + $" | wall={_sweepWall / n:F2}ms {quality} samples={n}");
             }
 
@@ -570,11 +574,10 @@ namespace Workshop
             if (c.Cache) Settings.GatherEvery = math.max(1, c.GatherEvery);
             if (c.ColourBatch > 0) Settings.ColourBatch = c.ColourBatch;
             if (c.BatchSize > 0) Settings.BatchSize = c.BatchSize;
-            // Not a BoidSettings field: it lives on this component and on the solver, so a swept
-            // radius cannot survive play mode the way a swept Iterations once did.
-            ScanRadius = math.clamp(c.ScanRadius <= 0 ? 1 : c.ScanRadius, 1, MaxRadius);
-            CellScale = c.CellScale <= 0f ? 1f : c.CellScale;
-            CheckOverlap = c.Overlap;
+            // Overrides, not the serialized fields - see the _sweep* declarations.
+            _sweepScanRadius = math.clamp(c.ScanRadius <= 0 ? 1 : c.ScanRadius, 1, MaxRadius);
+            _sweepCellScale = c.CellScale <= 0f ? 1f : c.CellScale;
+            _sweepOverlap = c.Overlap;
         }
 
         void RestoreSweep()
@@ -588,11 +591,8 @@ namespace Workshop
             Settings.GatherEvery = _savedGatherEvery;
             Settings.ColourBatch = _savedColourBatch;
             Settings.BatchSize = _savedBatchSize;
-            AutoTarget = _savedAutoTarget;
             Time.captureDeltaTime = _savedCaptureDt;
-            ScanRadius = _savedScanRadius;
-            CheckOverlap = _savedCheckOverlap;
-            CellScale = _savedCellScale;
+            _sweepActive = false;
             _sweepSaved = false;
             _sweepIndex = -1;
         }
