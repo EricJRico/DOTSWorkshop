@@ -238,6 +238,19 @@ namespace Workshop
               + $" | delta compact={delta[1]:E2} simd={delta[2]:E2}"
               + $" | pairs={Solver.OverlapPairs}");
 
+            // Cost breakdown of the job that actually ships. Warm each stage first so Burst
+            // compilation and cold caches land outside the timing.
+            for (var c = 0; c <= 6; c++) Solver.TimeColoured(c, 2);
+            var col = new double[7];
+            for (var c = 0; c <= 6; c++) col[c] = Solver.TimeColoured(c, 8);
+            UnityEngine.Debug.Log(
+                $"COL| C1={col[1]:F3} C2={col[2]:F3} C3={col[3]:F3} C4={col[4]:F3} C5={col[5]:F3}"
+              + $" C6={col[6]:F3} full={col[0]:F3} ms/pass"
+              + $" | gridLookup={col[2] - col[1]:F3} loopControl={col[3] - col[2]:F3}"
+              + $" load={col[4] - col[3]:F3} lengthsq={col[5] - col[4]:F3}"
+              + $" compare+store={col[6] - col[5]:F3} contactMath={col[0] - col[6]:F3}"
+              + $" | candidates/agent={Solver.MeanCandidates():F1}");
+
             var stage = new double[5];
             Solver.TimeStages(stage, 6);
             var names = new[] { "steer", "gridBuild", "colour", "finalize", "overlapCheck" };
@@ -266,6 +279,8 @@ namespace Workshop
             public bool Cache;
             [Tooltip("Rebuild the cached list every N passes. Ignored unless Cache is on.")]
             public int GatherEvery;
+            [Tooltip("Inner-loop batch in CELLS for the coloured passes. 0 leaves it alone.")]
+            public int ColourBatch;
         }
 
         [Header("Debug - config sweep")]
@@ -295,7 +310,7 @@ namespace Workshop
         int _sweepSamples;
         bool _sweepSaved;
         bool _sweepDone;
-        int _savedVariant, _savedIterations, _savedMinDivisor, _savedGatherEvery;
+        int _savedVariant, _savedIterations, _savedMinDivisor, _savedGatherEvery, _savedColourBatch;
         float _savedOmega;
         bool _savedCache;
         bool _savedAutoTarget;
@@ -327,6 +342,7 @@ namespace Workshop
                 _savedMinDivisor = Settings.MinDivisor;
                 _savedCache = Settings.CacheNeighbours;
                 _savedGatherEvery = Settings.GatherEvery;
+                _savedColourBatch = Settings.ColourBatch;
                 _savedAutoTarget = AutoTarget;
                 _savedCaptureDt = Time.captureDeltaTime;
                 _sweepSaved = true;
@@ -355,7 +371,7 @@ namespace Workshop
             var n = math.max(1, _sweepSamples);
             UnityEngine.Debug.Log(
                 $"SWEEP| variant={c.Variant} it={c.Iterations} omega={c.Omega:F2} minDiv={c.MinDivisor}"
-              + $" cache={c.Cache} every={c.GatherEvery}"
+              + $" cache={c.Cache} every={c.GatherEvery} batch={Settings.ColourBatch}"
               + $" | wall={_sweepWall / n:F2}ms meanPen={_sweepPen / n * 100f:F2}%"
               + $" | pairs={Solver.OverlapPairs} body={Solver.BodyOverlapPairs} samples={n}");
 
@@ -386,6 +402,7 @@ namespace Workshop
             Settings.MinDivisor = math.max(1, c.MinDivisor);
             Settings.CacheNeighbours = c.Cache;
             if (c.Cache) Settings.GatherEvery = math.max(1, c.GatherEvery);
+            if (c.ColourBatch > 0) Settings.ColourBatch = c.ColourBatch;
         }
 
         void RestoreSweep()
@@ -397,6 +414,7 @@ namespace Workshop
             Settings.MinDivisor = _savedMinDivisor;
             Settings.CacheNeighbours = _savedCache;
             Settings.GatherEvery = _savedGatherEvery;
+            Settings.ColourBatch = _savedColourBatch;
             AutoTarget = _savedAutoTarget;
             Time.captureDeltaTime = _savedCaptureDt;
             _sweepSaved = false;

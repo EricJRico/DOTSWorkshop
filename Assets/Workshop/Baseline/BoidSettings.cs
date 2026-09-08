@@ -125,6 +125,11 @@ namespace Workshop
         [Header("Jobs")]
         public int BatchSize = 128;
 
+        [Tooltip("Inner-loop batch for the coloured Gauss-Seidel passes, counted in CELLS not " +
+                 "agents - a cell holds about 1.3 agents at converged density, so 64 cells is " +
+                 "roughly 80 agents.")]
+        public int ColourBatch = 64;
+
         [Tooltip("Cell budget as a multiple of Count. If the crowd's bounding box needs more cells " +
                  "than this, the cell grows instead - which costs candidates, never correctness.")]
         public int CellsPerAgent = 4;

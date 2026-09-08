@@ -43,6 +43,7 @@ namespace Workshop
         NativeArray<float2> _contactNormal;
         NativeArray<int> _neighbourCount;
         NativeArray<int> _gatherCount;
+        NativeArray<int> _candidateCount;
         NativeArray<int> _neighbours;
         NativeArray<float4> _instances;
         NativeArray<int> _cellOf;
@@ -100,6 +101,7 @@ namespace Workshop
             _contactNormal = new NativeArray<float2>(count, Allocator.Persistent);
             _neighbourCount = new NativeArray<int>(count, Allocator.Persistent);
             _gatherCount = new NativeArray<int>(count, Allocator.Persistent);
+            _candidateCount = new NativeArray<int>(count, Allocator.Persistent);
             // Fixed stride, so MaxNeighbours can be retuned at runtime without reallocating -
             // and, more to the point, without GatherJob writing past the end of a shorter array.
             _neighbours = new NativeArray<int>(count * MaxNeighbourStride, Allocator.Persistent);
@@ -256,7 +258,7 @@ namespace Workshop
                                 MaxNeighbours = math.min(s.MaxNeighbours, SeparateCompactJob.Cap - 1),
                                 MinDivisor = math.max(1, s.MinDivisor),
                                 PlayerPosition = target, PlayerReach = reach
-                            }.Schedule(cells, 64, handle);
+                            }.Schedule(cells, math.max(1, s.ColourBatch), handle);
                         }
                     }
                     else if (s.SeparateVariant == 2)
@@ -708,6 +710,97 @@ namespace Workshop
             }.Schedule(_count, batch, handle);
         }
 
+        /// <summary>
+        /// Cost breakdown of the job that actually ships. Every stage is scheduled over all four
+        /// colour lists exactly as the real job is, so the four dispatches and their barriers are
+        /// inside every number and the differences isolate the loop body rather than the
+        /// scheduling. Stage 0 is the full job for reference.
+        ///
+        /// Stage 3 also fills _candidateCount, so the candidates-per-agent figure that every
+        /// per-candidate estimate has been guessing at becomes a measurement.
+        /// </summary>
+        public double TimeColoured(int stage, int reps)
+        {
+            if (!_allocated || _count == 0 || reps <= 0) return 0d;
+            var s = _settings;
+            var batch = math.max(1, s.ColourBatch);
+            var reach = s.Radius + s.PlayerRadius;
+            var dia = s.CollisionDiameter;
+
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            for (var r = 0; r < reps; r++)
+            {
+                var h = default(JobHandle);
+                for (var c = 0; c < 4; c++)
+                {
+                    var cells = c == 0 ? _colour0 : c == 1 ? _colour1 : c == 2 ? _colour2 : _colour3;
+                    var arr = cells.AsDeferredJobArray();
+                    switch (stage)
+                    {
+                        case 1:
+                            h = new ColouredAblate1
+                            { Cells = arr, Offset = _offset, Info = _info, Predicted = _predicted, Sink = _scratch }
+                                .Schedule(cells, batch, h);
+                            break;
+                        case 2:
+                            h = new ColouredAblate2
+                            { Cells = arr, Offset = _offset, Info = _info, Predicted = _predicted, Sink = _scratch }
+                                .Schedule(cells, batch, h);
+                            break;
+                        case 3:
+                            h = new ColouredAblate3
+                            {
+                                Cells = arr, Offset = _offset, Info = _info, Predicted = _predicted,
+                                Sink = _scratch, Candidates = _candidateCount
+                            }.Schedule(cells, batch, h);
+                            break;
+                        case 4:
+                            h = new ColouredAblate4
+                            { Cells = arr, Offset = _offset, Info = _info, Predicted = _predicted, Sink = _scratch }
+                                .Schedule(cells, batch, h);
+                            break;
+                        case 5:
+                            h = new ColouredAblate5
+                            { Cells = arr, Offset = _offset, Info = _info, Predicted = _predicted, Sink = _scratch }
+                                .Schedule(cells, batch, h);
+                            break;
+                        case 6:
+                            h = new ColouredAblate6
+                            {
+                                Cells = arr, Offset = _offset, Info = _info, Predicted = _predicted,
+                                Sink = _scratch, Diameter = dia
+                            }.Schedule(cells, batch, h);
+                            break;
+                        default:
+                            // The real job, but writing the scratch buffer so the timing loop does
+                            // not advance the simulation reps times over.
+                            h = new SeparateColouredJob
+                            {
+                                Cells = arr, Predicted = _scratch, Offset = _offset, Info = _info,
+                                ContactNormal = _contactNormal, NeighbourCount = _neighbourCount,
+                                Diameter = dia, Omega = s.Omega,
+                                MaxNeighbours = math.min(s.MaxNeighbours, SeparateCompactJob.Cap - 1),
+                                MinDivisor = math.max(1, s.MinDivisor),
+                                PlayerPosition = float2.zero, PlayerReach = reach
+                            }.Schedule(cells, batch, h);
+                            break;
+                    }
+                }
+                h.Complete();
+            }
+            watch.Stop();
+            return watch.Elapsed.TotalMilliseconds / reps;
+        }
+
+        /// <summary>Mean candidates scanned per agent, valid after TimeColoured(3, ...).</summary>
+        public double MeanCandidates()
+        {
+            if (!_candidateCount.IsCreated || _count == 0) return 0d;
+            var total = 0L;
+            for (var i = 0; i < _count; i++) total += _candidateCount[i];
+            return (double)total / _count;
+        }
+
         static void Swap(ref NativeArray<float2> a, ref NativeArray<float2> b)
         {
             (a, b) = (b, a);
@@ -726,6 +819,7 @@ namespace Workshop
             _contactNormal.Dispose();
             _neighbourCount.Dispose();
             _gatherCount.Dispose();
+            _candidateCount.Dispose();
             _neighbours.Dispose();
             _instances.Dispose();
             _cellOf.Dispose();
