@@ -28,11 +28,26 @@ namespace Workshop
 
         [Header("Separation solve")]
         [Tooltip("Full pipeline repeats per frame, each advancing dt/Substeps. Macklin et al. 2019 " +
-                 "'Small Steps in Physics Simulation': for a fixed budget, substeps converge far " +
-                 "better than iterations, because each substep re-linearises the contact set. " +
-                 "Measured here: at 50,000 agents, iterations plateau (12 is worse than 8) while " +
-                 "substeps keep paying, because what limits quality is displacement per step " +
-                 "relative to the collision diameter, and only substepping shrinks that.")]
+                 "'Small Steps in Physics Simulation' argues that for a fixed budget substeps " +
+                 "converge better than iterations, because each substep re-linearises the contact " +
+                 "set. THAT DOES NOT REPRODUCE HERE. Re-measured at 50,000 agents with " +
+                 "Time.captureDeltaTime pinned to 1/60, because otherwise a slower config gets a " +
+                 "bigger dt and its overlap count is not comparable:
+" +
+                 "  8 it x 1 sub   6.15 ms    400 pairs
+" +
+                 "  4 it x 2 sub   6.55 ms    390 pairs
+" +
+                 "  2 it x 4 sub   7.63 ms    430 pairs
+" +
+                 "  3 it x 2 sub   5.58 ms   2250 pairs
+" +
+                 "  4 it x 1 sub   4.45 ms  18000 pairs
+" +
+                 "Quality tracks the TOTAL number of separation passes and nothing else: the " +
+                 "three configurations with 8 passes are indistinguishable at ~400 pairs however " +
+                 "they are split, and cutting to 6 or 4 passes falls apart. Substepping only adds " +
+                 "grid rebuilds, so 8 x 1 is the cheapest way to buy 8 passes. Leave it at 1.")]
         public int Substeps = 1;
 
         [Tooltip("Jacobi position-correction passes per frame over one grid build. " +
