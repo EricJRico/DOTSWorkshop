@@ -53,13 +53,15 @@ namespace Workshop
         public NativeArray<float4> Instances => _instances;
         public GridInfo Grid => _info.IsCreated ? _info[0] : default;
 
-        /// <summary>Pairs whose centres are closer than 2*Radius, i.e. genuinely interpenetrating.</summary>
+        /// <summary>Pairs closer than the constraint the solver targets. The number to watch.</summary>
         public int OverlapPairs => _stats.IsCreated ? _stats[0] : 0;
+        /// <summary>Pairs whose centres are closer than 2*Radius, i.e. bodies genuinely overlapping.</summary>
+        public int BodyOverlapPairs => _stats.IsCreated ? _stats[10] : 0;
         /// <summary>Agents involved in at least one such pair.</summary>
         public int OverlapAgents => _stats.IsCreated ? _stats[1] : 0;
-        /// <summary>Deepest penetration this frame, as a fraction of the body diameter.</summary>
+        /// <summary>Deepest penetration this frame, as a fraction of the solve diameter.</summary>
         public float WorstPenetration => _stats.IsCreated ? _stats[2] * 1e-6f : 0f;
-        /// <summary>Mean penetration over the overlapping pairs, as a fraction of the body diameter.</summary>
+        /// <summary>Mean penetration over the failing pairs, as a fraction of the solve diameter.</summary>
         public float MeanPenetration => _stats.IsCreated && _stats[0] > 0 ? _stats[3] * 1e-4f / _stats[0] : 0f;
 
         /// <summary>Penetration histogram: &lt;0.1%, 0.1-1%, 1-5%, 5-10%, 10-25%, &gt;25% of body diameter.</summary>
@@ -96,7 +98,9 @@ namespace Workshop
             _offset = new NativeArray<int>(maxCells + 1, Allocator.Persistent);
             _partialBounds = new NativeArray<float4>(_slices, Allocator.Persistent);
             _info = new NativeArray<GridInfo>(1, Allocator.Persistent);
-            _stats = new NativeArray<int>(10, Allocator.Persistent);
+            _stats = new NativeArray<int>(
+                Unity.Jobs.LowLevel.Unsafe.JobsUtility.ThreadIndexCount * OverlapJob.Stride,
+                Allocator.Persistent);
 
             var rng = new Unity.Mathematics.Random((uint)seed | 1u);
             for (var i = 0; i < count; i++)
@@ -211,7 +215,7 @@ namespace Workshop
                             Result = _scratch, ContactNormal = _contactNormal,
                             NeighbourCount = _neighbourCount,
                             Diameter = s.CollisionDiameter, Omega = s.Omega,
-                            MaxNeighbours = s.MaxNeighbours,
+                            MaxNeighbours = math.min(s.MaxNeighbours, SeparateCompactJob.Cap - 1),
                             PlayerPosition = target, PlayerReach = reach
                         }.Schedule(_count, batch, handle);
                     }
@@ -223,7 +227,7 @@ namespace Workshop
                             Result = _scratch, ContactNormal = _contactNormal,
                             NeighbourCount = _neighbourCount,
                             Diameter = s.CollisionDiameter, Omega = s.Omega,
-                            MaxNeighbours = s.MaxNeighbours,
+                            MaxNeighbours = math.min(s.MaxNeighbours, SeparateCompactJob.Cap - 1),
                             PlayerPosition = target, PlayerReach = reach
                         }.Schedule(_count, batch, handle);
                     }
@@ -235,7 +239,7 @@ namespace Workshop
                             Result = _scratch, ContactNormal = _contactNormal,
                             NeighbourCount = _neighbourCount,
                             Diameter = s.CollisionDiameter, Omega = s.Omega,
-                            MaxNeighbours = s.MaxNeighbours,
+                            MaxNeighbours = math.min(s.MaxNeighbours, SeparateCompactJob.Cap - 1),
                             PlayerPosition = target, PlayerReach = reach
                         }.Schedule(_count, batch, handle);
                     }
@@ -358,8 +362,15 @@ namespace Workshop
                 handle = new OverlapJob
                 {
                     Position = _position, Offset = _offset, Info = _info,
-                    BodyDiameter = s.Radius * 2f, Stats = _stats
+                    SolveDiameter = s.CollisionDiameter, BodyDiameter = s.Radius * 2f,
+                    Stats = _stats
                 }.Schedule(_count, batch, handle);
+
+                handle = new ReduceStatsJob
+                {
+                    Stats = _stats,
+                    Threads = Unity.Jobs.LowLevel.Unsafe.JobsUtility.ThreadIndexCount
+                }.Schedule(handle);
             }
 
             ScheduleMarker.End();
@@ -397,7 +408,7 @@ namespace Workshop
                         Result = _scratch, ContactNormal = _contactNormal,
                         NeighbourCount = _neighbourCount,
                         Diameter = s.CollisionDiameter, Omega = s.Omega,
-                        MaxNeighbours = s.MaxNeighbours,
+                        MaxNeighbours = math.min(s.MaxNeighbours, SeparateCompactJob.Cap - 1),
                         PlayerPosition = target, PlayerReach = reach
                     }.Schedule(_count, batch);
                 }
@@ -409,7 +420,7 @@ namespace Workshop
                         Result = _scratch, ContactNormal = _contactNormal,
                         NeighbourCount = _neighbourCount,
                         Diameter = s.CollisionDiameter, Omega = s.Omega,
-                        MaxNeighbours = s.MaxNeighbours,
+                        MaxNeighbours = math.min(s.MaxNeighbours, SeparateCompactJob.Cap - 1),
                         PlayerPosition = target, PlayerReach = reach
                     }.Schedule(_count, batch);
                 }
@@ -421,7 +432,7 @@ namespace Workshop
                         Result = _scratch, ContactNormal = _contactNormal,
                         NeighbourCount = _neighbourCount,
                         Diameter = s.CollisionDiameter, Omega = s.Omega,
-                        MaxNeighbours = s.MaxNeighbours,
+                        MaxNeighbours = math.min(s.MaxNeighbours, SeparateCompactJob.Cap - 1),
                         PlayerPosition = target, PlayerReach = reach
                     }.Schedule(_count, batch);
                 }

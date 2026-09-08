@@ -29,16 +29,21 @@ namespace Workshop
         [Header("Separation solve")]
         [Tooltip("Full pipeline repeats per frame, each advancing dt/Substeps. Macklin et al. 2019 " +
                  "'Small Steps in Physics Simulation' argues that for a fixed budget substeps " +
-                 "converge better than iterations, because each substep re-linearises the contact " +
-                 "set. THAT DOES NOT REPRODUCE HERE. Re-measured at 50,000 agents with " +
-                 "Time.captureDeltaTime pinned to 1/60, because otherwise a slower config gets a " +
-                 "bigger dt and its overlap count is not comparable. Wall ms / overlap "  +
-                 "pairs: 8x1 = 6.15 / 400, 4x2 = 6.55 / 390, 2x4 = 7.63 / 430, "         +
-                 "3x2 = 5.58 / 2250, 4x1 = 4.45 / 18000. "                               +
-                 "Quality tracks the TOTAL number of separation passes and nothing else: the " +
-                 "three configurations with 8 passes are indistinguishable at ~400 pairs however " +
-                 "they are split, and cutting to 6 or 4 passes falls apart. Substepping only adds " +
-                 "grid rebuilds, so 8 x 1 is the cheapest way to buy 8 passes. Leave it at 1.")]
+                 "converge better than iterations. THAT DOES NOT REPRODUCE HERE - substeps are " +
+                 "both worse and slower. Measured at 50,000 agents with Time.captureDeltaTime " +
+                 "pinned to 1/60, quality as mean penetration against the SOLVE diameter " +
+                 "(wall ms / meanPen): "                                                        +
+                 "8x1 = 6.9 / 4.7%, 4x2 = 7.3 / 7.05%, 2x4 = 8.5 / 6.97%, "                     +
+                 "6x1 = 5.9 / 9.0%, 5x1 = 5.4 / 10.7%, 12x1 = 9.0 / 4.7%, 16x1 = 11.2 / 3.5%. " +
+                 "All three 8-pass configs cost the same 8 separation passes, and the one that " +
+                 "spends them as 8 iterations over ONE grid build is 35% better than either " +
+                 "substepped split as well as the cheapest - substepping only adds grid " +
+                 "rebuilds. 8x1 is the knee: 6 passes doubles the penetration and 12 buys " +
+                 "nothing. Leave it at 1. " +
+                 "An earlier version of this table said quality tracked total passes only and " +
+                 "the split did not matter. That was measured with the old overlap test, which " +
+                 "counted against 2*Radius while the solver targets 2*Radius*1.35 - 35% of " +
+                 "slack, so every config scored ~400 and the metric could barely fail.")]
         public int Substeps = 1;
 
         [Tooltip("Jacobi position-correction passes per frame over one grid build. " +

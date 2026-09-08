@@ -72,6 +72,10 @@ namespace Workshop
         double _worstMs;
         int _frames;
         float _lastLog;
+        // BenchmarkSeparate needs its own timer. It used to share _lastLog with
+        // LogForBenchmark, which runs first and resets it, so SEP|/ABL| never printed
+        // when LogBenchmark was also on.
+        float _lastSepLog;
         int _logs;
         float2 _lastTarget;
         int _benchRuns;
@@ -186,8 +190,8 @@ namespace Workshop
         {
             if (!Settings.SeparateBenchmark || _benchRuns >= 5) return;
             if (Time.time < BenchmarkWarmupSeconds) return;
-            if (Time.time - _lastLog < 1f) return;
-            _lastLog = Time.time;
+            if (Time.time - _lastSepLog < 1f) return;
+            _lastSepLog = Time.time;
             _benchRuns++;
 
             var ms = new double[3];
@@ -221,7 +225,8 @@ namespace Workshop
             var s = Solver;
             UnityEngine.Debug.Log($"BOID| n={s.Count} workers={Unity.Jobs.LowLevel.Unsafe.JobsUtility.JobWorkerCount}"
                 + $" wall={_solveMs:F2}ms worst={_worstMs:F2}ms fps={1f / Time.smoothDeltaTime:F0}"
-                + $" pairs={s.OverlapPairs} agents={s.OverlapAgents} worstPen={s.WorstPenetration * 100f:F1}%"
+                + $" pairs={s.OverlapPairs} body={s.BodyOverlapPairs} agents={s.OverlapAgents}"
+                + $" meanPen={s.MeanPenetration * 100f:F2}% worstPen={s.WorstPenetration * 100f:F1}%"
                 + $" deep={s.PenetrationBand(5)}");
 
             if (++_logs >= BenchmarkSamples)
@@ -244,11 +249,11 @@ namespace Workshop
             var text =
                 $"agents             {Solver.Count:N0}\n"
               + $"solver wall        {_solveMs:F2} ms  (worst {_worstMs:F2})\n"
-              + $"body diameter      {Settings.Radius * 2f:F5}\n"
-              + $"OVERLAPPING PAIRS  {pairs:N0}\n"
+              + $"solve diameter     {Settings.CollisionDiameter:F5}  (body {Settings.Radius * 2f:F5})\n"
+              + $"FAILING PAIRS      {pairs:N0}  (body {Solver.BodyOverlapPairs:N0})\n"
               + $"agents overlapping {Solver.OverlapAgents:N0} ({100f * Solver.OverlapAgents / Solver.Count:F2}%)\n"
-              + $"worst penetration  {Solver.WorstPenetration * 100f:F2}% of body\n"
-              + $"mean penetration   {Solver.MeanPenetration * 100f:F2}% of body";
+              + $"worst penetration  {Solver.WorstPenetration * 100f:F2}% of solve dia\n"
+              + $"mean penetration   {Solver.MeanPenetration * 100f:F2}% of solve dia";
 
             GUI.Box(new Rect(8, 8, 420, 150), GUIContent.none);
             GUI.Label(new Rect(16, 12, 410, 145), text, style);

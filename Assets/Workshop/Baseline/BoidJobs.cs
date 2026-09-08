@@ -774,6 +774,28 @@ namespace Workshop
         }
     }
 
+    /// <summary>Fold the per-thread overlap stripes down into stripe 0.</summary>
+    [BurstCompile]
+    public struct ReduceStatsJob : IJob
+    {
+        public NativeArray<int> Stats;
+        public int Threads;
+
+        public void Execute()
+        {
+            for (var t = 1; t < Threads; t++)
+            {
+                var b = t * OverlapJob.Stride;
+                for (var f = 0; f < 11; f++)
+                {
+                    // Slot 2 is the worst penetration, a max; everything else is a sum.
+                    if (f == 2) Stats[2] = math.max(Stats[2], Stats[b + 2]);
+                    else Stats[f] += Stats[b + f];
+                }
+            }
+        }
+    }
+
     /// <summary>Zero the overlap counters before the parallel pass fills them.</summary>
     [BurstCompile]
     public struct ClearStatsJob : IJob
@@ -787,16 +809,22 @@ namespace Workshop
     }
 
     /// <summary>
-    /// The correctness check, not a debug aid: counts pairs that are ACTUALLY interpenetrating,
-    /// meaning centre distance below 2*Radius. Note this is a stricter test than the constraint
-    /// the solver targets - the solver pushes to 2*Radius*1.05, so the 5% margin is slack that
-    /// costs nothing here. Runs over the same flat grid, in Burst, in parallel, so it is cheap
-    /// enough to leave on.
+    /// The correctness check, not a debug aid. Counts against the constraint the solver is
+    /// actually trying to satisfy - centre distance below SolveDiameter - because that is the
+    /// only threshold that can fail while the solver is still doing something wrong.
     ///
-    /// Stats layout: 0 = overlapping pairs, 1 = agents with at least one overlap,
-    /// 2 = worst penetration (ppm of body diameter), 3 = summed penetration in units of 0.01%
+    /// It used to count against 2*Radius on the argument that the solver overshoots by 5%, which
+    /// was true when CollisionRadiusScale was 1.05. At the 1.35 the measured configs use, the
+    /// solver targets 0.128 while the old test only complained below 0.0949 - 35% of slack, so a
+    /// badly squashed crowd still read as clean and every quality comparison run against it was
+    /// close to unfalsifiable. Both numbers are reported now: SolveDiameter is the one to watch,
+    /// BodyDiameter is bodies genuinely interpenetrating.
+    ///
+    /// Stats layout: 0 = pairs closer than SolveDiameter, 1 = agents in at least one such pair,
+    /// 2 = worst penetration (ppm of SolveDiameter), 3 = summed penetration in units of 0.01%
     /// (NOT ppm: at 65k pairs a ppm sum overflows int32, which showed up as a negative mean),
-    /// 4..9 = histogram of penetration depth: &lt;0.1%, 0.1-1%, 1-5%, 5-10%, 10-25%, &gt;25%.
+    /// 4..9 = histogram of penetration depth: &lt;0.1%, 0.1-1%, 1-5%, 5-10%, 10-25%, &gt;25%,
+    /// 10 = pairs closer than BodyDiameter, i.e. real interpenetration.
     /// </summary>
     [BurstCompile(FloatMode = FloatMode.Fast, FloatPrecision = FloatPrecision.Low)]
     public unsafe struct OverlapJob : IJobParallelFor
@@ -804,6 +832,18 @@ namespace Workshop
         [ReadOnly] public NativeArray<float2> Position;
         [ReadOnly] public NativeArray<int> Offset;
         [ReadOnly] public NativeArray<GridInfo> Info;
+        /// <summary>
+        /// One padded 64-byte stripe per worker, so the counters are written with plain adds.
+        /// Interlocked was fine while the test only fired on ~400 pairs; measuring against the
+        /// solver's own target fires on ~137,000, which is ~200k atomics onto six shared cache
+        /// lines and cost 3 ms - and cost MORE the worse the configuration was, so it corrupted
+        /// exactly the comparison it exists to support.
+        /// </summary>
+        public const int Stride = 16;
+        [Unity.Collections.LowLevel.Unsafe.NativeSetThreadIndex] public int ThreadIndex;
+        /// <summary>The constraint the solver targets. Pairs closer than this are failures.</summary>
+        public float SolveDiameter;
+        /// <summary>2*Radius. Pairs closer than this are bodies actually interpenetrating.</summary>
         public float BodyDiameter;
         [NativeDisableParallelForRestriction] [NativeDisableUnsafePtrRestriction]
         public NativeArray<int> Stats;
@@ -812,7 +852,8 @@ namespace Workshop
         {
             var g = Info[0];
             var pi = Position[i];
-            var b2 = BodyDiameter * BodyDiameter;
+            var b2 = SolveDiameter * SolveDiameter;
+            var body2 = BodyDiameter * BodyDiameter;
 
             var cx = (int)((pi.x - g.Min.x) * g.InvCell);
             var cy = (int)((pi.y - g.Min.y) * g.InvCell);
@@ -820,6 +861,7 @@ namespace Workshop
             cy = math.clamp(cy, 1, g.Rows - 2);
 
             var pairs = 0;
+            var bodyPairs = 0;
             var worst = 0;
             var sum = 0;
             var any = false;
@@ -838,7 +880,8 @@ namespace Workshop
                     any = true;
                     if (k < i) continue;                       // count each pair once
                     pairs++;
-                    var frac = (BodyDiameter - math.sqrt(r2)) / BodyDiameter;
+                    if (r2 < body2) bodyPairs++;
+                    var frac = (SolveDiameter - math.sqrt(r2)) / SolveDiameter;
                     var pen = (int)(frac * 1e6f);
                     sum += (int)(frac * 1e4f);
                     if (pen > worst) worst = pen;
@@ -851,25 +894,18 @@ namespace Workshop
                 }
             }
 
-            var s = (int*)Stats.GetUnsafePtr();
-            if (pairs > 0)
-            {
-                Interlocked.Add(ref *(s + 0), pairs);
-                Interlocked.Add(ref *(s + 3), sum);
-                int seen;
-                do
-                {
-                    seen = System.Threading.Volatile.Read(ref *(s + 2));
-                    if (worst <= seen) break;
-                } while (Interlocked.CompareExchange(ref *(s + 2), worst, seen) != seen);
-            }
-            if (h0 != 0) Interlocked.Add(ref *(s + 4), h0);
-            if (h1 != 0) Interlocked.Add(ref *(s + 5), h1);
-            if (h2 != 0) Interlocked.Add(ref *(s + 6), h2);
-            if (h3 != 0) Interlocked.Add(ref *(s + 7), h3);
-            if (h4 != 0) Interlocked.Add(ref *(s + 8), h4);
-            if (h5 != 0) Interlocked.Add(ref *(s + 9), h5);
-            if (any) Interlocked.Increment(ref *(s + 1));
+            var s = (int*)Stats.GetUnsafePtr() + ThreadIndex * Stride;
+            s[0] += pairs;
+            s[3] += sum;
+            if (worst > s[2]) s[2] = worst;
+            s[4] += h0;
+            s[5] += h1;
+            s[6] += h2;
+            s[7] += h3;
+            s[8] += h4;
+            s[9] += h5;
+            s[10] += bodyPairs;
+            if (any) s[1]++;
         }
     }
 }
