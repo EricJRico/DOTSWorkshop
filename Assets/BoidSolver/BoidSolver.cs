@@ -97,6 +97,9 @@ namespace Workshop
         /// <summary>Colour buckets for the radius-parameterised path, (MaxRadius+1)^2 of them.</summary>
         NativeList<int>[] _colourR;
 
+        /// <summary>AVX2 + FMA, answered by Burst rather than by managed code. See CpuFeatureJob.</summary>
+        bool _simdSupported;
+
         int _count;
         int _slices;
         bool _allocated;
@@ -185,6 +188,12 @@ namespace Workshop
             _predY = new NativeArray<float>(count + 8, Allocator.Persistent);
             _hitCount = new NativeArray<int>(count, Allocator.Persistent);
 
+            using (var probe = new NativeArray<bool>(1, Allocator.TempJob))
+            {
+                new CpuFeatureJob { Supported = probe }.Schedule().Complete();
+                _simdSupported = probe[0];
+            }
+
             var rng = new Unity.Mathematics.Random((uint)seed | 1u);
             for (var i = 0; i < count; i++)
             {
@@ -213,6 +222,12 @@ namespace Workshop
             // 6 = + phase 1 hands phase 2 the delta and r2 it already had. All three share the
             // grid, the colouring and the dispatch shape, so a sweep row isolates one change.
             var variant = s.SeparateVariant;
+            // Variant 8 is hand-written AVX2 + FMA. On a machine without them the intrinsics
+            // would trap, so fall back to variant 5 - same geometry, same colouring, just scalar.
+            // Checked here on the main thread rather than inside the job, so the fallback picks a
+            // different job rather than branching in the inner loop.
+            if (variant == 8 && !_simdSupported) variant = 5;
+
             var radiusPath = !s.CacheNeighbours && variant >= 4 && variant <= 8;
             // Variant 8 works on float streams. The pipeline stays AoS: deinterleave once before
             // the passes, run all of them in place on the streams, interleave back for Finalize.

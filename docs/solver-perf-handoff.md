@@ -155,6 +155,37 @@ overlaps 402 against 464 and 558, below both, with mean penetration between them
 correctness check that matters - a job quietly missing neighbours would read WORSE, not better.
 Better is what removing the `MaxNeighbours` cap should do, since more contacts get counted.
 
+Confirmed in a second session, and the quality question settled:
+
+| config | wall, check off | mean pen | body overlaps |
+|---|---|---|---|
+| **variant 8** | **2.25 / 2.26 ms** | 6.54% | **422** |
+| variant 5 | 3.59 ms | 7.33% | **422** |
+
+Body overlaps identical, penetration slightly better, and 2.25 / 2.26 / 2.25 across three
+measurements in two sessions.
+
+### The AVX2 guard that silently measured the wrong job
+
+Worth recording because it is the same failure mode as the rest of this document. Variant 8 needs
+AVX2 + FMA, so it got a fallback to variant 5 on machines without them:
+
+```csharp
+if (variant == 8 && !(X86.Avx2.IsAvx2Supported && X86.Fma.IsFmaSupported)) variant = 5;   // WRONG
+```
+
+**Read from managed code those properties return FALSE on a machine that plainly has AVX2.** They
+are Burst compile-time constants and only evaluate correctly inside Burst-compiled code. So the
+guard downgraded every frame to variant 5, and the sweep reported variant 5's 3.63 ms under variant
+8's name - a perfectly clean-looking result that was measuring the wrong job.
+
+The tell was that variant 8 and variant 5 agreed to 0.01 ms, which for two completely different
+inner loops should have been impossible. **Two configs agreeing far more closely than the noise
+floor is evidence of a harness bug, not of a null result.**
+
+The fix is `CpuFeatureJob`, a one-element `[BurstCompile] IJob` that reads the flags where they are
+real and writes the answer out, run once in `Allocate`.
+
 ### What made it work where three previous SIMD attempts failed
 
 - The 4-wide attempt kept the compaction store, so it kept the barrier. This deletes it.

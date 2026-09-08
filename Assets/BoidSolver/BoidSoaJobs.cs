@@ -208,4 +208,24 @@ namespace Workshop
 
         public void Execute(int i) => Destination[i] = new float2(X[i], Y[i]);
     }
+
+    /// <summary>
+    /// Asks Burst whether this CPU has AVX2 + FMA, FROM INSIDE A BURST JOB.
+    ///
+    /// This job exists because the obvious version does not work. Read from managed code,
+    /// `X86.Avx2.IsAvx2Supported` returns FALSE on a machine that plainly has AVX2 - the
+    /// properties are Burst compile-time constants and only evaluate correctly in Burst-compiled
+    /// code. A managed-side guard using them silently downgraded variant 8 to variant 5 on every
+    /// frame, and the sweep dutifully reported variant 5's number under variant 8's name.
+    /// </summary>
+    [BurstCompile]
+    public struct CpuFeatureJob : IJob
+    {
+        [WriteOnly] public NativeArray<bool> Supported;
+
+        public void Execute()
+        {
+            Supported[0] = X86.Avx2.IsAvx2Supported && X86.Fma.IsFmaSupported;
+        }
+    }
 }
