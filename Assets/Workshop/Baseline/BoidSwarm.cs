@@ -153,6 +153,7 @@ namespace Workshop
 
             LogForBenchmark();
             BenchmarkSeparate();
+            RunSweep();
 
             if (!Draw || Mesh == null || Material == null) return;
 
@@ -216,6 +217,144 @@ namespace Workshop
               + $" 9={Solver.TimeAblation(9, 6):F3} ms wall/dispatch");
         }
 
+        [System.Serializable]
+        public struct SweepConfig
+        {
+            public int Variant;
+            public int Iterations;
+            public float Omega;
+            public int MinDivisor;
+        }
+
+        [Header("Config sweep")]
+        [Tooltip("Step through SweepConfigs in ONE play session and log wall time and mean " +
+                 "penetration for each. Measuring configs in separate sessions is worthless: the " +
+                 "crowd is never in the same place twice, and a settled crowd and a flowing one " +
+                 "give completely different penetration for the same solver.")]
+        public bool SweepConfigs;
+        [Tooltip("Simulated seconds to dwell on each config before reading it. The crowd needs " +
+                 "time to re-settle after the solver changes.")]
+        public float SweepDwell = 8f;
+        public SweepConfig[] Sweep =
+        {
+            new SweepConfig { Variant = 1, Iterations = 8, Omega = 1.8f, MinDivisor = 1 },
+            new SweepConfig { Variant = 3, Iterations = 8, Omega = 1.8f, MinDivisor = 1 },
+            new SweepConfig { Variant = 3, Iterations = 6, Omega = 1.8f, MinDivisor = 1 },
+            new SweepConfig { Variant = 3, Iterations = 4, Omega = 1.8f, MinDivisor = 1 },
+            new SweepConfig { Variant = 3, Iterations = 4, Omega = 1.4f, MinDivisor = 1 },
+            new SweepConfig { Variant = 3, Iterations = 4, Omega = 1.0f, MinDivisor = 1 },
+            new SweepConfig { Variant = 3, Iterations = 4, Omega = 1.4f, MinDivisor = 3 },
+            new SweepConfig { Variant = 3, Iterations = 4, Omega = 1.0f, MinDivisor = 3 },
+            new SweepConfig { Variant = 1, Iterations = 4, Omega = 1.8f, MinDivisor = 1 },
+        };
+
+        int _sweepIndex = -1;
+        float _sweepStarted;
+        double _sweepWall;
+        double _sweepPen;
+        int _sweepSamples;
+        bool _sweepSaved;
+        bool _sweepDone;
+        int _savedVariant, _savedIterations, _savedMinDivisor;
+        float _savedOmega;
+        bool _savedAutoTarget;
+        float _savedCaptureDt;
+
+        /// <summary>
+        /// Walk every configuration inside one play session, against one scenario, and log a
+        /// comparable row for each.
+        ///
+        /// Two things here are the whole point. The target is driven on a circle, so every config
+        /// meets a crowd that is still flowing rather than one that has settled into a static
+        /// equilibrium - a settled crowd makes every solver look good. And deltaTime is pinned, so
+        /// a slower config does not get handed a bigger step and score worse for that reason
+        /// alone. Without both, the numbers compare the scenario rather than the solver.
+        ///
+        /// Everything touched is restored in RestoreSweep, which OnDisable also calls: leaving
+        /// Iterations at a swept value silently changes the sim with nothing on disk to show it.
+        /// </summary>
+        void RunSweep()
+        {
+            if (!SweepConfigs || _sweepDone || Sweep == null || Sweep.Length == 0) return;
+            if (Time.time < BenchmarkWarmupSeconds) return;
+
+            if (!_sweepSaved)
+            {
+                _savedVariant = Settings.SeparateVariant;
+                _savedIterations = Settings.Iterations;
+                _savedOmega = Settings.Omega;
+                _savedMinDivisor = Settings.MinDivisor;
+                _savedAutoTarget = AutoTarget;
+                _savedCaptureDt = Time.captureDeltaTime;
+                _sweepSaved = true;
+                AutoTarget = true;
+                Time.captureDeltaTime = 1f / 60f;
+                _sweepIndex = 0;
+                ApplySweep(0);
+                _sweepStarted = Time.time;
+                return;
+            }
+
+            if (_sweepIndex < 0 || _sweepIndex >= Sweep.Length) return;
+
+            // Sample only the second half of the dwell, so the readings exclude the transient
+            // while the crowd adapts to the new solver.
+            var elapsed = Time.time - _sweepStarted;
+            if (elapsed > SweepDwell * 0.5f)
+            {
+                _sweepWall += _solveMs;
+                _sweepPen += Solver.MeanPenetration;
+                _sweepSamples++;
+            }
+            if (elapsed < SweepDwell) return;
+
+            var c = Sweep[_sweepIndex];
+            var n = math.max(1, _sweepSamples);
+            UnityEngine.Debug.Log(
+                $"SWEEP| variant={c.Variant} it={c.Iterations} omega={c.Omega:F2} minDiv={c.MinDivisor}"
+              + $" | wall={_sweepWall / n:F2}ms meanPen={_sweepPen / n * 100f:F2}%"
+              + $" | pairs={Solver.OverlapPairs} body={Solver.BodyOverlapPairs} samples={n}");
+
+            _sweepWall = 0;
+            _sweepPen = 0;
+            _sweepSamples = 0;
+            _sweepIndex++;
+            if (_sweepIndex >= Sweep.Length)
+            {
+                UnityEngine.Debug.Log("SWEEP|done");
+                // Without this the sweep restarts, and the second lap inherits a crowd left
+                // badly penetrated by the worst config rather than the warmed-up one - the same
+                // Jacobi row read 6.80% on lap one and 10.54% on lap two.
+                _sweepDone = true;
+                RestoreSweep();
+                return;
+            }
+            ApplySweep(_sweepIndex);
+            _sweepStarted = Time.time;
+        }
+
+        void ApplySweep(int index)
+        {
+            var c = Sweep[index];
+            Settings.SeparateVariant = c.Variant;
+            Settings.Iterations = c.Iterations;
+            Settings.Omega = c.Omega;
+            Settings.MinDivisor = math.max(1, c.MinDivisor);
+        }
+
+        void RestoreSweep()
+        {
+            if (!_sweepSaved) return;
+            Settings.SeparateVariant = _savedVariant;
+            Settings.Iterations = _savedIterations;
+            Settings.Omega = _savedOmega;
+            Settings.MinDivisor = _savedMinDivisor;
+            AutoTarget = _savedAutoTarget;
+            Time.captureDeltaTime = _savedCaptureDt;
+            _sweepSaved = false;
+            _sweepIndex = -1;
+        }
+
         void LogForBenchmark()
         {
             if (!LogBenchmark || Time.time < BenchmarkWarmupSeconds) return;
@@ -257,6 +396,12 @@ namespace Workshop
 
             GUI.Box(new Rect(8, 8, 420, 150), GUIContent.none);
             GUI.Label(new Rect(16, 12, 410, 145), text, style);
+        }
+
+        void OnDisable()
+        {
+            // A swept Iterations left behind changes the sim with nothing on disk to show it.
+            RestoreSweep();
         }
 
         void OnDestroy()

@@ -20,7 +20,7 @@ MonoBehaviour:
   MaxSpeedFactor: 1
   PlayerRadius: 0.5
   Substeps: 1
-  Iterations: 8
+  Iterations: 6
   Omega: 1.8
   MaxNeighbours: 16
   TangentialSlide: 1
@@ -30,7 +30,7 @@ MonoBehaviour:
   CrowdFree: 9
   CrowdFull: 0
   AblationStage: 0
-  SeparateVariant: 1
+  SeparateVariant: 3
   MinDivisor: 1
   SeparateBenchmark: 0
   CheckOverlap: 1
