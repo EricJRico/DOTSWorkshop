@@ -98,7 +98,11 @@ namespace Workshop
                  "workers, and the positions are bit-identical (max delta exactly 0). Left as a " +
                  "switch because the reason is worth showing: rewriting the reject branchless in " +
                  "place buys nothing at all (ablation stage 7 == stage 6). The cost is the " +
-                 "conditional accumulation, not the branch.")]
+                 "conditional accumulation, not the branch. " +
+                 "2 = SeparateSimdJob, the compact job walking four candidates at a time. " +
+                 "MEASURED WORSE at 0.879: the scalar loop was not latency-bound, and blocking " +
+                 "four candidates together removes the overlap that was hiding the cursor "  +
+                 "updates. Kept as the negative result.")]
         public int SeparateVariant = 1;
 
         [Tooltip("After the crowd converges, time both separation variants back to back on the " +

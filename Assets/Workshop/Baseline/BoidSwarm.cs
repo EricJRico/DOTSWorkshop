@@ -177,7 +177,7 @@ namespace Workshop
 
 
         /// <summary>
-        /// Time both separation variants against each other on the crowd exactly as it stands.
+        /// Time every separation variant against the others on the crowd exactly as it stands.
         /// Waits for the same warmup the throughput benchmark uses, because the cost of the job
         /// is set by how densely the crowd has packed and a crowd still flying in from the spawn
         /// ring is the easy case.
@@ -190,21 +190,26 @@ namespace Workshop
             _lastLog = Time.time;
             _benchRuns++;
 
-            Solver.CompareSeparate(_lastTarget, 8, out var branchy, out var compact, out var delta);
+            var ms = new double[3];
+            var delta = new float[3];
+            Solver.CompareSeparate(_lastTarget, 8, ms, delta);
             var threads = Unity.Jobs.LowLevel.Unsafe.JobsUtility.JobWorkerCount + 1;
             UnityEngine.Debug.Log(
-                $"SEP| branchy={branchy:F3}ms compact={compact:F3}ms wall/dispatch"
-              + $" | allThreads {branchy * threads:F3} -> {compact * threads:F3} ms"
-              + $" | frame {branchy * threads * Settings.Iterations:F2} -> {compact * threads * Settings.Iterations:F2} ms"
-              + $" | {branchy / math.max(1e-9, compact):F2}x | maxDelta={delta:E2}"
+                $"SEP| branchy={ms[0]:F3} compact={ms[1]:F3} simd={ms[2]:F3} ms wall/dispatch"
+              + $" | frame {ms[0] * threads * Settings.Iterations:F2}"
+              + $" -> {ms[1] * threads * Settings.Iterations:F2}"
+              + $" -> {ms[2] * threads * Settings.Iterations:F2} ms all threads"
+              + $" | {ms[0] / math.max(1e-9, ms[1]):F2}x then {ms[1] / math.max(1e-9, ms[2]):F2}x"
+              + $" | delta compact={delta[1]:E2} simd={delta[2]:E2}"
               + $" | pairs={Solver.OverlapPairs}");
 
             // Where the 0.46 ms step between stage 5 and stage 6 actually goes. 7 is the same
-            // reject written as a mask, 8 adds the compaction store on top.
-            for (var st = 5; st <= 8; st++) Solver.TimeAblation(st, 2);
+            // reject written as a mask, 8 adds the compaction store, 9 walks it four at a time.
+            for (var st = 5; st <= 9; st++) Solver.TimeAblation(st, 2);
             UnityEngine.Debug.Log(
                 $"ABL| 5={Solver.TimeAblation(5, 6):F3} 6={Solver.TimeAblation(6, 6):F3}"
-              + $" 7={Solver.TimeAblation(7, 6):F3} 8={Solver.TimeAblation(8, 6):F3} ms wall/dispatch");
+              + $" 7={Solver.TimeAblation(7, 6):F3} 8={Solver.TimeAblation(8, 6):F3}"
+              + $" 9={Solver.TimeAblation(9, 6):F3} ms wall/dispatch");
         }
 
         void LogForBenchmark()

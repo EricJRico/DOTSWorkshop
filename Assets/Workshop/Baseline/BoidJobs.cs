@@ -429,6 +429,147 @@ namespace Workshop
     }
 
     /// <summary>
+    /// <see cref="SeparateCompactJob"/> with the candidate walk done four at a time.
+    /// MEASURED WORSE - 0.879 ms/dispatch against the compact job's 0.640, and phase 1 alone
+    /// (AblateStage9 vs AblateStage8) goes 0.41 -> 0.61. Kept, like CacheNeighbours, because the
+    /// result is the opposite of what the stage table predicts and the reason is worth showing.
+    ///
+    /// The prediction was straightforward. Phase 1 is 0.43 of the compact job's 0.63, and 0.22 of
+    /// that is loop control alone (AblateStage3 minus AblateStage2) - exactly the cost that should
+    /// divide by four when the loop steps by four. It did not.
+    ///
+    /// What the prediction missed is that the scalar loop was never latency-bound in the first
+    /// place. Its body is load, compare, store, advance a cursor, and the compare for one
+    /// candidate overlaps the cursor update of the previous one, because nothing in the next
+    /// iteration waits on the last one except a one-cycle integer add. Blocking four candidates
+    /// together destroys that overlap: all four compares must retire before the first cursor
+    /// update can start, and then four `n = min(n + select(...), cap)` steps run strictly in
+    /// series with no independent work left to hide them. The 4-wide loop trades a pipeline that
+    /// was already full for a barrier every four candidates.
+    ///
+    /// So the arithmetic was never the bottleneck and vectorising it buys nothing. To actually
+    /// win here the COMPACTION has to go vector too - movemask into a shuffle table, vpermd,
+    /// advance by popcount - which is hand-written AVX2 with no portable form and no NEON
+    /// equivalent, for a loop that is already 0.41 ms. Not worth it.
+    ///
+    /// The other half of the plan, splitting Predicted into PredX/PredY, was skipped and should
+    /// stay skipped: the candidates in a row run are contiguous, so four float2 are two float4
+    /// loads plus two swizzles, and that deinterleave was never the problem this job ran into.
+    ///
+    /// Runs are ~12 candidates, so the 0..3 remainder goes through the original scalar body.
+    /// </summary>
+    [BurstCompile(FloatMode = FloatMode.Fast, FloatPrecision = FloatPrecision.Low)]
+    public unsafe struct SeparateSimdJob : IJobParallelFor
+    {
+        public const int Cap = BoidSolver.MaxNeighbourStride;
+
+        [ReadOnly] public NativeArray<float2> Predicted;
+        [ReadOnly] public NativeArray<int> Offset;
+        [ReadOnly] public NativeArray<GridInfo> Info;
+        [WriteOnly] public NativeArray<float2> Result;
+        [WriteOnly] public NativeArray<float2> ContactNormal;
+        [WriteOnly] public NativeArray<int> NeighbourCount;
+        public float Diameter;
+        public float Omega;
+        public int MaxNeighbours;
+        public float2 PlayerPosition;
+        public float PlayerReach;
+
+        public void Execute(int i)
+        {
+            var g = Info[0];
+            var pred = (float2*)Predicted.GetUnsafeReadOnlyPtr();
+            var pi = pred[i];
+            var d2 = Diameter * Diameter;
+
+            var cx = math.clamp((int)((pi.x - g.Min.x) * g.InvCell), 1, g.Cols - 2);
+            var cy = math.clamp((int)((pi.y - g.Min.y) * g.InvCell), 1, g.Rows - 2);
+
+            var pxi = new float4(pi.x);
+            var pyi = new float4(pi.y);
+            var d24 = new float4(d2);
+            var i4 = new int4(i);
+            var lane = new int4(0, 1, 2, 3);
+
+            var cand = stackalloc int[Cap];
+            var n = 0;
+            for (var pass = 0; pass < 3; pass++)
+            {
+                var y = cy + (pass == 0 ? 0 : (pass == 1 ? -1 : 1));
+                var b = y * g.Cols + cx;
+                var end = Offset[b + 2];
+                var k = Offset[b - 1];
+
+                for (; k + 4 <= end; k += 4)
+                {
+                    var a = *(float4*)(pred + k);       // x0 y0 x1 y1
+                    var c = *(float4*)(pred + k + 2);   // x2 y2 x3 y3
+                    var dx = pxi - new float4(a.xz, c.xz);
+                    var dy = pyi - new float4(a.yw, c.yw);
+                    var hit = (dx * dx + dy * dy < d24) & (k + lane != i4);
+
+                    cand[math.min(n, Cap - 1)] = k;
+                    n = math.min(n + math.select(0, 1, hit.x), Cap);
+                    cand[math.min(n, Cap - 1)] = k + 1;
+                    n = math.min(n + math.select(0, 1, hit.y), Cap);
+                    cand[math.min(n, Cap - 1)] = k + 2;
+                    n = math.min(n + math.select(0, 1, hit.z), Cap);
+                    cand[math.min(n, Cap - 1)] = k + 3;
+                    n = math.min(n + math.select(0, 1, hit.w), Cap);
+                }
+
+                for (; k < end; k++)
+                {
+                    var d = pi - pred[k];
+                    var w = math.min(n, Cap - 1);
+                    cand[w] = k;
+                    n = math.min(n + math.select(0, 1, math.lengthsq(d) < d2 & k != i), Cap);
+                }
+            }
+
+            var sum = float2.zero;
+            var normal = float2.zero;
+            var found = math.min(n, MaxNeighbours);
+            for (var m = 0; m < found; m++)
+            {
+                var k = cand[m];
+                var d = pi - pred[k];
+                var dist = math.length(d);
+                float2 nrm;
+                if (dist > 1e-6f)
+                {
+                    nrm = d / dist;
+                }
+                else
+                {
+                    var h = (uint)(i * 73856093) ^ (uint)(k * 19349663);
+                    var ang = (h & 1023u) * (6.2831853f / 1024f);
+                    nrm = new float2(math.cos(ang), math.sin(ang));
+                    dist = 0f;
+                }
+
+                sum += 0.5f * (Diameter - dist) * nrm;
+                normal += nrm;
+            }
+
+            var toPlayer = pi - PlayerPosition;
+            var pd2 = math.lengthsq(toPlayer);
+            if (pd2 < PlayerReach * PlayerReach)
+            {
+                var dist = math.sqrt(pd2);
+                var nrm = dist > 1e-6f ? toPlayer / dist : new float2(1f, 0f);
+                sum += (PlayerReach - dist) * nrm;
+                normal += nrm;
+                found++;
+            }
+
+            Result[i] = found > 0 ? pi + sum * (Omega / found) : pi;
+            ContactNormal[i] = normal;
+            NeighbourCount[i] = found;
+        }
+    }
+
+    /// <summary>
     /// Derive velocity from the solved positions and commit. With TangentialSlide on, the part of
     /// velocity that drives straight into the contact normal is removed, so a blocked agent slides
     /// around the pack rather than shoving into it - Weiss et al. 2017 section 4.5, reduced to one

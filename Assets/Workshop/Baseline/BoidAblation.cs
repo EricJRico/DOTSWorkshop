@@ -1,3 +1,4 @@
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
@@ -283,6 +284,76 @@ namespace Workshop
                 }
             }
             // Touch the buffer so the stores cannot be dead-code eliminated.
+            Sink[i] = pi + new float2(n * 1e-9f, cand[math.max(0, n - 1)] * 1e-9f);
+        }
+    }
+
+    /// <summary>
+    /// Stage 9: stage 8 four candidates at a time - two float4 loads and two swizzles to split
+    /// x from y, then the same four scalar store-and-advance steps. The gap to stage 8 is what
+    /// the 4-wide walk actually buys, and it is the number that decides whether
+    /// <see cref="SeparateSimdJob"/> is worth keeping over <see cref="SeparateCompactJob"/>.
+    /// </summary>
+    [BurstCompile(FloatMode = FloatMode.Fast, FloatPrecision = FloatPrecision.Low)]
+    public unsafe struct AblateStage9 : IJobParallelFor
+    {
+        [ReadOnly] public NativeArray<float2> Predicted;
+        [ReadOnly] public NativeArray<int> Offset;
+        [ReadOnly] public NativeArray<GridInfo> Info;
+        [WriteOnly] public NativeArray<float2> Sink;
+        public float Diameter;
+
+        public void Execute(int i)
+        {
+            const int cap = SeparateCompactJob.Cap;
+            var g = Info[0];
+            var pred = (float2*)Predicted.GetUnsafeReadOnlyPtr();
+            var pi = pred[i];
+            var d2 = Diameter * Diameter;
+            var cx = math.clamp((int)((pi.x - g.Min.x) * g.InvCell), 1, g.Cols - 2);
+            var cy = math.clamp((int)((pi.y - g.Min.y) * g.InvCell), 1, g.Rows - 2);
+
+            var pxi = new float4(pi.x);
+            var pyi = new float4(pi.y);
+            var d24 = new float4(d2);
+            var i4 = new int4(i);
+            var lane = new int4(0, 1, 2, 3);
+
+            var cand = stackalloc int[cap];
+            var n = 0;
+            for (var pass = 0; pass < 3; pass++)
+            {
+                var y = cy + (pass == 0 ? 0 : (pass == 1 ? -1 : 1));
+                var b = y * g.Cols + cx;
+                var end = Offset[b + 2];
+                var k = Offset[b - 1];
+
+                for (; k + 4 <= end; k += 4)
+                {
+                    var a = *(float4*)(pred + k);
+                    var c = *(float4*)(pred + k + 2);
+                    var dx = pxi - new float4(a.xz, c.xz);
+                    var dy = pyi - new float4(a.yw, c.yw);
+                    var hit = (dx * dx + dy * dy < d24) & (k + lane != i4);
+
+                    cand[math.min(n, cap - 1)] = k;
+                    n = math.min(n + math.select(0, 1, hit.x), cap);
+                    cand[math.min(n, cap - 1)] = k + 1;
+                    n = math.min(n + math.select(0, 1, hit.y), cap);
+                    cand[math.min(n, cap - 1)] = k + 2;
+                    n = math.min(n + math.select(0, 1, hit.z), cap);
+                    cand[math.min(n, cap - 1)] = k + 3;
+                    n = math.min(n + math.select(0, 1, hit.w), cap);
+                }
+
+                for (; k < end; k++)
+                {
+                    var d = pi - pred[k];
+                    var w = math.min(n, cap - 1);
+                    cand[w] = k;
+                    n = math.min(n + math.select(0, 1, math.lengthsq(d) < d2 & k != i), cap);
+                }
+            }
             Sink[i] = pi + new float2(n * 1e-9f, cand[math.max(0, n - 1)] * 1e-9f);
         }
     }

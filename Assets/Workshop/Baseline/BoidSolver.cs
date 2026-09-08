@@ -203,6 +203,18 @@ namespace Workshop
                             PlayerPosition = target, PlayerReach = reach
                         }.Schedule(_count, batch, handle);
                     }
+                    else if (s.SeparateVariant == 2)
+                    {
+                        handle = new SeparateSimdJob
+                        {
+                            Predicted = _predicted, Offset = _offset, Info = _info,
+                            Result = _scratch, ContactNormal = _contactNormal,
+                            NeighbourCount = _neighbourCount,
+                            Diameter = s.CollisionDiameter, Omega = s.Omega,
+                            MaxNeighbours = s.MaxNeighbours,
+                            PlayerPosition = target, PlayerReach = reach
+                        }.Schedule(_count, batch, handle);
+                    }
                     else if (s.SeparateVariant == 1)
                     {
                         handle = new SeparateCompactJob
@@ -274,6 +286,13 @@ namespace Workshop
                             break;
                         case 8:
                             handle = new AblateStage8
+                            {
+                                Predicted = _predicted, Offset = _offset, Info = _info,
+                                Sink = _sortPosition, Diameter = s.CollisionDiameter
+                            }.Schedule(_count, batch, handle);
+                            break;
+                        case 9:
+                            handle = new AblateStage9
                             {
                                 Predicted = _predicted, Offset = _offset, Info = _info,
                                 Sink = _sortPosition, Diameter = s.CollisionDiameter
@@ -370,7 +389,19 @@ namespace Workshop
             for (var r = 0; r < reps; r++)
             {
                 JobHandle h;
-                if (variant == 1)
+                if (variant == 2)
+                {
+                    h = new SeparateSimdJob
+                    {
+                        Predicted = _predicted, Offset = _offset, Info = _info,
+                        Result = _scratch, ContactNormal = _contactNormal,
+                        NeighbourCount = _neighbourCount,
+                        Diameter = s.CollisionDiameter, Omega = s.Omega,
+                        MaxNeighbours = s.MaxNeighbours,
+                        PlayerPosition = target, PlayerReach = reach
+                    }.Schedule(_count, batch);
+                }
+                else if (variant == 1)
                 {
                     h = new SeparateCompactJob
                     {
@@ -449,6 +480,10 @@ namespace Workshop
                         h = new AblateStage8 { Predicted = _predicted, Offset = _offset, Info = _info, Sink = _scratch, Diameter = dia }
                             .Schedule(_count, batch);
                         break;
+                    case 9:
+                        h = new AblateStage9 { Predicted = _predicted, Offset = _offset, Info = _info, Sink = _scratch, Diameter = dia }
+                            .Schedule(_count, batch);
+                        break;
                     default:
                         return 0d;
                 }
@@ -459,33 +494,34 @@ namespace Workshop
         }
 
         /// <summary>
-        /// Both variants over the same crowd state, and the largest position disagreement between
-        /// them. The timing is worthless without that check: a variant that skips neighbours is
-        /// trivially faster. Runs A,B,A,B so a thermal or scheduler drift over the run hits both.
+        /// Every separation variant over the same crowd state, plus the largest position
+        /// disagreement each one has with SeparateJob. The timing is worthless without that
+        /// check: a variant that skips neighbours is trivially faster. Runs them interleaved so a
+        /// thermal or scheduler drift over the run hits all of them.
         /// </summary>
-        public void CompareSeparate(float2 target, int reps, out double branchy, out double compact,
-            out float maxDelta)
+        public void CompareSeparate(float2 target, int reps, double[] ms, float[] delta)
         {
-            branchy = 0d;
-            compact = 0d;
-            maxDelta = 0f;
+            var variants = ms.Length;
+            for (var v = 0; v < variants; v++) { ms[v] = 0d; delta[v] = 0f; }
             if (!_allocated || _count == 0) return;
 
             // Warm the caches and let Burst's first-call overhead land outside the measurement.
-            TimeSeparate(0, target, 2);
-            TimeSeparate(1, target, 2);
+            for (var v = 0; v < variants; v++) TimeSeparate(v, target, 2);
 
+            var reference = new NativeArray<float2>(_count, Allocator.Temp);
             for (var r = 0; r < reps; r++)
             {
-                branchy += TimeSeparate(0, target, 1);
-                var a = new NativeArray<float2>(_scratch, Allocator.Temp);
-                compact += TimeSeparate(1, target, 1);
-                for (var i = 0; i < _count; i++)
-                    maxDelta = math.max(maxDelta, math.length(a[i] - _scratch[i]));
-                a.Dispose();
+                for (var v = 0; v < variants; v++)
+                {
+                    ms[v] += TimeSeparate(v, target, 1);
+                    if (v == 0) reference.CopyFrom(_scratch);
+                    else
+                        for (var i = 0; i < _count; i++)
+                            delta[v] = math.max(delta[v], math.length(reference[i] - _scratch[i]));
+                }
             }
-            branchy /= reps;
-            compact /= reps;
+            reference.Dispose();
+            for (var v = 0; v < variants; v++) ms[v] /= reps;
         }
 
         static void Swap(ref NativeArray<float2> a, ref NativeArray<float2> b)
