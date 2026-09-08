@@ -25,6 +25,14 @@ namespace Workshop
 
         readonly BoidSettings _settings;
 
+        /// <summary>
+        /// Debug switches, set by the owner each frame. They live here rather than on the
+        /// BoidSettings asset because they are measurement, not tuning, and because a
+        /// ScriptableObject edited at runtime keeps the change after play mode exits.
+        /// </summary>
+        public bool CheckOverlap;
+        public int AblationStage;
+
         NativeArray<float2> _position;
         NativeArray<float2> _velocity;
         NativeArray<float2> _predicted;
@@ -292,7 +300,7 @@ namespace Workshop
 
                     // Ablation variants run IN ADDITION to the real solve, writing to a throwaway
                     // buffer, so the crowd state they measure is the real one.
-                    switch (s.AblationStage)
+                    switch (AblationStage)
                     {
                         case 1:
                             handle = new AblateStage1
@@ -362,7 +370,7 @@ namespace Workshop
                 }.Schedule(_count, batch, handle);
             }
 
-            if (s.CheckOverlap)
+            if (CheckOverlap)
             {
                 // Re-grid the SOLVED positions and count real interpenetration. It needs its own
                 // grid because the solve moved every agent after the simulation grid was built,

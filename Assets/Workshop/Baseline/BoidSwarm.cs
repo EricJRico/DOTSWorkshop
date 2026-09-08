@@ -14,21 +14,17 @@ namespace Workshop
     /// </summary>
     public class BoidSwarm : MonoBehaviour
     {
+        [Header("Setup")]
         public BoidSettings Settings;
         public Transform Player;
+        [Tooltip("Job worker threads. 0 leaves Unity default, one per logical core. Set to 4 to " +
+                 "measure what a modest machine would see.")]
+        public int WorkerThreads;
 
-        [Header("Spawn ring (outside the camera's view)")]
+        [Header("Spawn ring (outside the camera view)")]
         public float SpawnMinRadius = 34f;
         public float SpawnMaxRadius = 44f;
         public int Seed = 1;
-
-        [Header("Benchmark target")]
-        [Tooltip("Drive the target on a circle instead of following the player, so the crowd keeps " +
-                 "flowing. A crowd converged on a stationary player reaches a static equilibrium, " +
-                 "which is the easy case and not what the solver has to survive.")]
-        public bool AutoTarget;
-        public float AutoRadius = 8f;
-        public float AutoSpeed = 1.2f;
 
         [Header("Draw")]
         public Mesh Mesh;
@@ -39,17 +35,49 @@ namespace Workshop
         public Color ColorMid = new Color(1.00f, 0.90f, 0.20f);
         public Color ColorFast = new Color(0.95f, 0.15f, 0.15f);
 
-        [Header("On-screen readout")]
-        public bool ShowStats = true;
+        // Everything below is measurement. None of it changes how the crowd moves except
+        // AutoTarget, which changes where it is TOLD to move, and none of it would ship.
+        //
+        // It all lives on this component rather than on the BoidSettings asset on purpose:
+        // a ScriptableObject edited at runtime keeps the change after play mode exits, with
+        // nothing in git to show for it, which is how Iterations silently became 0 mid-session.
+        // Fields on a component revert when play mode ends.
 
-        [Header("Benchmark")]
-        [Tooltip("Job worker threads. 0 leaves Unity's default (one per logical core). Set to 4 " +
-                 "to measure what a modest machine would see.")]
-        public int WorkerThreads;
-        [Tooltip("Log a BOID| line every second after the crowd converges, then quit. For player runs.")]
+        [Header("Debug - scenario")]
+        [Tooltip("Drive the target on a circle instead of following the player, so the crowd keeps " +
+                 "flowing. A crowd converged on a stationary player reaches a static equilibrium, " +
+                 "which is the easy case and not what the solver has to survive - and comparing a " +
+                 "settled crowd against a flowing one is how two runs stop meaning anything.")]
+        public bool AutoTarget;
+        public float AutoRadius = 8f;
+        public float AutoSpeed = 1.2f;
+
+        [Header("Debug - readout")]
+        public bool ShowStats = true;
+        [Tooltip("Count pairs closer than the constraint the solver targets, every frame, on the " +
+                 "solved positions. Nothing in the simulation reads it - it only feeds the readout. " +
+                 "MEASURED 1.58 ms of a 5.4 ms frame at 50,000 agents, because it needs a SECOND " +
+                 "full grid build on the solved positions and then scans at the solve diameter, " +
+                 "which fires on ~137,000 pairs. Off takes the frame to 4.02 ms, so quote 4.02 as " +
+                 "the solver and 5.4 as the cost of proving it correct.")]
+        public bool CheckOverlap = true;
+        [Tooltip("Log a BOID| line every second after the crowd converges. For player runs.")]
         public bool LogBenchmark;
         public float BenchmarkWarmupSeconds = 70f;
         public int BenchmarkSamples = 10;
+
+        [Header("Debug - solver cost")]
+        [Tooltip("0 = off. 1..9 run stripped variants of the separation job ALONGSIDE the real " +
+                 "solve, writing to a throwaway buffer, so the inner loop cost can be split by " +
+                 "subtraction: 1 = dispatch+read+write, 2 = +grid lookup, 3 = +candidate walk, " +
+                 "4 = +neighbour load, 5 = +lengthsq, 6 = +reject branch, 7 = reject as a mask " +
+                 "instead of a branch, 8 = mask plus the compaction store, 9 = stage 8 four at a " +
+                 "time. The simulation stays correct; only the frame time is inflated.")]
+        public int AblationStage;
+        [Tooltip("After the crowd converges, time every separation variant back to back on the " +
+                 "SAME crowd state, then time every non-separation job. Timing variants on " +
+                 "separate runs is no good - the crowd is never in the same place twice.")]
+        public bool SeparateBenchmark;
 
         static readonly ProfilerMarker UploadMarker = new ProfilerMarker("Boid.Upload");
         static readonly ProfilerMarker DrawMarker = new ProfilerMarker("Boid.Draw");
@@ -133,6 +161,8 @@ namespace Workshop
             }
 
             _lastTarget = target;
+            Solver.CheckOverlap = CheckOverlap;
+            Solver.AblationStage = AblationStage;
             _handle = Solver.Schedule(target, Time.deltaTime);
         }
 
@@ -189,7 +219,7 @@ namespace Workshop
         /// </summary>
         void BenchmarkSeparate()
         {
-            if (!Settings.SeparateBenchmark || _benchRuns >= 5) return;
+            if (!SeparateBenchmark || _benchRuns >= 5) return;
             if (Time.time < BenchmarkWarmupSeconds) return;
             if (Time.time - _lastSepLog < 1f) return;
             _lastSepLog = Time.time;
@@ -238,7 +268,7 @@ namespace Workshop
             public int GatherEvery;
         }
 
-        [Header("Config sweep")]
+        [Header("Debug - config sweep")]
         [Tooltip("Step through SweepConfigs in ONE play session and log wall time and mean " +
                  "penetration for each. Measuring configs in separate sessions is worthless: the " +
                  "crowd is never in the same place twice, and a settled crowd and a flowing one " +

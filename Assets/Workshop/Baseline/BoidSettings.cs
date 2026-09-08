@@ -99,14 +99,6 @@ namespace Workshop
                  "CrowdFree to disable the gate entirely.")]
         public float CrowdFull = 7f;
 
-        [Tooltip("0 = off. 1..8 run stripped variants of the separation job ALONGSIDE the real " +
-                 "solve, writing to a throwaway buffer, so the inner loop's cost can be split by " +
-                 "subtraction: 1 = dispatch+read+write, 2 = +grid lookup, 3 = +candidate walk, " +
-                 "4 = +neighbour load, 5 = +lengthsq, 6 = +reject branch, 7 = reject as a mask " +
-                 "instead of a branch, 8 = mask plus the compaction store. The simulation stays " +
-                 "correct; only the frame time is inflated by whichever stage is running.")]
-        public int AblationStage;
-
         [Header("Separation implementation")]
         [Tooltip("0 = SeparateJob, one loop that tests and accumulates per candidate. " +
                  "1 = SeparateCompactJob, which splits it: one loop records which candidates " +
@@ -129,20 +121,6 @@ namespace Workshop
                  "Only the coloured Gauss-Seidel path reads this.")]
         public int MinDivisor = 1;
 
-        [Tooltip("After the crowd converges, time both separation variants back to back on the " +
-                 "SAME crowd state and log the result. Timing them on separate runs is no good - " +
-                 "the crowd is never in the same place twice.")]
-        public bool SeparateBenchmark;
-
-        [Header("Verification")]
-        [Tooltip("Count pairs closer than the constraint the solver targets, every frame, on the " +
-                 "solved positions. This is the solver correctness check, so it is on by default - " +
-                 "but know what it costs. MEASURED 1.58 ms of a 5.4 ms frame at 50,000 agents, " +
-                 "because it needs a SECOND full grid build on the solved positions and then scans " +
-                 "at the solve diameter, which fires on ~137,000 pairs. Turning it off takes the " +
-                 "frame to 4.02 ms. None of it would ship, so quote 4.02 as the solver cost and " +
-                 "5.4 as the cost of measuring it.")]
-        public bool CheckOverlap = true;
 
         [Header("Jobs")]
         public int BatchSize = 128;
