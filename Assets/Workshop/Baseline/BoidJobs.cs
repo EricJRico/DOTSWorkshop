@@ -227,12 +227,14 @@ namespace Workshop
         public float PlayerReach;
 
         // A branchless variant of this loop (math.select masks instead of `continue`, no early
-        // exit) measured SLOWER: 0.937 ms/dispatch against 0.844. It did not vectorise - the
-        // trip count is a runtime value and the neighbour read is a gather, so Burst keeps the
-        // loop scalar either way, and the masked form then pays rsqrt on every candidate rather
-        // than only the ~1 in 3 that are actually in contact. It also raised overlap 130 -> 321
-        // because dropping the cap changes the Jacobi averaging. Vectorising needs an SoA x/z
-        // layout and fixed-width chunks, not a rewrite of the conditionals.
+        // exit) measured SLOWER: 0.937 ms/dispatch against 0.844. It also raised overlap
+        // 130 -> 321 because dropping the cap changes the Jacobi averaging.
+        //
+        // The reason it lost is that it masked the contact MATH, so it paid a sqrt on every
+        // candidate instead of on the ~1 in 11 that are in contact. It is not that the loop
+        // cannot be made branchless: AblateStage7 does exactly that and costs the same as the
+        // branchy AblateStage6, i.e. this branch is free. See SeparateCompactJob, which keeps
+        // the compare, moves the accumulation out of the candidate loop, and wins 25%.
         public void Execute(int i)
         {
             var g = Info[0];
@@ -292,6 +294,131 @@ namespace Workshop
                 var n = dist > 1e-6f ? toPlayer / dist : new float2(1f, 0f);
                 sum += (PlayerReach - dist) * n;
                 normal += n;
+                found++;
+            }
+
+            Result[i] = found > 0 ? pi + sum * (Omega / found) : pi;
+            ContactNormal[i] = normal;
+            NeighbourCount[i] = found;
+        }
+    }
+
+    /// <summary>
+    /// Same solve as <see cref="SeparateJob"/>, split into two loops: phase 1 walks the candidates
+    /// and only records WHICH ones survive the distance test, phase 2 does the contact math over
+    /// the survivors. 0.844 -> 0.631 ms/dispatch, and the solver wall drops 7.9 -> 6.0 ms at 50k
+    /// on 4 workers. The output is bit-identical: the A/B in BoidSolver.CompareSeparate runs both
+    /// jobs on the same crowd state and reports a max position delta of exactly 0.
+    ///
+    /// Why it is faster is NOT what it looks like. The obvious story is that
+    /// `if (r2 &gt;= d2) continue;` mispredicts, and it is wrong. Measured wall ms/dispatch on one
+    /// converged 50,000-agent crowd (BoidSwarm's SEP|/ABL| lines, so this is reproducible):
+    ///
+    ///   stage 5  walk + load + lengthsq, no reject            0.34
+    ///   stage 6  + reject as a BRANCH + neighbour count       0.75
+    ///   stage 7  + reject as a MASK   + neighbour count       0.75
+    ///   stage 8  mask + compaction store, no accumulator      0.43
+    ///   SeparateJob                                           0.84
+    ///   SeparateCompactJob                                    0.63
+    ///
+    /// Stage 7 is stage 6 with the branch replaced by math.select and it costs the same to three
+    /// decimal places. The branch is free. What costs 0.4 ms is doing conditional ACCUMULATION
+    /// per candidate - which is also why the earlier attempt at a branchless SeparateJob came out
+    /// slower rather than faster. Stage 8 keeps the same compare and adds a store on top, and
+    /// runs at 0.43, because its loop body accumulates nothing: load, compare, store, advance a
+    /// cursor. That is the whole trick. Rewriting the reject buys nothing; moving the work that
+    /// depends on the reject out of the candidate loop buys 25%.
+    ///
+    /// Phase 1 stores k unconditionally and advances the cursor by the compare result, so the
+    /// buffer holds the survivors packed at the front. Phase 2 then pays sqrt only on keepers -
+    /// about 1 candidate in 11 - which is what the earlier masked-math variant got wrong.
+    ///
+    /// The stack buffer is <see cref="Cap"/> wide and the cursor saturates there, so a
+    /// pathological pile-up drops neighbours past 64 rather than writing off the end. Ordering is
+    /// unchanged - centre row is compacted first - so the MaxNeighbours cap still truncates the
+    /// far neighbours, which is what keeps the Jacobi averaging identical to SeparateJob.
+    /// </summary>
+    [BurstCompile(FloatMode = FloatMode.Fast, FloatPrecision = FloatPrecision.Low)]
+    public unsafe struct SeparateCompactJob : IJobParallelFor
+    {
+        /// <summary>Stack buffer width. Must be >= MaxNeighbours or the cap truncates twice.</summary>
+        public const int Cap = BoidSolver.MaxNeighbourStride;
+
+        [ReadOnly] public NativeArray<float2> Predicted;
+        [ReadOnly] public NativeArray<int> Offset;
+        [ReadOnly] public NativeArray<GridInfo> Info;
+        [WriteOnly] public NativeArray<float2> Result;
+        [WriteOnly] public NativeArray<float2> ContactNormal;
+        [WriteOnly] public NativeArray<int> NeighbourCount;
+        public float Diameter;
+        public float Omega;
+        public int MaxNeighbours;
+        public float2 PlayerPosition;
+        public float PlayerReach;
+
+        public void Execute(int i)
+        {
+            var g = Info[0];
+            var pi = Predicted[i];
+            var d2 = Diameter * Diameter;
+
+            var cx = math.clamp((int)((pi.x - g.Min.x) * g.InvCell), 1, g.Cols - 2);
+            var cy = math.clamp((int)((pi.y - g.Min.y) * g.InvCell), 1, g.Rows - 2);
+
+            // Phase 1: compact the survivors. No early exit and no `continue` - the whole point is
+            // that the loop body is straight-line code, so the trip count is the only branch and
+            // the predictor gets it right every time but the last.
+            var cand = stackalloc int[Cap];
+            var n = 0;
+            for (var pass = 0; pass < 3; pass++)
+            {
+                var y = cy + (pass == 0 ? 0 : (pass == 1 ? -1 : 1));
+                var b = y * g.Cols + cx;
+                var end = Offset[b + 2];
+                for (var k = Offset[b - 1]; k < end; k++)
+                {
+                    var d = pi - Predicted[k];
+                    var r2 = math.lengthsq(d);
+                    var w = math.min(n, Cap - 1);
+                    cand[w] = k;
+                    n = math.min(n + math.select(0, 1, r2 < d2 & k != i), Cap);
+                }
+            }
+
+            // Phase 2: contact math, keepers only. ~1 candidate in 11 gets here.
+            var sum = float2.zero;
+            var normal = float2.zero;
+            var found = math.min(n, MaxNeighbours);
+            for (var m = 0; m < found; m++)
+            {
+                var k = cand[m];
+                var d = pi - Predicted[k];
+                var dist = math.length(d);
+                float2 nrm;
+                if (dist > 1e-6f)
+                {
+                    nrm = d / dist;
+                }
+                else
+                {
+                    var h = (uint)(i * 73856093) ^ (uint)(k * 19349663);
+                    var a = (h & 1023u) * (6.2831853f / 1024f);
+                    nrm = new float2(math.cos(a), math.sin(a));
+                    dist = 0f;
+                }
+
+                sum += 0.5f * (Diameter - dist) * nrm;
+                normal += nrm;
+            }
+
+            var toPlayer = pi - PlayerPosition;
+            var pd2 = math.lengthsq(toPlayer);
+            if (pd2 < PlayerReach * PlayerReach)
+            {
+                var dist = math.sqrt(pd2);
+                var nrm = dist > 1e-6f ? toPlayer / dist : new float2(1f, 0f);
+                sum += (PlayerReach - dist) * nrm;
+                normal += nrm;
                 found++;
             }
 

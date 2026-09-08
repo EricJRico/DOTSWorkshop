@@ -201,4 +201,89 @@ namespace Workshop
             Sink[i] = pi + new float2(acc * 1e-9f, found * 1e-9f);
         }
     }
+
+    /// <summary>
+    /// Stage 7: stage 6 with the reject as a mask instead of a branch. Same arithmetic, same
+    /// candidates, no data-dependent control flow. The gap to stage 6 is the branch's own cost.
+    /// </summary>
+    [BurstCompile(FloatMode = FloatMode.Fast, FloatPrecision = FloatPrecision.Low)]
+    public struct AblateStage7 : IJobParallelFor
+    {
+        [ReadOnly] public NativeArray<float2> Predicted;
+        [ReadOnly] public NativeArray<int> Offset;
+        [ReadOnly] public NativeArray<GridInfo> Info;
+        [WriteOnly] public NativeArray<float2> Sink;
+        public float Diameter;
+
+        public void Execute(int i)
+        {
+            var g = Info[0];
+            var pi = Predicted[i];
+            var d2 = Diameter * Diameter;
+            var cx = math.clamp((int)((pi.x - g.Min.x) * g.InvCell), 1, g.Cols - 2);
+            var cy = math.clamp((int)((pi.y - g.Min.y) * g.InvCell), 1, g.Rows - 2);
+
+            var acc = 0f;
+            var found = 0;
+            for (var pass = 0; pass < 3; pass++)
+            {
+                var y = cy + (pass == 0 ? 0 : (pass == 1 ? -1 : 1));
+                var b = y * g.Cols + cx;
+                var end = Offset[b + 2];
+                for (var k = Offset[b - 1]; k < end; k++)
+                {
+                    var d = pi - Predicted[k];
+                    var r2 = math.lengthsq(d);
+                    var hit = r2 < d2 & k != i;
+                    acc += math.select(0f, r2, hit);
+                    found += math.select(0, 1, hit);
+                }
+            }
+            Sink[i] = pi + new float2(acc * 1e-9f, found * 1e-9f);
+        }
+    }
+
+    /// <summary>
+    /// Stage 8: phase 1 of <see cref="SeparateCompactJob"/> on its own - masked reject plus the
+    /// unconditional store and saturating cursor. The gap to stage 7 is what compaction costs, and
+    /// the gap from stage 8 to the full compact job is its contact math.
+    /// </summary>
+    [BurstCompile(FloatMode = FloatMode.Fast, FloatPrecision = FloatPrecision.Low)]
+    public unsafe struct AblateStage8 : IJobParallelFor
+    {
+        [ReadOnly] public NativeArray<float2> Predicted;
+        [ReadOnly] public NativeArray<int> Offset;
+        [ReadOnly] public NativeArray<GridInfo> Info;
+        [WriteOnly] public NativeArray<float2> Sink;
+        public float Diameter;
+
+        public void Execute(int i)
+        {
+            const int cap = SeparateCompactJob.Cap;
+            var g = Info[0];
+            var pi = Predicted[i];
+            var d2 = Diameter * Diameter;
+            var cx = math.clamp((int)((pi.x - g.Min.x) * g.InvCell), 1, g.Cols - 2);
+            var cy = math.clamp((int)((pi.y - g.Min.y) * g.InvCell), 1, g.Rows - 2);
+
+            var cand = stackalloc int[cap];
+            var n = 0;
+            for (var pass = 0; pass < 3; pass++)
+            {
+                var y = cy + (pass == 0 ? 0 : (pass == 1 ? -1 : 1));
+                var b = y * g.Cols + cx;
+                var end = Offset[b + 2];
+                for (var k = Offset[b - 1]; k < end; k++)
+                {
+                    var d = pi - Predicted[k];
+                    var r2 = math.lengthsq(d);
+                    var w = math.min(n, cap - 1);
+                    cand[w] = k;
+                    n = math.min(n + math.select(0, 1, r2 < d2 & k != i), cap);
+                }
+            }
+            // Touch the buffer so the stores cannot be dead-code eliminated.
+            Sink[i] = pi + new float2(n * 1e-9f, cand[math.max(0, n - 1)] * 1e-9f);
+        }
+    }
 }

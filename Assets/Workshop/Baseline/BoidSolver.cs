@@ -203,6 +203,18 @@ namespace Workshop
                             PlayerPosition = target, PlayerReach = reach
                         }.Schedule(_count, batch, handle);
                     }
+                    else if (s.SeparateVariant == 1)
+                    {
+                        handle = new SeparateCompactJob
+                        {
+                            Predicted = _predicted, Offset = _offset, Info = _info,
+                            Result = _scratch, ContactNormal = _contactNormal,
+                            NeighbourCount = _neighbourCount,
+                            Diameter = s.CollisionDiameter, Omega = s.Omega,
+                            MaxNeighbours = s.MaxNeighbours,
+                            PlayerPosition = target, PlayerReach = reach
+                        }.Schedule(_count, batch, handle);
+                    }
                     else
                     {
                         handle = new SeparateJob
@@ -248,6 +260,20 @@ namespace Workshop
                             break;
                         case 6:
                             handle = new AblateStage6
+                            {
+                                Predicted = _predicted, Offset = _offset, Info = _info,
+                                Sink = _sortPosition, Diameter = s.CollisionDiameter
+                            }.Schedule(_count, batch, handle);
+                            break;
+                        case 7:
+                            handle = new AblateStage7
+                            {
+                                Predicted = _predicted, Offset = _offset, Info = _info,
+                                Sink = _sortPosition, Diameter = s.CollisionDiameter
+                            }.Schedule(_count, batch, handle);
+                            break;
+                        case 8:
+                            handle = new AblateStage8
                             {
                                 Predicted = _predicted, Offset = _offset, Info = _info,
                                 Sink = _sortPosition, Diameter = s.CollisionDiameter
@@ -319,6 +345,147 @@ namespace Workshop
 
             ScheduleMarker.End();
             return handle;
+        }
+
+        /// <summary>
+        /// Time one separation variant on the crowd state as it stands right now. Call it only
+        /// after the frame's handle has completed: at that point _predicted holds the solved
+        /// positions and _offset/_info describe exactly those positions, because the overlap
+        /// check re-grids and re-sorts them. Every rep therefore reads IDENTICAL input, which is
+        /// the only way an A/B on a moving crowd means anything - a variant measured on its own
+        /// run is measured on a different crowd.
+        ///
+        /// Results go to _scratch, which the next frame overwrites before anything reads it.
+        /// Returns wall milliseconds per dispatch. The all-threads number the profiler reports is
+        /// this times the number of executing threads (workers + main).
+        /// </summary>
+        public double TimeSeparate(int variant, float2 target, int reps)
+        {
+            if (!_allocated || _count == 0 || reps <= 0) return 0d;
+            var s = _settings;
+            var reach = s.Radius + s.PlayerRadius;
+            var batch = s.BatchSize;
+
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            for (var r = 0; r < reps; r++)
+            {
+                JobHandle h;
+                if (variant == 1)
+                {
+                    h = new SeparateCompactJob
+                    {
+                        Predicted = _predicted, Offset = _offset, Info = _info,
+                        Result = _scratch, ContactNormal = _contactNormal,
+                        NeighbourCount = _neighbourCount,
+                        Diameter = s.CollisionDiameter, Omega = s.Omega,
+                        MaxNeighbours = s.MaxNeighbours,
+                        PlayerPosition = target, PlayerReach = reach
+                    }.Schedule(_count, batch);
+                }
+                else
+                {
+                    h = new SeparateJob
+                    {
+                        Predicted = _predicted, Offset = _offset, Info = _info,
+                        Result = _scratch, ContactNormal = _contactNormal,
+                        NeighbourCount = _neighbourCount,
+                        Diameter = s.CollisionDiameter, Omega = s.Omega,
+                        MaxNeighbours = s.MaxNeighbours,
+                        PlayerPosition = target, PlayerReach = reach
+                    }.Schedule(_count, batch);
+                }
+                h.Complete();
+            }
+            watch.Stop();
+            return watch.Elapsed.TotalMilliseconds / reps;
+        }
+
+        /// <summary>
+        /// Same stopwatch, pointed at one ablation stage, so the stage table can be rebuilt on the
+        /// current crowd without opening the profiler. Stages 2..8 all scan the same candidates,
+        /// so the difference between two of them is the cost of the piece that was added.
+        /// </summary>
+        public double TimeAblation(int stage, int reps)
+        {
+            if (!_allocated || _count == 0 || reps <= 0) return 0d;
+            var batch = _settings.BatchSize;
+            var dia = _settings.CollisionDiameter;
+
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            for (var r = 0; r < reps; r++)
+            {
+                JobHandle h;
+                switch (stage)
+                {
+                    case 1:
+                        h = new AblateStage1 { Predicted = _predicted, Sink = _scratch }
+                            .Schedule(_count, batch);
+                        break;
+                    case 2:
+                        h = new AblateStage2 { Predicted = _predicted, Offset = _offset, Info = _info, Sink = _scratch }
+                            .Schedule(_count, batch);
+                        break;
+                    case 3:
+                        h = new AblateStage3 { Predicted = _predicted, Offset = _offset, Info = _info, Sink = _scratch }
+                            .Schedule(_count, batch);
+                        break;
+                    case 4:
+                        h = new AblateStage4 { Predicted = _predicted, Offset = _offset, Info = _info, Sink = _scratch }
+                            .Schedule(_count, batch);
+                        break;
+                    case 5:
+                        h = new AblateStage5 { Predicted = _predicted, Offset = _offset, Info = _info, Sink = _scratch }
+                            .Schedule(_count, batch);
+                        break;
+                    case 6:
+                        h = new AblateStage6 { Predicted = _predicted, Offset = _offset, Info = _info, Sink = _scratch, Diameter = dia }
+                            .Schedule(_count, batch);
+                        break;
+                    case 7:
+                        h = new AblateStage7 { Predicted = _predicted, Offset = _offset, Info = _info, Sink = _scratch, Diameter = dia }
+                            .Schedule(_count, batch);
+                        break;
+                    case 8:
+                        h = new AblateStage8 { Predicted = _predicted, Offset = _offset, Info = _info, Sink = _scratch, Diameter = dia }
+                            .Schedule(_count, batch);
+                        break;
+                    default:
+                        return 0d;
+                }
+                h.Complete();
+            }
+            watch.Stop();
+            return watch.Elapsed.TotalMilliseconds / reps;
+        }
+
+        /// <summary>
+        /// Both variants over the same crowd state, and the largest position disagreement between
+        /// them. The timing is worthless without that check: a variant that skips neighbours is
+        /// trivially faster. Runs A,B,A,B so a thermal or scheduler drift over the run hits both.
+        /// </summary>
+        public void CompareSeparate(float2 target, int reps, out double branchy, out double compact,
+            out float maxDelta)
+        {
+            branchy = 0d;
+            compact = 0d;
+            maxDelta = 0f;
+            if (!_allocated || _count == 0) return;
+
+            // Warm the caches and let Burst's first-call overhead land outside the measurement.
+            TimeSeparate(0, target, 2);
+            TimeSeparate(1, target, 2);
+
+            for (var r = 0; r < reps; r++)
+            {
+                branchy += TimeSeparate(0, target, 1);
+                var a = new NativeArray<float2>(_scratch, Allocator.Temp);
+                compact += TimeSeparate(1, target, 1);
+                for (var i = 0; i < _count; i++)
+                    maxDelta = math.max(maxDelta, math.length(a[i] - _scratch[i]));
+                a.Dispose();
+            }
+            branchy /= reps;
+            compact /= reps;
         }
 
         static void Swap(ref NativeArray<float2> a, ref NativeArray<float2> b)

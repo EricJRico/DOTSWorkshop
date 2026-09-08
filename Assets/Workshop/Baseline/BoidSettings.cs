@@ -82,11 +82,29 @@ namespace Workshop
                  "CrowdFree to disable the gate entirely.")]
         public float CrowdFull = 7f;
 
-        [Tooltip("0 = normal solve. 1/2/3 run stripped variants of the separation job so the inner " +
-                 "loop's cost can be split by subtraction: 1 = dispatch+read+write only, " +
-                 "2 = +grid lookup, 3 = +candidate scan and distance reject (no contact math). " +
-                 "The simulation is wrong while this is non-zero; it is a measurement mode.")]
+        [Tooltip("0 = off. 1..8 run stripped variants of the separation job ALONGSIDE the real " +
+                 "solve, writing to a throwaway buffer, so the inner loop's cost can be split by " +
+                 "subtraction: 1 = dispatch+read+write, 2 = +grid lookup, 3 = +candidate walk, " +
+                 "4 = +neighbour load, 5 = +lengthsq, 6 = +reject branch, 7 = reject as a mask " +
+                 "instead of a branch, 8 = mask plus the compaction store. The simulation stays " +
+                 "correct; only the frame time is inflated by whichever stage is running.")]
         public int AblationStage;
+
+        [Header("Separation implementation")]
+        [Tooltip("0 = SeparateJob, one loop that tests and accumulates per candidate. " +
+                 "1 = SeparateCompactJob, which splits it: one loop records which candidates " +
+                 "survive the distance test, a second does the contact math over the survivors. " +
+                 "MEASURED: 0.844 -> 0.631 ms/dispatch, solver wall 7.9 -> 6.0 ms at 50k on 4 " +
+                 "workers, and the positions are bit-identical (max delta exactly 0). Left as a " +
+                 "switch because the reason is worth showing: rewriting the reject branchless in " +
+                 "place buys nothing at all (ablation stage 7 == stage 6). The cost is the " +
+                 "conditional accumulation, not the branch.")]
+        public int SeparateVariant = 1;
+
+        [Tooltip("After the crowd converges, time both separation variants back to back on the " +
+                 "SAME crowd state and log the result. Timing them on separate runs is no good - " +
+                 "the crowd is never in the same place twice.")]
+        public bool SeparateBenchmark;
 
         [Header("Verification")]
         [Tooltip("Count genuinely interpenetrating pairs (centres closer than 2*Radius) every " +
