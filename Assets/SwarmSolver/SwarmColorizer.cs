@@ -71,7 +71,7 @@ namespace Workshop
             if (n == 0) return;
             if (n != _count) Allocate(n);
 
-            var maxSpeed = Mover.Settings.Speed * Mover.Settings.MaxSpeedFactor;
+            var maxSpeed = Mover.Settings.MaxSpeed;
 
             FillMarker.Begin();
             new FillJob
@@ -79,7 +79,7 @@ namespace Workshop
                 Position = solver.Positions, Velocity = solver.Velocities, Lut = _lut,
                 Matrices = _matrices, Colors = _colors,
                 Scale = Scale, MaxSpeed = maxSpeed
-            }.Schedule(n, Mover.Settings.BatchSize).Complete();
+            }.Schedule(n, Mover.Settings.Advanced.BatchSize).Complete();
             FillMarker.End();
 
             DrawMarker.Begin();

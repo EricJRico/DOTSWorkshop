@@ -1,57 +1,141 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Workshop
 {
     /// <summary>
-    /// All swarm tuning in one asset. Values follow Weiss et al. 2017 "Position-Based
-    /// Multi-Agent Dynamics" section 5.1 unless marked otherwise. Nothing in code is a literal.
+    /// Tuning for <see cref="SwarmSolver"/>, the GameObject-per-enemy swarm.
+    ///
+    /// This is a DIFFERENT algorithm from the boid solver: position-based dynamics with friction
+    /// and velocity cohesion, following Weiss et al. 2017 "Position-Based Multi-Agent Dynamics"
+    /// section 5.1, with friction from Macklin et al. 2014. The boid solver shares none of it.
+    ///
+    /// Top-level fields change how the crowd looks and feels. Advanced is the solver itself - the
+    /// defaults come from the papers, and changing them trades stability or speed rather than
+    /// changing how the crowd behaves.
     /// </summary>
     [CreateAssetMenu(menuName = "Workshop/Swarm Settings")]
     public class SwarmSettings : ScriptableObject
     {
-        [Header("Agents")]
-        public float Speed = 2.5f;
-        public float Radius = 0.15f;
-        [Tooltip("Paper: radius expanded 5% during collision checks.")]
-        public float CollisionRadiusScale = 1.05f;
-        public float PlayerRadius = 0.5f;
+        [Header("Enemies")]
 
-        [Header("Time stepping (paper: 1/48 s, 2 substeps per frame)")]
-        public float StepSeconds = 1f / 48f;
-        public int Substeps = 2;
+        [Tooltip("How big each enemy is, measured from its centre to its edge. Bigger enemies " +
+                 "take up more room and bump into each other sooner. This is only their size - " +
+                 "it does not change how far apart they stand.")]
+        [FormerlySerializedAs("Radius")]
+        public float EnemyRadius = 0.15f;
 
-        [Header("Solver (paper: 1 stability, 6 solver, omega 1.2, blend 0.0385)")]
-        public int StabilityIterations = 1;
-        public int SolverIterations = 6;
-        public float Omega = 1.2f;
-        public float VelocityBlend = 0.0385f;
+        [Tooltip("How much room each enemy keeps between itself and its neighbours. Turn it up " +
+                 "and the crowd spreads out; turn it down and it packs in tighter. If you set it " +
+                 "smaller than an enemy is wide, they will visibly overlap.")]
+        public float Separation = 0.315f;
 
-        [Header("Friction (Macklin 2014 eq. 24; coefficients not given in either paper)")]
-        public float StaticFriction = 0.5f;
-        public float KineticFriction = 0.3f;
+        [Header("Movement")]
 
-        [Header("Cohesion, XSPH (paper: h = 7 radii, c = 217 at radius 1; c scales with h^3)")]
-        public float XsphRadiusFactor = 7f;
-        public float XsphCAtRadiusOne = 217f;
+        [Tooltip("How fast enemies move when they have clear space. In a crush they will move " +
+                 "slower than this because the crowd is in the way.")]
+        [FormerlySerializedAs("Speed")]
+        public float MoveSpeed = 2.5f;
 
-        [Header("Limits (paper clamps speed and acceleration; values not given)")]
-        public float MaxSpeedFactor = 1f;
+        [Tooltip("How quickly enemies change direction. High values snap round instantly and look " +
+                 "mechanical. Low values swing round in long curves and make the crowd feel heavy.")]
+        [FormerlySerializedAs("VelocityBlend")]
+        public float TurnSpeed = 0.0385f;
+
+        [Tooltip("How much space the player clears around itself as it moves through the crowd.")]
+        [FormerlySerializedAs("PlayerRadius")]
+        public float PlayerPush = 0.5f;
+
+        [Tooltip("A ceiling on how sharply an enemy can change speed. Lower makes the crowd " +
+                 "sluggish and heavy to get moving; very high lets enemies snap to full speed and " +
+                 "can look twitchy.")]
         public float MaxAcceleration = 50f;
 
-        [Header("Jobs")]
-        public int BatchSize = 64;
+        [Header("Crowd behaviour")]
 
-        public float CollisionDiameter => Radius * 2f * CollisionRadiusScale;
-        public float XsphRadius => Radius * XsphRadiusFactor;
+        [Tooltip("How much effort goes into stopping enemies from standing inside each other. " +
+                 "Turn it up for a cleaner-looking crowd; turn it down to save performance and " +
+                 "accept more of them clipping through each other.")]
+        [FormerlySerializedAs("SolverIterations")]
+        public int OverlapCleanup = 6;
 
-        /// <summary>Poly6 peak scales with 1/h^3, so c must scale with h^3 to keep c*W the same.</summary>
+        [Tooltip("How much enemies drag along the ones they are touching. Higher makes the crowd " +
+                 "move as a single sticky mass; lower lets enemies slide past each other freely.")]
+        [FormerlySerializedAs("StaticFriction")]
+        public float Grip = 0.5f;
+
+        [Tooltip("How much enemies slow each other down once they are already sliding past. " +
+                 "Higher makes the crowd feel like it is wading through treacle.")]
+        [FormerlySerializedAs("KineticFriction")]
+        public float Drag = 0.3f;
+
+        [Tooltip("How far away an enemy looks to match its neighbours' direction, as a multiple " +
+                 "of its own size. Higher makes the crowd move in big co-ordinated shoals; lower " +
+                 "makes enemies act more individually.")]
+        [FormerlySerializedAs("XsphRadiusFactor")]
+        public float FollowTheCrowdRange = 7f;
+
+        [Tooltip("How strongly enemies copy their neighbours' direction. Turn it up and the crowd " +
+                 "flows as one; turn it down to zero and every enemy makes its own way.")]
+        [FormerlySerializedAs("XsphCAtRadiusOne")]
+        public float FollowTheCrowdStrength = 217f;
+
+        [Header("Advanced")]
+
+        [Tooltip("The solver itself. These come from the papers this is built on - changing them " +
+                 "trades stability or speed rather than changing how the crowd behaves.")]
+        public AdvancedSettings Advanced = new AdvancedSettings();
+
+        /// <summary>
+        /// Grouped in a nested class purely so Unity draws it as one collapsed foldout. Values
+        /// follow Weiss et al. 2017 section 5.1 unless noted; friction is Macklin et al. 2014.
+        /// </summary>
+        [System.Serializable]
+        public class AdvancedSettings
+        {
+            [Tooltip("How hard each cleanup pass shoves overlapping enemies apart. Too low and the " +
+                     "crowd stays soft and mushy; too high and it jitters. The paper uses 1.2.")]
+            public float Relaxation = 1.2f;
+
+            [Tooltip("Extra passes run before the main ones that move enemies out of deep overlaps. " +
+                     "Mainly matters at spawn, when enemies can start on top of each other.")]
+            public int StabilityIterations = 1;
+
+            [Tooltip("How long one simulated step lasts. The paper uses 1/48 of a second. Shorter " +
+                     "steps are steadier and cost more.")]
+            public float StepSeconds = 1f / 48f;
+
+            [Tooltip("How many times the whole simulation runs per step. More is steadier under " +
+                     "heavy crowding and costs proportionally more. The paper uses 2.")]
+            public int Substeps = 2;
+
+            [Tooltip("Threading chunk size. Performance only - it does not change behaviour.")]
+            public int BatchSize = 64;
+        }
+
+        /// <summary>The distance the solver drives enemies apart to.</summary>
+        public float CollisionDiameter => Separation;
+
+        /// <summary>The physical body. Only drawing and overlap reporting care about this.</summary>
+        public float BodyDiameter => EnemyRadius * 2f;
+
+        public float MaxSpeed => MoveSpeed;
+
+        /// <summary>How far the velocity-matching looks, in world units.</summary>
+        public float XsphRadius => EnemyRadius * FollowTheCrowdRange;
+
+        /// <summary>
+        /// Velocity-matching strength, corrected for range. The smoothing kernel's peak scales
+        /// with 1/h^3, so the strength has to scale with h^3 for the effect to stay the same when
+        /// the range changes - otherwise widening the range would silently weaken it.
+        /// </summary>
         public float XsphC
         {
             get
             {
-                var hPaper = 7f;
+                const float hPaper = 7f;
                 var ratio = XsphRadius / hPaper;
-                return XsphCAtRadiusOne * ratio * ratio * ratio;
+                return FollowTheCrowdStrength * ratio * ratio * ratio;
             }
         }
     }

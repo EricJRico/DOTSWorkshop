@@ -52,27 +52,27 @@ namespace Workshop
 
             var s = _settings;
             var n = _position.Length;
-            var dt = s.StepSeconds;
-            var batch = s.BatchSize;
+            var dt = s.Advanced.StepSeconds;
+            var batch = s.Advanced.BatchSize;
             var handle = default(JobHandle);
 
-            for (var sub = 0; sub < s.Substeps; sub++)
+            for (var sub = 0; sub < s.Advanced.Substeps; sub++)
             {
                 handle = new PredictJob
                 {
                     Position = _position, Velocity = _velocity, Predicted = _predicted,
-                    Target = target, Speed = s.Speed, Blend = s.VelocityBlend, DeltaTime = dt
+                    Target = target, Speed = s.MoveSpeed, Blend = s.TurnSpeed, DeltaTime = dt
                 }.Schedule(n, batch, handle);
 
                 handle = new BuildGridJob { Positions = _predicted, Grid = _contactGrid }.Schedule(handle);
 
-                for (var it = 0; it < s.StabilityIterations; it++)
+                for (var it = 0; it < s.Advanced.StabilityIterations; it++)
                 {
                     handle = Contact(_position, friction: false, target, handle);
                     handle = Apply(alsoPosition: true, handle);
                 }
 
-                for (var it = 0; it < s.SolverIterations; it++)
+                for (var it = 0; it < s.OverlapCleanup; it++)
                 {
                     handle = Contact(_predicted, friction: true, target, handle);
                     handle = Apply(alsoPosition: false, handle);
@@ -95,7 +95,7 @@ namespace Workshop
                 handle = new CommitJob
                 {
                     Position = _position, Velocity = _velocity, Smoothed = _delta, Predicted = _predicted,
-                    MaxSpeed = s.Speed * s.MaxSpeedFactor, MaxAcceleration = s.MaxAcceleration, DeltaTime = dt
+                    MaxSpeed = s.MaxSpeed, MaxAcceleration = s.MaxAcceleration, DeltaTime = dt
                 }.Schedule(n, batch, handle);
             }
 
@@ -109,10 +109,10 @@ namespace Workshop
             return new ContactJob
             {
                 Solve = solve, Start = _position, Grid = _contactGrid, Delta = _delta, Count = _count,
-                Diameter = s.CollisionDiameter, Radius = s.Radius,
-                PlayerPosition = target, PlayerRadius = s.PlayerRadius,
-                StaticFriction = s.StaticFriction, KineticFriction = s.KineticFriction, Friction = friction
-            }.Schedule(_position.Length, s.BatchSize, after);
+                Diameter = s.CollisionDiameter, Radius = s.EnemyRadius,
+                PlayerPosition = target, PlayerRadius = s.PlayerPush,
+                StaticFriction = s.Grip, KineticFriction = s.Drag, Friction = friction
+            }.Schedule(_position.Length, s.Advanced.BatchSize, after);
         }
 
         JobHandle Apply(bool alsoPosition, JobHandle after)
@@ -120,8 +120,8 @@ namespace Workshop
             return new ApplyJob
             {
                 Predicted = _predicted, Position = _position, Delta = _delta, Count = _count,
-                Omega = _settings.Omega, AlsoPosition = alsoPosition
-            }.Schedule(_position.Length, _settings.BatchSize, after);
+                Omega = _settings.Advanced.Relaxation, AlsoPosition = alsoPosition
+            }.Schedule(_position.Length, _settings.Advanced.BatchSize, after);
         }
 
         public void Dispose()
