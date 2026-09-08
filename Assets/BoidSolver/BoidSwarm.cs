@@ -66,6 +66,24 @@ namespace Workshop
         public float BenchmarkWarmupSeconds = 70f;
         public int BenchmarkSamples = 10;
 
+        [Tooltip("Scan radius for SeparateVariant 4. Cell = collision diameter / R and the scan " +
+                 "reaches R cells, so the reach is one diameter at any R and no contact is lost. " +
+                 "R=2 sweeps 6.25 D^2 instead of 9 but needs 9 colours instead of 4. Set by the " +
+                 "sweep; it lives on the component, not on BoidSettings, so it dies with play mode.")]
+        public int ScanRadius = 1;
+
+        [Tooltip("Cell size multiplier for variants 4-6, on top of the divide by ScanRadius. The " +
+                 "scan still reaches ScanRadius cells, so reach = diameter * this and nothing is " +
+                 "missed above 1. Bigger cells hold more agents, which amortises the per-cell row " +
+                 "bounds over more of them, and scan more candidates. Set by the sweep.")]
+        public float CellScale = 1f;
+
+        [Tooltip("Count how far the separation solve moved each agent, and log a MOTION| line. " +
+                 "Sizes the sleeping idea before anything is built for it: skipping agents that " +
+                 "cannot move only pays if most of them cannot move WHILE THE CROWD IS FLOWING, " +
+                 "which is when the solver is expensive. Costs a 50k copy and a 50k compare.")]
+        public bool MeasureMotion;
+
         [Header("Debug - solver cost")]
         [Tooltip("0 = off. 1..9 run stripped variants of the separation job ALONGSIDE the real " +
                  "solve, writing to a throwaway buffer, so the inner loop cost can be split by " +
@@ -78,6 +96,20 @@ namespace Workshop
                  "SAME crowd state, then time every non-separation job. Timing variants on " +
                  "separate runs is no good - the crowd is never in the same place twice.")]
         public bool SeparateBenchmark;
+
+        [Tooltip("Once, on one crowd state, time the candidate walk and the whole separation pass " +
+                 "at scan radius 1, 2 and 3, and report the candidates per agent each one scans. " +
+                 "This is what splits the walk cost into a fixed part per ROW RUN and a variable " +
+                 "part per CANDIDATE: R=2 cuts candidates ~31% and raises row runs from 3 to 5, so " +
+                 "two radii give two equations. Runs before the sweep starts, and reorders the " +
+                 "crowd without moving it.")]
+        public bool RadiusBenchmark = true;
+        [Tooltip("Largest scan radius the radius benchmark and the sweep may ask for.")]
+        public int MaxRadius = 3;
+        [Tooltip("Repetitions per stage in the radius benchmark. 8 was too few - the run-to-run " +
+                 "spread on one config was 0.027 ms, the same size as the difference it was being " +
+                 "used to measure, and the sign flipped between sessions.")]
+        public int RadiusBenchmarkReps = 32;
 
         static readonly ProfilerMarker UploadMarker = new ProfilerMarker("Boid.Upload");
         static readonly ProfilerMarker DrawMarker = new ProfilerMarker("Boid.Draw");
@@ -161,8 +193,13 @@ namespace Workshop
             }
 
             _lastTarget = target;
+            // CheckOverlap is a field on this component, and the sweep drives it, so this reads
+            // whatever the running config asked for.
             Solver.CheckOverlap = CheckOverlap;
             Solver.AblationStage = AblationStage;
+            Solver.ScanRadius = ScanRadius;
+            Solver.CellScale = CellScale;
+            Solver.MeasureMotion = MeasureMotion;
             _handle = Solver.Schedule(target, Time.deltaTime);
         }
 
@@ -183,6 +220,7 @@ namespace Workshop
 
             LogForBenchmark();
             BenchmarkSeparate();
+            BenchmarkRadius();
             RunSweep();
 
             if (!Draw || Mesh == null || Material == null) return;
@@ -268,6 +306,60 @@ namespace Workshop
               + $" 9={Solver.TimeAblation(9, 6):F3} ms wall/dispatch");
         }
 
+        int _radiusRuns;
+
+        /// <summary>
+        /// The measurement that decides lead 2 before the sweep even runs, and explains the walk
+        /// cost that the ablation table could only report.
+        ///
+        /// walk(R) = (2R+1) * Fixed + candidates(R) * PerCandidate. Radius 1 and radius 2 give two
+        /// equations in two unknowns, and radius 3 checks the fit. If Fixed is large the extra row
+        /// runs eat the smaller candidate list and no amount of shrinking the cell can win.
+        ///
+        /// All three radii are measured on ONE crowd state, back to back, for the same reason the
+        /// sweep exists: a crowd is never in the same place twice.
+        ///
+        /// READ THE NUMBERS FOR SHAPE, NOT FOR SMALL DIFFERENCES. Each stage is a Complete() per
+        /// pass over the whole crowd, which is a barrier the real frame never pays, and the
+        /// run-to-run spread on ONE config was measured at 0.027 ms across three sessions. That is
+        /// the same size as the contact-math change this was used to look at, and on the third
+        /// session the sign of that difference flipped. The ratios between radii are large enough
+        /// to survive it - 0.294 against 0.446 - and the candidate counts are exact. Anything
+        /// smaller than about 0.05 ms here is not a result; take it to SweepConfigs, which samples
+        /// 240 frames per config and bookends itself.
+        /// </summary>
+        void BenchmarkRadius()
+        {
+            if (!RadiusBenchmark || _radiusRuns > 0) return;
+            if (Time.time < BenchmarkWarmupSeconds) return;
+            _radiusRuns++;
+
+            var maxR = math.clamp(MaxRadius, 1, 3);
+            for (var r = 1; r <= maxR; r++)
+            {
+                // 8 reps could not resolve 0.035 ms against its own 0.027 ms of run-to-run
+                // spread. This is still not the harness to settle small differences with, but at
+                // least the number it prints is stable.
+                Solver.MeasureRadius(r, RadiusBenchmarkReps, out var walk, out var full,
+                                     out var rsq, out var fus, out var simd,
+                                     out var cand, out var simdCand,
+                                     out var cells, out var items);
+                var runs = 2 * r + 1;
+                var colours = (r + 1) * (r + 1);
+                UnityEngine.Debug.Log(
+                    $"COLR| R={r} runs={runs} colours={colours} cells={cells:N0} workItems={items:N0}"
+                  + $" | cand/agent={cand:F2} candPerRun={cand / runs:F2}"
+                  + $" | walk={walk:F3} full={full:F3} contactMath={full - walk:F3} ms/pass"
+                  + $" | rsqrt={rsq:F3} fused={fus:F3}"
+                  + $" | saved vs full: rsqrt={full - rsq:F3} fused={full - fus:F3}"
+                  + $" | walkPerCand={walk / math.max(1e-9, cand):F4} walkPerRun={walk / runs:F4}"
+                  + $" | SIMDwalk={simd:F3} vs scalar {walk:F3}"
+                  + $" ({walk / math.max(1e-9, simd):F2}x)"
+                  + $" maskCheck cand={simdCand:F2} vs {cand:F2}"
+                  + $" {(math.abs(simdCand - cand) < 0.05 ? "OK" : "MASK WRONG - IGNORE TIMING")}");
+            }
+        }
+
         [System.Serializable]
         public struct SweepConfig
         {
@@ -281,6 +373,25 @@ namespace Workshop
             public int GatherEvery;
             [Tooltip("Inner-loop batch in CELLS for the coloured passes. 0 leaves it alone.")]
             public int ColourBatch;
+            [Tooltip("Scan radius. Variants 4, 5 and 6 read it. 0 means 1.")]
+            public int ScanRadius;
+            [Tooltip("Run the overlap verification jobs during this config. OFF gives the wall " +
+                     "time that would actually ship, but leaves the penetration reading stale, so " +
+                     "it is logged as 'pen=n/a'. Put each config in TWICE - once each way - rather " +
+                     "than running the sweep twice, because two sessions are not comparable.")]
+            public bool Overlap;
+            [Tooltip("Agent-loop batch for everything EXCEPT the coloured passes - steer, hash, " +
+                     "scatter, finalize, overlap. 0 leaves it alone. The last knob this project " +
+                     "never swept.")]
+            public int BatchSize;
+            [Tooltip("Cell size multiplier for variants 4-6. 0 means 1.")]
+            public float CellScale;
+            [Tooltip("Dwell on this config but do not log it. The first config in a sweep reads " +
+                     "systematically better than the rest - measured at ~1.4 points of penetration " +
+                     "across two runs - because AutoTarget has only just come on and the crowd is " +
+                     "still settling into the flowing regime. One discarded row at the front " +
+                     "absorbs that, which is what makes the bookends mean anything.")]
+            public bool Discard;
         }
 
         [Header("Debug - config sweep")]
@@ -294,13 +405,30 @@ namespace Workshop
         public float SweepDwell = 8f;
         public SweepConfig[] Sweep =
         {
-            new SweepConfig { Variant = 3, Iterations = 6, Omega = 1.8f, MinDivisor = 1 },
-            new SweepConfig { Variant = 1, Iterations = 8, Omega = 1.8f, MinDivisor = 1 },
-            new SweepConfig { Variant = 1, Iterations = 8, Omega = 1.8f, MinDivisor = 1, Cache = true, GatherEvery = 8 },
-            new SweepConfig { Variant = 1, Iterations = 8, Omega = 1.8f, MinDivisor = 1, Cache = true, GatherEvery = 4 },
-            new SweepConfig { Variant = 1, Iterations = 8, Omega = 1.8f, MinDivisor = 1, Cache = true, GatherEvery = 2 },
-            new SweepConfig { Variant = 1, Iterations = 12, Omega = 1.8f, MinDivisor = 1, Cache = true, GatherEvery = 4 },
-            new SweepConfig { Variant = 3, Iterations = 6, Omega = 1.8f, MinDivisor = 1 },
+            // Discarded: absorbs the settling transient so the bookends compare like with like.
+            // Measured at ~1.4 points of penetration on the first row across three runs.
+            new SweepConfig { Variant = 3, Iterations = 6, Omega = 1.8f, MinDivisor = 1, Overlap = true, Discard = true },
+
+            // Every config twice, check on then check off, in ONE session. The check-on row is the
+            // only one that can carry a quality number; the check-off row is the only one that is
+            // the cost that would actually ship.
+            new SweepConfig { Variant = 3, Iterations = 6, Omega = 1.8f, MinDivisor = 1, Overlap = true },
+            new SweepConfig { Variant = 3, Iterations = 6, Omega = 1.8f, MinDivisor = 1, Overlap = false },
+
+            new SweepConfig { Variant = 5, Iterations = 6, Omega = 1.8f, MinDivisor = 1, ScanRadius = 1, CellScale = 1.0f, Overlap = true },
+            new SweepConfig { Variant = 5, Iterations = 6, Omega = 1.8f, MinDivisor = 1, ScanRadius = 1, CellScale = 1.0f, Overlap = false },
+
+            // Fewer row-run entries per agent by holding more agents per cell. Costs candidates as
+            // the square, so this is where the two terms cross.
+            new SweepConfig { Variant = 5, Iterations = 6, Omega = 1.8f, MinDivisor = 1, ScanRadius = 1, CellScale = 1.4f, Overlap = true },
+            new SweepConfig { Variant = 5, Iterations = 6, Omega = 1.8f, MinDivisor = 1, ScanRadius = 1, CellScale = 1.4f, Overlap = false },
+
+            new SweepConfig { Variant = 5, Iterations = 6, Omega = 1.8f, MinDivisor = 1, ScanRadius = 1, CellScale = 2.0f, Overlap = true },
+            new SweepConfig { Variant = 5, Iterations = 6, Omega = 1.8f, MinDivisor = 1, ScanRadius = 1, CellScale = 2.0f, Overlap = false },
+
+            // Bookend B. Wall against bookend A is the noise floor for every number above.
+            new SweepConfig { Variant = 3, Iterations = 6, Omega = 1.8f, MinDivisor = 1, Overlap = true },
+            new SweepConfig { Variant = 3, Iterations = 6, Omega = 1.8f, MinDivisor = 1, Overlap = false },
         };
 
         int _sweepIndex = -1;
@@ -311,6 +439,10 @@ namespace Workshop
         bool _sweepSaved;
         bool _sweepDone;
         int _savedVariant, _savedIterations, _savedMinDivisor, _savedGatherEvery, _savedColourBatch;
+        int _savedBatchSize;
+        int _savedScanRadius;
+        bool _savedCheckOverlap;
+        float _savedCellScale;
         float _savedOmega;
         bool _savedCache;
         bool _savedAutoTarget;
@@ -343,8 +475,12 @@ namespace Workshop
                 _savedCache = Settings.CacheNeighbours;
                 _savedGatherEvery = Settings.GatherEvery;
                 _savedColourBatch = Settings.ColourBatch;
+                _savedBatchSize = Settings.BatchSize;
                 _savedAutoTarget = AutoTarget;
                 _savedCaptureDt = Time.captureDeltaTime;
+                _savedScanRadius = ScanRadius;
+                _savedCheckOverlap = CheckOverlap;
+                _savedCellScale = CellScale;
                 _sweepSaved = true;
                 AutoTarget = true;
                 Time.captureDeltaTime = 1f / 60f;
@@ -369,11 +505,41 @@ namespace Workshop
 
             var c = Sweep[_sweepIndex];
             var n = math.max(1, _sweepSamples);
-            UnityEngine.Debug.Log(
-                $"SWEEP| variant={c.Variant} it={c.Iterations} omega={c.Omega:F2} minDiv={c.MinDivisor}"
-              + $" cache={c.Cache} every={c.GatherEvery} batch={Settings.ColourBatch}"
-              + $" | wall={_sweepWall / n:F2}ms meanPen={_sweepPen / n * 100f:F2}%"
-              + $" | pairs={Solver.OverlapPairs} body={Solver.BodyOverlapPairs} samples={n}");
+            if (c.Discard)
+            {
+                // Dwelt on, deliberately not logged. See SweepConfig.Discard.
+                UnityEngine.Debug.Log($"SWEEP|discard variant={c.Variant} R={ScanRadius}"
+                                    + $" cellScale={CellScale:F2}"
+                                    + $" wall={_sweepWall / n:F2}ms (settling row, not a result)");
+            }
+            else
+            {
+                // With the check off the penetration counters are whatever the last checked frame
+                // left behind, so print them as absent rather than as a number someone will quote.
+                var quality = c.Overlap
+                    ? $"meanPen={_sweepPen / n * 100f:F2}%"
+                    + $" | pairs={Solver.OverlapPairs} body={Solver.BodyOverlapPairs}"
+                    : "meanPen=n/a | pairs=n/a body=n/a";
+                if (MeasureMotion)
+                {
+                    var tot = math.max(1, Solver.Count);
+                    UnityEngine.Debug.Log(
+                        $"MOTION| variant={c.Variant} cellScale={CellScale:F2}"
+                      + $" | solve moved the agent less than, as a fraction of the solve diameter:"
+                      + $" 0.01%={100f * Solver.MotionBand(0) / tot:F1}%"
+                      + $" 0.1%={100f * Solver.MotionBand(1) / tot:F1}%"
+                      + $" 1%={100f * Solver.MotionBand(2) / tot:F1}%"
+                      + $" 5%={100f * Solver.MotionBand(3) / tot:F1}%"
+                      + $" more={100f * Solver.MotionBand(4) / tot:F1}%");
+                }
+                UnityEngine.Debug.Log(
+                    $"SWEEP| variant={c.Variant} R={ScanRadius} it={c.Iterations} omega={c.Omega:F2}"
+                  + $" minDiv={c.MinDivisor}"
+                  + $" cache={c.Cache} every={c.GatherEvery} colourBatch={Settings.ColourBatch}"
+                  + $" batchSize={Settings.BatchSize}"
+                  + $" cellScale={CellScale:F2} overlap={c.Overlap}"
+                  + $" | wall={_sweepWall / n:F2}ms {quality} samples={n}");
+            }
 
             _sweepWall = 0;
             _sweepPen = 0;
@@ -403,6 +569,12 @@ namespace Workshop
             Settings.CacheNeighbours = c.Cache;
             if (c.Cache) Settings.GatherEvery = math.max(1, c.GatherEvery);
             if (c.ColourBatch > 0) Settings.ColourBatch = c.ColourBatch;
+            if (c.BatchSize > 0) Settings.BatchSize = c.BatchSize;
+            // Not a BoidSettings field: it lives on this component and on the solver, so a swept
+            // radius cannot survive play mode the way a swept Iterations once did.
+            ScanRadius = math.clamp(c.ScanRadius <= 0 ? 1 : c.ScanRadius, 1, MaxRadius);
+            CellScale = c.CellScale <= 0f ? 1f : c.CellScale;
+            CheckOverlap = c.Overlap;
         }
 
         void RestoreSweep()
@@ -415,8 +587,12 @@ namespace Workshop
             Settings.CacheNeighbours = _savedCache;
             Settings.GatherEvery = _savedGatherEvery;
             Settings.ColourBatch = _savedColourBatch;
+            Settings.BatchSize = _savedBatchSize;
             AutoTarget = _savedAutoTarget;
             Time.captureDeltaTime = _savedCaptureDt;
+            ScanRadius = _savedScanRadius;
+            CheckOverlap = _savedCheckOverlap;
+            CellScale = _savedCellScale;
             _sweepSaved = false;
             _sweepIndex = -1;
         }

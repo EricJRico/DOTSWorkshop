@@ -270,12 +270,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Workshop.Runtime::Workshop.BoidSwarm
   Settings: {fileID: 11400000, guid: eca2d7d91b954a24aab20eb642f9b1e5, type: 2}
   Player: {fileID: 979932964}
+  WorkerThreads: 4
   SpawnMinRadius: 34
   SpawnMaxRadius: 44
   Seed: 1
-  AutoTarget: 1
-  AutoRadius: 8
-  AutoSpeed: 0.15
   Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
   Material: {fileID: 2100000, guid: 346ea04c36f6307449ccd3ea2d3c9161, type: 2}
   DrawScale: 0.0949
@@ -283,11 +281,97 @@ MonoBehaviour:
   ColorSlow: {r: 0.2, g: 0.45, b: 1, a: 1}
   ColorMid: {r: 1, g: 0.9, b: 0.2, a: 1}
   ColorFast: {r: 0.95, g: 0.15, b: 0.15, a: 1}
+  AutoTarget: 1
+  AutoRadius: 8
+  AutoSpeed: 0.15
   ShowStats: 1
-  WorkerThreads: 4
+  CheckOverlap: 1
   LogBenchmark: 0
   BenchmarkWarmupSeconds: 70
   BenchmarkSamples: 10
+  ScanRadius: 1
+  CellScale: 1
+  MeasureMotion: 0
+  AblationStage: 0
+  SeparateBenchmark: 0
+  RadiusBenchmark: 1
+  MaxRadius: 3
+  RadiusBenchmarkReps: 32
+  SweepConfigs: 0
+  SweepDwell: 8
+  Sweep:
+  - Variant: 5
+    Iterations: 6
+    Omega: 1.8
+    MinDivisor: 1
+    Cache: 0
+    GatherEvery: 0
+    ColourBatch: 0
+    ScanRadius: 1
+    Overlap: 1
+    BatchSize: 0
+    CellScale: 1
+    Discard: 1
+  - Variant: 5
+    Iterations: 6
+    Omega: 1.8
+    MinDivisor: 1
+    Cache: 0
+    GatherEvery: 0
+    ColourBatch: 0
+    ScanRadius: 1
+    Overlap: 1
+    BatchSize: 0
+    CellScale: 1
+    Discard: 0
+  - Variant: 5
+    Iterations: 5
+    Omega: 1.8
+    MinDivisor: 1
+    Cache: 0
+    GatherEvery: 0
+    ColourBatch: 0
+    ScanRadius: 1
+    Overlap: 1
+    BatchSize: 0
+    CellScale: 1
+    Discard: 0
+  - Variant: 5
+    Iterations: 6
+    Omega: 1.8
+    MinDivisor: 1
+    Cache: 0
+    GatherEvery: 0
+    ColourBatch: 0
+    ScanRadius: 1
+    Overlap: 1
+    BatchSize: 0
+    CellScale: 1
+    Discard: 0
+  - Variant: 5
+    Iterations: 4
+    Omega: 1.8
+    MinDivisor: 1
+    Cache: 0
+    GatherEvery: 0
+    ColourBatch: 0
+    ScanRadius: 1
+    Overlap: 1
+    BatchSize: 0
+    CellScale: 1
+    Discard: 0
+  - Variant: 5
+    Iterations: 6
+    Omega: 1.8
+    MinDivisor: 1
+    Cache: 0
+    GatherEvery: 0
+    ColourBatch: 0
+    ScanRadius: 1
+    Overlap: 1
+    BatchSize: 0
+    CellScale: 1
+    Discard: 0
 --- !u!1 &1423412584
 GameObject:
   m_ObjectHideFlags: 0

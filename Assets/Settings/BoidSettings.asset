@@ -29,10 +29,8 @@ MonoBehaviour:
   GatherEvery: 8
   CrowdFree: 9
   CrowdFull: 0
-  AblationStage: 0
-  SeparateVariant: 3
+  SeparateVariant: 5
   MinDivisor: 1
-  SeparateBenchmark: 0
-  CheckOverlap: 1
   BatchSize: 128
+  ColourBatch: 64
   CellsPerAgent: 4

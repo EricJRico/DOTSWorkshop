@@ -18,6 +18,11 @@ namespace Workshop
         public int Cols;
         public int Rows;
         public int Cells;
+        /// <summary>
+        /// Empty border cells kept on every side, so a scan reaching Pad-1 cells out never needs a
+        /// bounds test in the inner loop. A radius-R scan wants Pad = R + 1.
+        /// </summary>
+        public int Pad;
     }
 
     /// <summary>
@@ -61,6 +66,8 @@ namespace Workshop
         public float CellSize;
         public int MaxCells;
         public int Count;
+        /// <summary>Empty border cells per side. 2 for the 3x3 scan; R + 1 for a radius-R scan.</summary>
+        public int Pad;
 
         public void Execute()
         {
@@ -75,28 +82,32 @@ namespace Workshop
 
             var cell = CellSize;
             var size = hi - lo;
-            // 2 cells of padding each side so a 3x3 scan never needs a bounds test in the inner loop.
+            // Pad cells of padding each side so a scan reaching Pad-1 cells out never needs a
+            // bounds test in the inner loop. The +1 is the odd centre column of the border ring.
+            var pad = math.max(1, Pad);
+            var border = 2 * pad + 1;
             var maxDim = (int)math.floor(math.sqrt((float)MaxCells));
             for (var guard = 0; guard < 32; guard++)
             {
-                var cols = (int)math.ceil(size.x / cell) + 5;
-                var rows = (int)math.ceil(size.y / cell) + 5;
+                var cols = (int)math.ceil(size.x / cell) + border;
+                var rows = (int)math.ceil(size.y / cell) + border;
                 if (cols <= maxDim && rows <= maxDim) break;
                 cell *= 2f;
             }
 
-            var c = (int)math.ceil(size.x / cell) + 5;
-            var r = (int)math.ceil(size.y / cell) + 5;
+            var c = (int)math.ceil(size.x / cell) + border;
+            var r = (int)math.ceil(size.y / cell) + border;
             c = math.min(c, maxDim);
             r = math.min(r, maxDim);
 
             Info[0] = new GridInfo
             {
-                Min = lo - cell * 2f,
+                Min = lo - cell * pad,
                 InvCell = 1f / cell,
                 Cols = c,
                 Rows = r,
-                Cells = c * r
+                Cells = c * r,
+                Pad = pad
             };
         }
     }

@@ -20,6 +20,10 @@ namespace Workshop
         /// <summary>Row length of the cached neighbour list. MaxNeighbours is clamped to this.</summary>
         public const int MaxNeighbourStride = 64;
 
+        /// <summary>Colour buckets allocated for the radius path: (MaxRadius + 1)^2.</summary>
+        public const int MaxColours =
+            (SeparateColouredRJob.MaxRadius + 1) * (SeparateColouredRJob.MaxRadius + 1);
+
         public static readonly ProfilerMarker ScheduleMarker = new ProfilerMarker("Boid.Schedule");
         public static readonly ProfilerMarker CompleteMarker = new ProfilerMarker("Boid.Complete");
 
@@ -32,6 +36,36 @@ namespace Workshop
         /// </summary>
         public bool CheckOverlap;
         public int AblationStage;
+        /// <summary>
+        /// Scan radius for SeparateVariant 4. The cell is the collision diameter divided by this
+        /// and the scan reaches this many cells, so the reach is one diameter at any radius; what
+        /// changes is the swept area and the (R+1)^2 colours it takes to keep the in-place write
+        /// safe. Lives here rather than on BoidSettings for the same reason CheckOverlap does:
+        /// it is a measurement until it wins, and a field on the solver dies with play mode.
+        /// </summary>
+        public int ScanRadius = 1;
+
+        /// <summary>
+        /// Multiplier on the cell size for the radius path, on top of the divide by ScanRadius.
+        /// The scan still reaches ScanRadius cells, so reach = diameter * this: at 1 it is the
+        /// tight grid, above 1 it over-scans and no contact is missed either way.
+        ///
+        /// This is the knob the cycle split actually points at. The candidate walk costs ~24 cycles
+        /// per ROW-RUN ENTRY against ~6 per candidate, and there are 2R+1 entries per AGENT. A
+        /// bigger cell holds more agents - 1.23 per cell at scale 1, and it goes as the square - so
+        /// the run bounds, which are hoisted once per cell, amortise over more of them. It buys
+        /// that by scanning scale^2 more candidates, so the two terms fight and the minimum is a
+        /// measurement.
+        /// </summary>
+        public float CellScale = 1f;
+
+        /// <summary>
+        /// Count how far the separation solve moved each agent this frame, into
+        /// <see cref="MotionBand"/>. Verification, like CheckOverlap - nothing in the sim reads it.
+        /// It exists to size the sleeping idea before building it: skipping agents that cannot move
+        /// is only worth it if most of them cannot move WHILE THE CROWD IS FLOWING.
+        /// </summary>
+        public bool MeasureMotion;
 
         NativeArray<float2> _position;
         NativeArray<float2> _velocity;
@@ -52,7 +86,16 @@ namespace Workshop
         NativeArray<float4> _partialBounds;
         NativeArray<GridInfo> _info;
         NativeArray<int> _stats;
+        NativeArray<int> _motion;
+        NativeArray<float2> _preSolve;
+        // SoA position streams and a hit counter, for the SIMD walk experiment only. The +8 slack
+        // is what makes the masked over-read past a row run legal to LOAD; the mask is what makes
+        // it legal to USE.
+        NativeArray<float> _predX, _predY;
+        NativeArray<int> _hitCount;
         NativeList<int> _colour0, _colour1, _colour2, _colour3;
+        /// <summary>Colour buckets for the radius-parameterised path, (MaxRadius+1)^2 of them.</summary>
+        NativeList<int>[] _colourR;
 
         int _count;
         int _slices;
@@ -78,6 +121,12 @@ namespace Workshop
         /// <summary>Penetration histogram: &lt;0.1%, 0.1-1%, 1-5%, 5-10%, 10-25%, &gt;25% of body diameter.</summary>
         public int PenetrationBand(int band) => _stats.IsCreated ? _stats[4 + band] : 0;
 
+        /// <summary>
+        /// Agents whose whole separation solve moved them less than 0.01%, 0.1%, 1%, 5% and more
+        /// than 5% of the solve diameter. Valid only with <see cref="MeasureMotion"/> on.
+        /// </summary>
+        public int MotionBand(int band) => _motion.IsCreated ? _motion[band] : 0;
+
         public BoidSolver(BoidSettings settings)
         {
             _settings = settings;
@@ -88,7 +137,11 @@ namespace Workshop
             Release();
             _count = count;
 
-            var maxCells = math.max(65536, count * _settings.CellsPerAgent);
+            // Halving the cell to scan 5x5 quadruples the cell count, so the budget has to hold
+            // the largest radius that will be measured or GridSetupJob grows the cell instead -
+            // which silently turns a radius-3 run back into a radius-1 run with extra colours.
+            var baseCells = math.max(65536, count * _settings.CellsPerAgent);
+            var maxCells = baseCells * SeparateColouredRJob.MaxRadius * SeparateColouredRJob.MaxRadius;
             _slices = math.max(1, math.min(64, count / 2048));
 
             _position = new NativeArray<float2>(count, Allocator.Persistent);
@@ -111,14 +164,26 @@ namespace Workshop
             _offset = new NativeArray<int>(maxCells + 1, Allocator.Persistent);
             _partialBounds = new NativeArray<float4>(_slices, Allocator.Persistent);
             _info = new NativeArray<GridInfo>(1, Allocator.Persistent);
-            var colourCap = math.max(1024, maxCells / 4);
+            var colourCap = math.max(1024, baseCells / 4);
             _colour0 = new NativeList<int>(colourCap, Allocator.Persistent);
             _colour1 = new NativeList<int>(colourCap, Allocator.Persistent);
             _colour2 = new NativeList<int>(colourCap, Allocator.Persistent);
             _colour3 = new NativeList<int>(colourCap, Allocator.Persistent);
+            // Sized small and left to grow once: a colour holds cells/(R+1)^2, and which radius is
+            // running is not known here.
+            _colourR = new NativeList<int>[MaxColours];
+            for (var c = 0; c < MaxColours; c++)
+                _colourR[c] = new NativeList<int>(8192, Allocator.Persistent);
             _stats = new NativeArray<int>(
                 Unity.Jobs.LowLevel.Unsafe.JobsUtility.ThreadIndexCount * OverlapJob.Stride,
                 Allocator.Persistent);
+            _motion = new NativeArray<int>(
+                Unity.Jobs.LowLevel.Unsafe.JobsUtility.ThreadIndexCount * MotionStatsJob.Stride,
+                Allocator.Persistent);
+            _preSolve = new NativeArray<float2>(count, Allocator.Persistent);
+            _predX = new NativeArray<float>(count + 8, Allocator.Persistent);
+            _predY = new NativeArray<float>(count + 8, Allocator.Persistent);
+            _hitCount = new NativeArray<int>(count, Allocator.Persistent);
 
             var rng = new Unity.Mathematics.Random((uint)seed | 1u);
             for (var i = 0; i < count; i++)
@@ -144,6 +209,15 @@ namespace Workshop
             var sdt = deltaTime / substeps;
             var reach = s.Radius + s.PlayerRadius;
 
+            // 4 = parameterised radius, 5 = + rsqrt instead of sqrt-then-divide,
+            // 6 = + phase 1 hands phase 2 the delta and r2 it already had. All three share the
+            // grid, the colouring and the dispatch shape, so a sweep row isolates one change.
+            var variant = s.SeparateVariant;
+            var radiusPath = !s.CacheNeighbours && variant >= 4 && variant <= 7;
+            var radius = radiusPath ? math.clamp(ScanRadius, 1, SeparateColouredRJob.MaxRadius) : 1;
+            var spacing = radius + 1;
+            var colours = spacing * spacing;
+
             for (var sub = 0; sub < substeps; sub++)
             {
                 handle = new SteerJob
@@ -162,10 +236,12 @@ namespace Workshop
                     Partial = _partialBounds, Info = _info,
                     // Cell = the GATHER radius, not the solve radius: a 3x3 scan only reaches one
                     // cell out, so the skin has to be inside the cell or the gather misses it.
+                    // On the radius path the cell is the diameter divided by R instead, because
+                    // the scan reaches R cells - the product, and so the reach, is unchanged.
                     CellSize = s.CacheNeighbours
                         ? s.CollisionDiameter * (1f + s.GatherSkin)
-                        : s.CollisionDiameter,
-                    MaxCells = _cellCount.Length, Count = _count
+                        : s.CollisionDiameter * (radiusPath ? math.max(0.25f, CellScale) : 1f) / radius,
+                    MaxCells = _cellCount.Length, Count = _count, Pad = radius + 1
                 }.Schedule(handle);
 
                 handle = new HashJob
@@ -199,8 +275,35 @@ namespace Workshop
                 // trades a little of that back for contacts that form mid-solve.
                 var gatherEvery = math.max(1, s.GatherEvery);
 
+                // Snapshot AFTER the sort so the indices match the ones the solve will write, and
+                // before any separation pass, so what is measured is the solve correction alone -
+                // not the steering, which moves every agent whether it is jammed or not.
+                if (MeasureMotion)
+                {
+                    handle = new ClearMotionJob { Stats = _motion }.Schedule(handle);
+                    handle = new CopyJob
+                    {
+                        Source = _predicted, Destination = _preSolve
+                    }.Schedule(_count, batch, handle);
+                }
+
                 var coloured = !s.CacheNeighbours && s.SeparateVariant == 3;
-                if (coloured)
+                if (radiusPath)
+                {
+                    // One job per colour, all in parallel off the same grid: a colour owns a fixed
+                    // 1/(R+1)^2 stride of the cells, and at R=3 there are nine times as many cells
+                    // to walk as at R=1, which is too much for the single-threaded version.
+                    var buckets = new NativeArray<JobHandle>(colours, Allocator.Temp);
+                    for (var c = 0; c < colours; c++)
+                        buckets[c] = new ColourCellsRJob
+                        {
+                            Offset = _offset, Info = _info, Cells = _colourR[c],
+                            Colour = c, Spacing = spacing
+                        }.Schedule(handle);
+                    handle = JobHandle.CombineDependencies(buckets);
+                    buckets.Dispose();
+                }
+                else if (coloured)
                 {
                     // Once per grid build, not once per pass: the buckets only change when the
                     // sort changes.
@@ -239,6 +342,59 @@ namespace Workshop
                             Stride = MaxNeighbourStride,
                             PlayerPosition = target, PlayerReach = reach
                         }.Schedule(_count, batch, handle);
+                    }
+                    else if (radiusPath)
+                    {
+                        // (R+1)^2 dispatches instead of 4, each depending on the last, because the
+                        // ordering IS the Gauss-Seidel step. This chain is the cost the smaller
+                        // candidate list has to beat.
+                        var cb = math.max(1, s.ColourBatch);
+                        var maxN = math.min(s.MaxNeighbours, SeparateCompactJob.Cap - 1);
+                        var minDiv = math.max(1, s.MinDivisor);
+                        for (var c = 0; c < colours; c++)
+                        {
+                            var cells = _colourR[c];
+                            if (variant == 7)
+                                handle = new SeparateColouredSplitJob
+                                {
+                                    Cells = cells.AsDeferredJobArray(),
+                                    Predicted = _predicted, Offset = _offset, Info = _info,
+                                    ContactNormal = _contactNormal, NeighbourCount = _neighbourCount,
+                                    Diameter = s.CollisionDiameter, Omega = s.Omega,
+                                    MaxNeighbours = maxN, MinDivisor = minDiv, ScanRadius = radius,
+                                    PlayerPosition = target, PlayerReach = reach
+                                }.Schedule(cells, cb, handle);
+                            else if (variant == 6)
+                                handle = new SeparateColouredFusedJob
+                                {
+                                    Cells = cells.AsDeferredJobArray(),
+                                    Predicted = _predicted, Offset = _offset, Info = _info,
+                                    ContactNormal = _contactNormal, NeighbourCount = _neighbourCount,
+                                    Diameter = s.CollisionDiameter, Omega = s.Omega,
+                                    MaxNeighbours = maxN, MinDivisor = minDiv, ScanRadius = radius,
+                                    PlayerPosition = target, PlayerReach = reach
+                                }.Schedule(cells, cb, handle);
+                            else if (variant == 5)
+                                handle = new SeparateColouredRsqrtJob
+                                {
+                                    Cells = cells.AsDeferredJobArray(),
+                                    Predicted = _predicted, Offset = _offset, Info = _info,
+                                    ContactNormal = _contactNormal, NeighbourCount = _neighbourCount,
+                                    Diameter = s.CollisionDiameter, Omega = s.Omega,
+                                    MaxNeighbours = maxN, MinDivisor = minDiv, ScanRadius = radius,
+                                    PlayerPosition = target, PlayerReach = reach
+                                }.Schedule(cells, cb, handle);
+                            else
+                                handle = new SeparateColouredRJob
+                                {
+                                    Cells = cells.AsDeferredJobArray(),
+                                    Predicted = _predicted, Offset = _offset, Info = _info,
+                                    ContactNormal = _contactNormal, NeighbourCount = _neighbourCount,
+                                    Diameter = s.CollisionDiameter, Omega = s.Omega,
+                                    MaxNeighbours = maxN, MinDivisor = minDiv, ScanRadius = radius,
+                                    PlayerPosition = target, PlayerReach = reach
+                                }.Schedule(cells, cb, handle);
+                        }
                     }
                     else if (coloured)
                     {
@@ -297,8 +453,8 @@ namespace Workshop
                             PlayerPosition = target, PlayerReach = reach
                         }.Schedule(_count, batch, handle);
                     }
-                    // The coloured job corrects in place, so there is no second buffer to swap.
-                    if (!coloured) Swap(ref _predicted, ref _scratch);
+                    // The coloured jobs correct in place, so there is no second buffer to swap.
+                    if (!coloured && !radiusPath) Swap(ref _predicted, ref _scratch);
 
                     // Ablation variants run IN ADDITION to the real solve, writing to a throwaway
                     // buffer, so the crowd state they measure is the real one.
@@ -360,6 +516,20 @@ namespace Workshop
                     }
                 }
 
+                if (MeasureMotion)
+                {
+                    handle = new MotionStatsJob
+                    {
+                        Before = _preSolve, After = _predicted,
+                        Diameter = s.CollisionDiameter, Stats = _motion
+                    }.Schedule(_count, batch, handle);
+                    handle = new ReduceMotionJob
+                    {
+                        Stats = _motion,
+                        Threads = Unity.Jobs.LowLevel.Unsafe.JobsUtility.ThreadIndexCount
+                    }.Schedule(handle);
+                }
+
                 handle = new FinalizeJob
                 {
                     Position = _position, Velocity = _velocity, Predicted = _predicted,
@@ -387,7 +557,10 @@ namespace Workshop
                 handle = new GridSetupJob
                 {
                     Partial = _partialBounds, Info = _info,
-                    CellSize = s.CollisionDiameter, MaxCells = _cellCount.Length, Count = _count
+                    // The check is its own 3x3 scan at the solve diameter whatever the solver did,
+                    // so the quality number stays comparable across radii.
+                    CellSize = s.CollisionDiameter, MaxCells = _cellCount.Length, Count = _count,
+                    Pad = 2
                 }.Schedule(handle);
 
                 handle = new HashJob
@@ -681,6 +854,11 @@ namespace Workshop
         /// </summary>
         JobHandle GridChain(int stride, int batch)
         {
+            return GridChain(stride, batch, _settings.CollisionDiameter, 2);
+        }
+
+        JobHandle GridChain(int stride, int batch, float cellSize, int pad)
+        {
             var handle = new BoundsJob
             {
                 Position = _position, Partial = _partialBounds, Stride = stride
@@ -688,8 +866,8 @@ namespace Workshop
 
             handle = new GridSetupJob
             {
-                Partial = _partialBounds, Info = _info, CellSize = _settings.CollisionDiameter,
-                MaxCells = _cellCount.Length, Count = _count
+                Partial = _partialBounds, Info = _info, CellSize = cellSize,
+                MaxCells = _cellCount.Length, Count = _count, Pad = pad
             }.Schedule(handle);
 
             handle = new HashJob
@@ -792,6 +970,180 @@ namespace Workshop
             return watch.Elapsed.TotalMilliseconds / reps;
         }
 
+
+        /// <summary>
+        /// The radius experiment, measured rather than argued: build the grid at cell = diameter/R,
+        /// colour it at spacing R+1, then time the candidate walk alone and the whole separation
+        /// pass over exactly that grid.
+        ///
+        /// The walk timing is the point. C3 - C2 said the walk costs ~6.5 cycles per candidate for
+        /// an increment, a compare, a branch and an add, which is three times what those four
+        /// instructions can possibly cost. The reason is that it is not a per-candidate cost: the
+        /// walk is entered once per ROW RUN, 2R+1 times per agent, and each entry pays a loop
+        /// setup, the vectoriser's trip-count guard and a mispredicted exit on a run that only
+        /// holds ~4 candidates. Measuring at two radii separates the two, because R=2 cuts
+        /// candidates ~31% while raising row runs from 3 to 5:
+        ///
+        ///   walk(R) = runs(R) * Fixed + candidates(R) * PerCandidate
+        ///
+        /// Two radii, two unknowns. If Fixed dominates, halving the cell cannot win however few
+        /// candidates it leaves, and the whole lead is dead on the first two rows of the sweep.
+        ///
+        /// Self contained: it builds its own grid off the live positions and swaps the sorted
+        /// arrays in, exactly as a frame does, so the crowd is reordered but not moved. The next
+        /// frame rebuilds all of it.
+        /// </summary>
+        public void MeasureRadius(int radius, int reps, out double walkMs, out double fullMs,
+                                  out double rsqrtMs, out double fusedMs, out double simdWalkMs,
+                                  out double candidates, out double simdCandidates,
+                                  out int cells, out int workItems)
+        {
+            walkMs = 0d; fullMs = 0d; rsqrtMs = 0d; fusedMs = 0d; simdWalkMs = 0d;
+            candidates = 0d; simdCandidates = 0d; cells = 0; workItems = 0;
+            if (!_allocated || _count == 0 || reps <= 0) return;
+
+            var s = _settings;
+            var r = math.clamp(radius, 1, SeparateColouredRJob.MaxRadius);
+            var spacing = r + 1;
+            var colours = spacing * spacing;
+            var batch = math.max(1, s.ColourBatch);
+            var stride = (_count + _slices - 1) / _slices;
+            var reach = s.Radius + s.PlayerRadius;
+
+            GridChain(stride, s.BatchSize, s.CollisionDiameter / r, r + 1).Complete();
+            Swap(ref _position, ref _sortPosition);
+            Swap(ref _predicted, ref _sortPredicted);
+            Swap(ref _velocity, ref _sortVelocity);
+
+            var buckets = new NativeArray<JobHandle>(colours, Allocator.Temp);
+            for (var c = 0; c < colours; c++)
+                buckets[c] = new ColourCellsRJob
+                {
+                    Offset = _offset, Info = _info, Cells = _colourR[c],
+                    Colour = c, Spacing = spacing
+                }.Schedule();
+            JobHandle.CombineDependencies(buckets).Complete();
+            buckets.Dispose();
+
+            cells = _info[0].Cells;
+            for (var c = 0; c < colours; c++) workItems += _colourR[c].Length;
+
+            // Deinterleave once, outside every timed loop - this experiment is about whether the
+            // 8-wide block beats the scalar walk, not about what the split costs to build.
+            new DeinterleaveJob
+            {
+                Source = _predicted, X = _predX, Y = _predY
+            }.Schedule(_count, s.BatchSize).Complete();
+
+            JobHandle SimdWalk()
+            {
+                var h = default(JobHandle);
+                for (var c = 0; c < colours; c++)
+                    h = new ColouredWalkSimdJob
+                    {
+                        Cells = _colourR[c].AsDeferredJobArray(), Offset = _offset, Info = _info,
+                        PredX = _predX, PredY = _predY,
+                        Sink = _scratch, Candidates = _candidateCount, Hits = _hitCount,
+                        Normals = _contactNormal,
+                        Diameter = s.CollisionDiameter, Omega = s.Omega, ScanRadius = r
+                    }.Schedule(_colourR[c], batch, h);
+                return h;
+            }
+
+            JobHandle Walk()
+            {
+                var h = default(JobHandle);
+                for (var c = 0; c < colours; c++)
+                    h = new ColouredWalkRJob
+                    {
+                        Cells = _colourR[c].AsDeferredJobArray(), Offset = _offset, Info = _info,
+                        Predicted = _predicted, Sink = _scratch, Candidates = _candidateCount,
+                        ScanRadius = r
+                    }.Schedule(_colourR[c], batch, h);
+                return h;
+            }
+
+            JobHandle Full()
+            {
+                var h = default(JobHandle);
+                for (var c = 0; c < colours; c++)
+                    h = new SeparateColouredRJob
+                    {
+                        Cells = _colourR[c].AsDeferredJobArray(),
+                        // Writes the scratch buffer, so timing it does not advance the crowd.
+                        Predicted = _scratch, Offset = _offset, Info = _info,
+                        ContactNormal = _contactNormal, NeighbourCount = _neighbourCount,
+                        Diameter = s.CollisionDiameter, Omega = s.Omega,
+                        MaxNeighbours = math.min(s.MaxNeighbours, SeparateCompactJob.Cap - 1),
+                        MinDivisor = math.max(1, s.MinDivisor), ScanRadius = r,
+                        PlayerPosition = float2.zero, PlayerReach = reach
+                    }.Schedule(_colourR[c], batch, h);
+                return h;
+            }
+
+            JobHandle Rsqrt()
+            {
+                var h = default(JobHandle);
+                for (var c = 0; c < colours; c++)
+                    h = new SeparateColouredRsqrtJob
+                    {
+                        Cells = _colourR[c].AsDeferredJobArray(),
+                        Predicted = _scratch, Offset = _offset, Info = _info,
+                        ContactNormal = _contactNormal, NeighbourCount = _neighbourCount,
+                        Diameter = s.CollisionDiameter, Omega = s.Omega,
+                        MaxNeighbours = math.min(s.MaxNeighbours, SeparateCompactJob.Cap - 1),
+                        MinDivisor = math.max(1, s.MinDivisor), ScanRadius = r,
+                        PlayerPosition = float2.zero, PlayerReach = reach
+                    }.Schedule(_colourR[c], batch, h);
+                return h;
+            }
+
+            JobHandle Fused()
+            {
+                var h = default(JobHandle);
+                for (var c = 0; c < colours; c++)
+                    h = new SeparateColouredFusedJob
+                    {
+                        Cells = _colourR[c].AsDeferredJobArray(),
+                        Predicted = _scratch, Offset = _offset, Info = _info,
+                        ContactNormal = _contactNormal, NeighbourCount = _neighbourCount,
+                        Diameter = s.CollisionDiameter, Omega = s.Omega,
+                        MaxNeighbours = math.min(s.MaxNeighbours, SeparateCompactJob.Cap - 1),
+                        MinDivisor = math.max(1, s.MinDivisor), ScanRadius = r,
+                        PlayerPosition = float2.zero, PlayerReach = reach
+                    }.Schedule(_colourR[c], batch, h);
+                return h;
+            }
+
+            // Warm, so Burst's first call and the cold caches land outside the timing.
+            for (var w = 0; w < 2; w++)
+            {
+                Walk().Complete(); Full().Complete(); Rsqrt().Complete(); Fused().Complete();
+                SimdWalk().Complete();
+            }
+
+            // Validate the mask BEFORE trusting any timing: the SIMD walk counts in-range,
+            // non-self lanes, which must land on the same number the scalar walk reports.
+            SimdWalk().Complete();
+            simdCandidates = MeanCandidates();
+
+            // Interleaved rather than three separate loops, so a thermal or scheduler drift over
+            // the run lands on all three instead of on whichever went last.
+            var watch = new System.Diagnostics.Stopwatch();
+            for (var q = 0; q < reps; q++)
+            {
+                watch.Restart(); Walk().Complete(); walkMs += watch.Elapsed.TotalMilliseconds;
+                watch.Restart(); Full().Complete(); fullMs += watch.Elapsed.TotalMilliseconds;
+                watch.Restart(); Rsqrt().Complete(); rsqrtMs += watch.Elapsed.TotalMilliseconds;
+                watch.Restart(); Fused().Complete(); fusedMs += watch.Elapsed.TotalMilliseconds;
+                watch.Restart(); SimdWalk().Complete(); simdWalkMs += watch.Elapsed.TotalMilliseconds;
+            }
+            walkMs /= reps; fullMs /= reps; rsqrtMs /= reps; fusedMs /= reps; simdWalkMs /= reps;
+
+            Walk().Complete();
+            candidates = MeanCandidates();
+        }
+
         /// <summary>Mean candidates scanned per agent, valid after TimeColoured(3, ...).</summary>
         public double MeanCandidates()
         {
@@ -828,10 +1180,16 @@ namespace Workshop
             _partialBounds.Dispose();
             _info.Dispose();
             _stats.Dispose();
+            _motion.Dispose();
+            _preSolve.Dispose();
+            _predX.Dispose();
+            _predY.Dispose();
+            _hitCount.Dispose();
             _colour0.Dispose();
             _colour1.Dispose();
             _colour2.Dispose();
             _colour3.Dispose();
+            for (var c = 0; c < _colourR.Length; c++) _colourR[c].Dispose();
             _allocated = false;
             _count = 0;
         }
