@@ -12,20 +12,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ce7fe3a00f23e074f8dd8d8580a89498, type: 3}
   m_Name: SwarmSettings
   m_EditorClassIdentifier: Workshop.Runtime::Workshop.SwarmSettings
-  Speed: 1.5
-  Radius: 0.15
-  CollisionRadiusScale: 1.05
-  PlayerRadius: 1
-  StepSeconds: 0.020833334
-  Substeps: 2
-  StabilityIterations: 1
-  SolverIterations: 6
-  Omega: 1.2
-  VelocityBlend: 0.0385
-  StaticFriction: 0.5
-  KineticFriction: 0.3
-  XsphRadiusFactor: 7
-  XsphCAtRadiusOne: 217
-  MaxSpeedFactor: 1
+  EnemyRadius: 0.15
+  Separation: 0.015
+  MoveSpeed: 1.5
+  TurnSpeed: 0.0385
+  PlayerPush: 1
   MaxAcceleration: 50
-  BatchSize: 64
+  OverlapCleanup: 6
+  Grip: 0.5
+  Drag: 0.3
+  FollowTheCrowdRange: 7
+  FollowTheCrowdStrength: 217
+  Advanced:
+    Relaxation: 1.2
+    StabilityIterations: 1
+    StepSeconds: 0.020833334
+    Substeps: 2
+    BatchSize: 64

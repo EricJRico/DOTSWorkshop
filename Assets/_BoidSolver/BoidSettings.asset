@@ -12,25 +12,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 348ea7ea3a574364680277d5c208ffd5, type: 3}
   m_Name: BoidSettings
   m_EditorClassIdentifier: Workshop.Runtime::Workshop.BoidSettings
-  Count: 50000
-  Radius: 0.047434
-  SeparationDistance: 0.1280718
-  Speed: 0.79
-  SteerBlend: 0.047434
-  MaxSpeedFactor: 1
-  PlayerRadius: 0.5
-  Substeps: 1
-  Iterations: 6
-  Omega: 1.8
-  MaxNeighbours: 16
-  TangentialSlide: 1
-  GatherSkin: 0.5
-  CacheNeighbours: 0
-  GatherEvery: 8
-  CrowdFree: 9
-  CrowdFull: 0
-  SeparateVariant: 8
-  MinDivisor: 1
-  BatchSize: 128
-  ColourBatch: 64
-  CellsPerAgent: 4
+  EnemyCount: 50000
+  EnemyRadius: 0.14
+  Separation: 0.41
+  MoveSpeed: 0.79
+  TurnSpeed: 0.047434
+  PlayerPush: 2
+  OverlapCleanup: 6
+  SlidePastOthers: 1
+  StartsGivingUpAt: 9
+  GivesUpEntirelyAt: 0
+  Advanced:
+    Relaxation: 1.8
+    MaxNeighbours: 16
+    SeparateVariant: 8
+    AgentBatchSize: 128
+    CellBatchSize: 64
+    CellsPerAgent: 4
