@@ -15,13 +15,13 @@ MonoBehaviour:
   EnemyCount: 50000
   EnemyRadius: 0.14
   Separation: 0.41
-  MoveSpeed: 0.79
+  MoveSpeed: 5
   TurnSpeed: 0.047434
   PlayerPush: 2
   OverlapCleanup: 6
   SlidePastOthers: 1
-  StartsGivingUpAt: 9
-  GivesUpEntirelyAt: 0
+  StartsGivingUpAt: 4
+  GivesUpEntirelyAt: 7
   Advanced:
     Relaxation: 1.8
     MaxNeighbours: 16
