@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace Workshop
@@ -20,7 +21,8 @@ namespace Workshop
 
         void Start()
         {
-            if (_settings == null) return;
+            if (_settings == null) 
+                return;
 
             var line = GetComponent<LineRenderer>();
             line.useWorldSpace = true;
@@ -28,12 +30,17 @@ namespace Workshop
             line.positionCount = 4;
             line.SetPositions(Corners(_lineHeight));
 
-            if (_floor == null) return;
+            UpdateFloor();
+        }
+
+        private void UpdateFloor()
+        {
+            if (_floor == null) 
+                return;
+            
             var size = _settings.Max - _settings.Min;
             var centre = (_settings.Min + _settings.Max) * 0.5f;
             _floor.position = new Vector3(centre.x, 0f, centre.y);
-            // A default quad is one unit across and lies in XY, so it is turned to face up.
-            _floor.rotation = Quaternion.Euler(90f, 0f, 0f);
             _floor.localScale = new Vector3(size.x, size.y, 1f);
         }
 
@@ -50,13 +57,17 @@ namespace Workshop
             };
         }
 
+        private void OnValidate()
+        {
+            UpdateFloor();
+        }
+
 #if UNITY_EDITOR
         void OnDrawGizmos()
         {
             if (_settings == null) return;
 
             var corners = Corners(0f);
-            UnityEditor.Handles.color = new Color(0.35f, 0.85f, 1f, 0.9f);
             for (var i = 0; i < corners.Length; i++)
                 UnityEditor.Handles.DrawLine(corners[i], corners[(i + 1) % corners.Length]);
         }

@@ -3,17 +3,33 @@ using UnityEngine;
 namespace Workshop
 {
     /// <summary>
-    /// Provided. Instantiates the enemy population on a ring and hands the Transforms back to
-    /// whoever asked, so the room only ever edits the loop that moves them.
+    /// Provided. Instantiates the enemy population at the authored spawn points and hands the
+    /// Transforms back to whoever asked, so the room only ever edits the loop that moves them.
     ///
-    /// The ring sits outside the view on every axis - the camera is orthographic at size 16 on a
-    /// 16:9 frame, so its corner reaches about 32.7 units - which is what makes the crowd walk in
-    /// instead of popping into shot.
+    /// Each point is a camp with its own size and its own share of the crowd, so enemies arrive
+    /// from several directions in uneven groups instead of as one ring closing in together. The
+    /// population is still fixed at load - the points decide where they start, not how many
+    /// there are.
     /// </summary>
     public class EnemySpawner : MonoBehaviour
     {
+        /// <summary>One camp: where it sits on the field, how wide it scatters, and how many
+        /// enemies come from it.</summary>
+        [System.Serializable]
+        public struct SpawnPoint
+        {
+            [Tooltip("Where the camp sits on the field, in world X and Z.")]
+            public Vector2 Position;
+
+            [Tooltip("How far enemies scatter around the camp. At 0 they all start on the " +
+                     "same spot and walk in as one line.")]
+            [Range(0f, 30f)] public float Radius;
+
+            [Tooltip("How many enemies come from this camp.")]
+            [Min(0)] public int Count;
+        }
+
         [SerializeField] GameObject _enemyPrefab;
-        [SerializeField] int _count = 5000;
 
         [Tooltip("One colour is picked per enemy at spawn, so the crowd is not all one shade. " +
                  "Each colour becomes one material at load and enemies share it, which keeps the " +
@@ -27,13 +43,24 @@ namespace Workshop
             new Color(0.55f, 0.20f, 0.75f)
         };
 
-        static readonly int SpeedColorId = Shader.PropertyToID("_SpeedColor");
+        static readonly int ColorId = Shader.PropertyToID("_Color");
 
         Material[] _materials;
 
-        [Header("Spawn ring (outside the camera view)")]
-        [Range(0f, 80f)] [SerializeField] float _minRadius = 34f;
-        [Range(0f, 80f)] [SerializeField] float _maxRadius = 44f;
+        [Header("Camps (out of shot, around the field)")]
+        [SerializeField] SpawnPoint[] _spawnPoints =
+        {
+            new SpawnPoint { Position = new Vector2(-45f, -28f), Radius = 8f, Count = 900 },
+            new SpawnPoint { Position = new Vector2(45f, -30f), Radius = 8f, Count = 700 },
+            new SpawnPoint { Position = new Vector2(48f, 26f), Radius = 8f, Count = 1100 },
+            new SpawnPoint { Position = new Vector2(-42f, 30f), Radius = 8f, Count = 800 },
+            new SpawnPoint { Position = new Vector2(0f, -36f), Radius = 8f, Count = 800 },
+            new SpawnPoint { Position = new Vector2(0f, 36f), Radius = 8f, Count = 700 }
+        };
+
+        [Tooltip("Each enemy sits at a random height up to this. All at zero the crowd reads as " +
+                 "one moving surface instead of a lot of bodies.")]
+        [Range(0f, 4f)] [SerializeField] float _maxHeight = 1f;
 
         [Tooltip("Fixed, so every machine in the room scatters the same way.")]
         [SerializeField] int _seed = 1;
@@ -41,27 +68,45 @@ namespace Workshop
         /// <summary>Spawns the population and returns it. Called once, by whoever moves them.</summary>
         public Transform[] Spawn()
         {
-            var enemies = new Transform[_count];
+            var enemies = new Transform[TotalCount()];
             var random = new System.Random(_seed);
             var parent = transform;
             BuildMaterials();
 
-            for (var i = 0; i < _count; i++)
+            var next = 0;
+            foreach (var point in _spawnPoints)
             {
-                var angle = (float)random.NextDouble() * Mathf.PI * 2f;
-                // sqrt, or the ring bunches up against its inner edge: area grows with radius.
-                var radius = Mathf.Lerp(_minRadius, _maxRadius, Mathf.Sqrt((float)random.NextDouble()));
-                var position = new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius);
+                for (var i = 0; i < point.Count; i++)
+                {
+                    var angle = (float)random.NextDouble() * Mathf.PI * 2f;
+                    // sqrt, or the camp bunches up in its middle: area grows with radius.
+                    var radius = point.Radius * Mathf.Sqrt((float)random.NextDouble());
+                    var height = (float)random.NextDouble() * _maxHeight;
+                    var position = new Vector3(
+                        point.Position.x + Mathf.Cos(angle) * radius,
+                        height,
+                        point.Position.y + Mathf.Sin(angle) * radius);
 
-                var enemy = Instantiate(_enemyPrefab, position, Quaternion.identity, parent);
-                enemies[i] = enemy.transform;
+                    var enemy = Instantiate(_enemyPrefab, position, Quaternion.identity, parent);
+                    enemies[next++] = enemy.transform;
 
-                if (_materials != null)
-                    enemy.GetComponent<MeshRenderer>().sharedMaterial =
-                        _materials[random.Next(_materials.Length)];
+                    if (_materials != null)
+                        enemy.GetComponent<MeshRenderer>().sharedMaterial =
+                            _materials[random.Next(_materials.Length)];
+                }
             }
 
             return enemies;
+        }
+
+        /// <summary>The whole population, which is the camps added up.</summary>
+        int TotalCount()
+        {
+            if (_spawnPoints == null) return 0;
+
+            var total = 0;
+            foreach (var point in _spawnPoints) total += point.Count;
+            return total;
         }
 
         /// <summary>
@@ -78,22 +123,24 @@ namespace Workshop
             for (var i = 0; i < _colours.Length; i++)
             {
                 _materials[i] = new Material(source);
-                _materials[i].SetColor(SpeedColorId, _colours[i]);
+                _materials[i].SetColor(ColorId, _colours[i]);
             }
         }
 
 #if UNITY_EDITOR
-        void OnValidate()
-        {
-            if (_maxRadius < _minRadius) _maxRadius = _minRadius;
-        }
-
-        /// <summary>The band enemies spawn in, so it can be seen against the camera's view.</summary>
+        /// <summary>Each camp where it sits and how wide it scatters, with its share of the
+        /// crowd written beside it, so the spread can be seen against the camera's view.</summary>
         void OnDrawGizmos()
         {
+            if (_spawnPoints == null) return;
+
             UnityEditor.Handles.color = new Color(0.95f, 0.45f, 0.12f, 0.9f);
-            UnityEditor.Handles.DrawWireDisc(Vector3.zero, Vector3.up, _minRadius);
-            UnityEditor.Handles.DrawWireDisc(Vector3.zero, Vector3.up, _maxRadius);
+            foreach (var point in _spawnPoints)
+            {
+                var centre = new Vector3(point.Position.x, 0f, point.Position.y);
+                UnityEditor.Handles.DrawWireDisc(centre, Vector3.up, point.Radius);
+                UnityEditor.Handles.Label(centre, point.Count.ToString());
+            }
         }
 #endif
 
