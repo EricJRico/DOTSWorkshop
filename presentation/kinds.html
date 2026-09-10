@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DOTS 101 — the four kinds of slide</title>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.css">
+
+  <style>
+    /* =========================================================
+       Six examples of the four slide kinds in the redesign.
+       Palette and frame lifted from deck.html unchanged.
+       ========================================================= */
+    :root {
+      --bg:     #141414;
+      --accent: #7CC5FF;
+      --slow:   #FF7A66;
+      --fast:   #6EE7A8;
+      --ink:    #ffffff;
+      --body:   #c8ccd2;
+      --muted:  #7e828b;
+      --line:   rgba(255,255,255,0.12);
+      --pad-x:  72px;
+      --pad-y:  52px;
+      --font:   ui-sans-serif, system-ui, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
+      --mono:   ui-monospace, "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+    }
+
+    .reveal-viewport { background: var(--bg); }
+    .reveal { font-family: var(--font); font-size: 30px; font-weight: 400; }
+    .reveal h1, .reveal h2 { text-transform: none; letter-spacing: -0.015em; font-weight: 700; margin: 0; line-height: 1.1; }
+    .reveal code { color: var(--accent); font-family: var(--mono); font-size: 0.86em; }
+
+    .slide {
+      box-sizing: border-box;
+      width: 1280px; height: 720px;
+      padding: var(--pad-y) var(--pad-x);
+      display: flex; flex-direction: column;
+      align-items: flex-start; text-align: left;
+      justify-content: flex-start;
+    }
+    .slide > h2 { color: var(--ink); font-size: 1.3em; }
+    .rule { flex: none; width: 54px; height: 3px; background: var(--accent); border-radius: 2px; margin: 18px 0 30px; }
+    .body { width: 100%; flex: 1; }
+
+    /* ---- kind marker, for this examples file only, not for the deck ---- */
+    .kind {
+      position: absolute; top: 18px; right: 26px;
+      color: var(--muted); font-size: 0.4em; font-weight: 700;
+      letter-spacing: 0.22em; text-transform: uppercase;
+    }
+
+    /* =========================================================
+       CARD
+       A finished example. Added lines lit, everything else dimmed
+       to 35%. A short label beside each lit region. One "you
+       should see" line. Time and checkpoint in the corner.
+       ========================================================= */
+    .card-code {
+      box-sizing: border-box; width: 100%;
+      background: rgba(255,255,255,0.035); border: 1px solid var(--line); border-radius: 10px;
+      padding: 1.1em 1.25em; font-family: var(--mono); font-size: 0.5em; line-height: 1.72;
+      color: var(--body); white-space: pre;
+    }
+    /* everything in a card is dim until it is marked lit */
+    .card-code .ln { display: block; opacity: 0.35; position: relative; }
+    .card-code .ln.lit { opacity: 1; color: var(--ink); }
+    .card-code .ln.lit::before {
+      content: ""; position: absolute; left: -1.25em; top: 0.22em; bottom: 0.22em;
+      width: 3px; background: var(--accent); border-radius: 2px;
+    }
+    .card-code .note {
+      color: var(--accent); font-weight: 700; margin-left: 2.2em;
+      font-family: var(--font); font-size: 0.82em; letter-spacing: 0.02em;
+    }
+    .card-foot {
+      display: flex; align-items: baseline; justify-content: space-between;
+      width: 100%; margin-top: auto; padding-top: 22px;
+    }
+    .card-foot .see { color: var(--fast); font-size: 0.6em; font-weight: 700; }
+    .card-foot .meta { color: var(--muted); font-size: 0.46em; font-weight: 700; letter-spacing: 0.1em; }
+
+    /* action form: a screenshot slot with the click target lit */
+    .shot {
+      width: 100%; flex: 1; box-sizing: border-box;
+      border: 1.5px solid var(--line); border-radius: 12px;
+      background: rgba(124,197,255,0.06);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center; gap: 14px; padding: 1.6em 1.4em;
+    }
+    .shot .tag { color: var(--accent); font-size: 0.44em; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; }
+    .shot .what { color: var(--muted); font-size: 0.56em; line-height: 1.45; max-width: 70%; }
+    .shot .path { color: var(--ink); font-family: var(--mono); font-size: 0.62em; }
+
+    /* =========================================================
+       EVIDENCE
+       A Profiler shot with labels on it, or two big numbers.
+       The title states what it proves.
+       ========================================================= */
+    .timeline { width: 100%; display: flex; flex-direction: column; gap: 11px; }
+    .trow { display: grid; grid-template-columns: 8.5em 1fr; align-items: center; gap: 22px; }
+    .trow .tname { color: var(--muted); font-size: 0.46em; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; text-align: right; }
+    .trow .track { height: 46px; border: 1.5px solid var(--line); border-radius: 7px; position: relative; overflow: hidden; }
+    .trow .blk {
+      position: absolute; top: 0; bottom: 0; left: 0;
+      display: flex; align-items: center; padding-left: 14px;
+      color: #141414; font-size: 0.44em; font-weight: 700; letter-spacing: 0.04em;
+    }
+    .trow .blk.hot { background: var(--slow); }
+    .trow .blk.cool { background: var(--fast); }
+    .trow .idle { color: var(--muted); font-size: 0.44em; font-weight: 700; letter-spacing: 0.14em; padding-left: 14px; line-height: 46px; }
+
+    .nums { display: flex; gap: 90px; align-items: flex-end; }
+    .num .nlbl { color: var(--muted); font-size: 0.44em; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
+    .num .nval { font-size: 2.2em; font-weight: 700; line-height: 1.15; margin-top: 0.1em; }
+    .num.bad  .nval { color: var(--slow); }
+    .num.good .nval { color: var(--fast); }
+    .num .nsub { color: var(--muted); font-size: 0.44em; margin-top: 0.35em; }
+    .placeholder { color: var(--muted); font-size: 0.5em; margin-top: 34px; font-style: italic; }
+
+    /* =========================================================
+       DIAGRAM
+       One picture whose layout matches the thing. Labels sit on
+       the thing they label. No legend, no caption row.
+       ========================================================= */
+    .chunk { width: 100%; }
+    /* world -> archetypes -> chunks, nested so the layout is the containment */
+    .world { width: 100%; border: 1.5px solid var(--line); border-radius: 13px; padding: 0.85em 1em 1em; }
+    .world > .wlbl {
+      color: var(--muted); font-size: 0.42em; font-weight: 700;
+      letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 0.75em;
+    }
+    .arch { border: 1.5px solid var(--accent); border-radius: 11px; padding: 0.7em 0.85em 0.85em; }
+    .arch + .arch { margin-top: 13px; }
+    .arch .albl {
+      color: var(--accent); font-family: var(--mono); font-size: 0.42em;
+      margin-bottom: 0.7em; letter-spacing: 0.02em;
+    }
+    .arch .chunks { display: flex; gap: 11px; align-items: stretch; }
+    .arch .spill {
+      align-self: center; color: var(--muted); font-size: 0.38em;
+      font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; white-space: nowrap;
+    }
+    .ck {
+      border: 1.5px solid var(--line); border-radius: 8px; overflow: hidden;
+      background: rgba(255,255,255,0.03); min-width: 132px;
+    }
+    .ck .ckcap {
+      color: var(--muted); font-size: 0.34em; font-weight: 700;
+      letter-spacing: 0.14em; text-transform: uppercase;
+      padding: 0.5em 0.8em; border-bottom: 1px solid var(--line);
+    }
+    .ck .fill { display: flex; gap: 3px; padding: 0.6em 0.8em; }
+    .ck .e { width: 9px; height: 26px; border-radius: 2px; background: rgba(124,197,255,0.5); }
+    .ck .e.empty { background: transparent; border: 1px solid var(--line); }
+    .ck.open { border-color: var(--accent); min-width: 0; flex: 1; }
+    .ck.open .ckcap { color: var(--accent); border-color: var(--accent); background: rgba(124,197,255,0.12); }
+    .ck .crow { display: grid; grid-template-columns: 9.5em 1fr; align-items: stretch; }
+    .ck .crow + .crow { border-top: 1px solid var(--line); }
+    .ck .cname {
+      color: var(--body); font-family: var(--mono); font-size: 0.38em;
+      padding: 0.5em 0.8em; border-right: 1px solid var(--line); display: flex; align-items: center;
+    }
+    .ck .cells { display: flex; gap: 4px; padding: 0.45em 0.8em; align-items: center; }
+    .ck .cell { width: 34px; height: 21px; border-radius: 4px; background: rgba(124,197,255,0.4); border: 1.5px solid var(--accent); }
+    .ck .cell.idx {
+      background: transparent; border-color: var(--line);
+      color: var(--muted); font-family: var(--mono); font-size: 10px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .ck .cell.more { background: transparent; border: 0; width: 22px; color: var(--muted); font-size: 11px; display: flex; align-items: center; justify-content: center; }
+
+    /* =========================================================
+       NAMES
+       Three or four rows, a word and a short clause each.
+       ========================================================= */
+    .names { display: flex; flex-direction: column; gap: 1.15em; width: 100%; }
+    .names .nrow { display: grid; grid-template-columns: 8em 1fr; align-items: baseline; gap: 2.2em; }
+    .names .word { color: var(--accent); font-family: var(--mono); font-size: 0.78em; font-weight: 700; }
+    .names .clause { color: var(--body); font-size: 0.72em; line-height: 1.4; }
+
+    .reveal .slide-number { background: transparent; color: var(--muted); font-size: 13px; }
+  </style>
+</head>
+<body>
+<div class="reveal"><div class="slides">
+
+<!-- ============== CARD · code form ============== -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="kind">Card · code form</div>
+    <h2>Burst compiles the job to native code</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="card-code"><span class="ln lit">[BurstCompile]<span class="note">compiled to native code</span></span><span class="ln">struct MoveJob : IJob</span><span class="ln">{</span><span class="ln">    public NativeArray&lt;float3&gt; Positions;</span><span class="ln">    public float3 Target;</span><span class="ln">    public float Speed;</span><span class="ln">    public float DeltaTime;</span><span class="ln"> </span><span class="ln">    public void Execute()</span><span class="ln">    {</span><span class="ln">        for (var i = 0; i &lt; Positions.Length; i++)</span><span class="ln">        { … }</span><span class="ln">    }</span><span class="ln">}</span></div>
+    </div>
+    <div class="card-foot">
+      <div class="see">You should see: frame time drops in the Profiler.</div>
+      <div class="meta">5 min · checkpoint-1</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============== CARD · action form ============== -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="kind">Card · action form</div>
+    <h2>Open the Profiler Timeline</h2>
+    <div class="rule"></div>
+    <div class="shot">
+      <div class="tag">Screenshot · Timeline dropdown lit</div>
+      <div class="path">Window &gt; Analysis &gt; Profiler</div>
+      <div class="what">Capture on the presenting machine at rehearsal.</div>
+    </div>
+    <div class="card-foot">
+      <div class="see">You should see: the main thread row solid, the worker rows empty.</div>
+      <div class="meta">5 min · checkpoint-0</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============== EVIDENCE · annotated shot ============== -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="kind">Evidence · annotated</div>
+    <h2>One core did all the work</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="timeline">
+        <div class="trow"><div class="tname">Main thread</div><div class="track"><div class="blk hot" style="right:0">EnemyMover.Update</div></div></div>
+        <div class="trow"><div class="tname">Worker 0</div><div class="track"><div class="idle">idle</div></div></div>
+        <div class="trow"><div class="tname">Worker 1</div><div class="track"><div class="idle">idle</div></div></div>
+        <div class="trow"><div class="tname">Worker 2</div><div class="track"><div class="idle">idle</div></div></div>
+      </div>
+      <div class="placeholder">Placeholder. Replaced by the rehearsal capture.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============== EVIDENCE · two numbers ============== -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="kind">Evidence · numbers</div>
+    <h2>One attribute</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="nums">
+        <div class="num bad">
+          <div class="nlbl">Without Burst</div>
+          <div class="nval">00.0 ms</div>
+          <div class="nsub">5,000 enemies</div>
+        </div>
+        <div class="num good">
+          <div class="nlbl">With Burst</div>
+          <div class="nval">00.0 ms</div>
+          <div class="nsub">5,000 enemies</div>
+        </div>
+      </div>
+      <div class="placeholder">Placeholder. Measured on the presenting machine at rehearsal.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============== DIAGRAM ============== -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="kind">Diagram</div>
+    <h2>A chunk holds one archetype, one array per component</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="arch">
+        <div class="albl">Archetype: LocalTransform &middot; MoveSpeed &middot; EnemyTag</div>
+        <div class="chunks">
+          <div class="ck open">
+            <div class="ckcap">chunk &middot; 16 KB</div>
+            <div class="crow">
+              <div class="cname">Entity</div>
+              <div class="cells">
+                <div class="cell idx">0</div><div class="cell idx">1</div><div class="cell idx">2</div>
+                <div class="cell idx">3</div><div class="cell more">&hellip;</div><div class="cell idx">n</div>
+              </div>
+            </div>
+            <div class="crow">
+              <div class="cname">LocalTransform</div>
+              <div class="cells">
+                <div class="cell"></div><div class="cell"></div><div class="cell"></div>
+                <div class="cell"></div><div class="cell more">&hellip;</div><div class="cell"></div>
+              </div>
+            </div>
+            <div class="crow">
+              <div class="cname">MoveSpeed</div>
+              <div class="cells">
+                <div class="cell"></div><div class="cell"></div><div class="cell"></div>
+                <div class="cell"></div><div class="cell more">&hellip;</div><div class="cell"></div>
+              </div>
+            </div>
+          </div>
+          <div class="spill">full &rarr;</div>
+          <div class="ck">
+            <div class="ckcap">chunk &middot; full</div>
+            <div class="fill"><div class="e"></div><div class="e"></div><div class="e"></div><div class="e"></div><div class="e"></div><div class="e"></div><div class="e"></div><div class="e"></div></div>
+          </div>
+          <div class="spill">full &rarr;</div>
+          <div class="ck">
+            <div class="ckcap">chunk &middot; filling</div>
+            <div class="fill"><div class="e"></div><div class="e"></div><div class="e"></div><div class="e empty"></div><div class="e empty"></div><div class="e empty"></div><div class="e empty"></div><div class="e empty"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============== NAMES ============== -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="kind">Names</div>
+    <h2>Four words for the next twenty minutes</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="names">
+        <div class="nrow"><div class="word">entity</div><div class="clause">a number</div></div>
+        <div class="nrow"><div class="word">component</div><div class="clause">a struct of data</div></div>
+        <div class="nrow"><div class="word">archetype</div><div class="clause">one exact set of components</div></div>
+        <div class="nrow"><div class="word">chunk</div><div class="clause">16 KB holding entities of one archetype</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.js"></script>
+<script>
+  Reveal.initialize({
+    width: 1280, height: 720, margin: 0,
+    controls: true, progress: true, slideNumber: 'c/t', hash: true,
+    transition: 'none'
+  });
+</script>
+</body>
+</html>
