@@ -15,9 +15,13 @@ namespace Workshop
         public Vector2 Min = new Vector2(-60f, -40f);
         public Vector2 Max = new Vector2(60f, 40f);
 
-        public Vector3 Clamp(Vector3 position) => new Vector3(
-            Mathf.Clamp(position.x, Min.x, Max.x),
+        /// <summary>
+        /// Holds a position inside the field, keeping <paramref name="inset"/> clear of the edge so
+        /// a body stops short of the wall instead of straddling it.
+        /// </summary>
+        public Vector3 Clamp(Vector3 position, float inset = 0f) => new Vector3(
+            Mathf.Clamp(position.x, Min.x + inset, Max.x - inset),
             position.y,
-            Mathf.Clamp(position.z, Min.y, Max.y));
+            Mathf.Clamp(position.z, Min.y + inset, Max.y - inset));
     }
 }

@@ -14,6 +14,10 @@ namespace Workshop
         [SerializeField] ArenaSettings _arena;
         [SerializeField] float _speed = 8f;
 
+        [Tooltip("How far the player's centre stops short of the wall, so its body does not " +
+                 "straddle the edge.")]
+        [SerializeField] float _radius = 0.5f;
+
         void Update()
         {
             var keyboard = Keyboard.current;
@@ -28,7 +32,7 @@ namespace Workshop
 
             var step = _speed * Time.deltaTime;
             var position = transform.position + new Vector3(move.x * step, 0f, move.y * step);
-            transform.position = _arena != null ? _arena.Clamp(position) : position;
+            transform.position = _arena != null ? _arena.Clamp(position, _radius) : position;
         }
     }
 }
