@@ -25,6 +25,7 @@ namespace Workshop
 
         [SerializeField] Transform _player;
         [SerializeField] EnemySpawner _spawner;
+        [SerializeField] ArenaSettings _arena;
         [SerializeField] float _speed = 2.5f;
 
         [Tooltip("How close an enemy has to get to hit the player and die doing it.")]
@@ -75,7 +76,8 @@ namespace Workshop
 
                 if (dir.sqrMagnitude < hitSq)
                 {
-                    _enemies[i].position = target + _respawnOffsets[i];
+                    // Clamped, or a cornered player would send them back outside the arena.
+                    _enemies[i].position = _arena.Clamp(target + _respawnOffsets[i]);
                     hits++;
                     continue;
                 }

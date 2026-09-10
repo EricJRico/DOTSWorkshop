@@ -4,13 +4,14 @@ using UnityEngine.InputSystem;
 namespace Workshop
 {
     /// <summary>
-    /// WASD moves the capsule. Provided.
+    /// WASD moves the capsule, held inside the arena. Provided.
     ///
-    /// Unbounded on purpose: enemies spawn on a ring around the player and the camera follows, so
-    /// there is no edge to hold the player inside.
+    /// A clamp rather than a collider: the player is moved by writing its position, which goes
+    /// straight through a collider, and the entities half clamps against the same two numbers.
     /// </summary>
     public class PlayerController : MonoBehaviour
     {
+        [SerializeField] ArenaSettings _arena;
         [SerializeField] float _speed = 8f;
 
         void Update()
@@ -26,7 +27,8 @@ namespace Workshop
             if (move.sqrMagnitude > 1f) move.Normalize();
 
             var step = _speed * Time.deltaTime;
-            transform.position += new Vector3(move.x * step, 0f, move.y * step);
+            var position = transform.position + new Vector3(move.x * step, 0f, move.y * step);
+            transform.position = _arena != null ? _arena.Clamp(position) : position;
         }
     }
 }
