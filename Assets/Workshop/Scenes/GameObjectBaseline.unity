@@ -903,16 +903,16 @@ MonoBehaviour:
     Count: 3400
   - Position: {x: 48, y: 26}
     Radius: 20
-    Count: 2200
+    Count: 2000
   - Position: {x: -42, y: 30}
     Radius: 20
-    Count: 3600
+    Count: 2600
   - Position: {x: 0, y: -36}
     Radius: 20
     Count: 5000
   - Position: {x: 0, y: 36}
     Radius: 20
-    Count: 2400
+    Count: 2000
   _maxHeight: 1
   _seed: 1
 --- !u!1 &1423412584
