@@ -143,6 +143,11 @@ namespace Workshop
         {
             if (WorkerThreads > 0)
                 Unity.Jobs.LowLevel.Unsafe.JobsUtility.JobWorkerCount = WorkerThreads;
+            else
+            {
+                Unity.Jobs.LowLevel.Unsafe.JobsUtility.JobWorkerCount =
+                    Unity.Jobs.LowLevel.Unsafe.JobsUtility.JobWorkerMaximumCount;
+            }
             Solver = new BoidSolver(Settings);
             Rebuild();
         }

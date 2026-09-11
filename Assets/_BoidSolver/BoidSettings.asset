@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 348ea7ea3a574364680277d5c208ffd5, type: 3}
   m_Name: BoidSettings
   m_EditorClassIdentifier: Workshop.Runtime::Workshop.BoidSettings
-  EnemyCount: 50000
+  EnemyCount: 100000
   EnemyRadius: 0.14
   Separation: 0.41
   MoveSpeed: 5
