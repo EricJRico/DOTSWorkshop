@@ -6,24 +6,24 @@ namespace Workshop
     /// Provided. Keeps the camera over the player, holding whatever offset and angle it was set up
     /// with, and stops following once the arena edge reaches the side of the screen.
     /// </summary>
-    public class CameraFollow : MonoBehaviour
+    internal class CameraFollow : MonoBehaviour
     {
-        [SerializeField] Transform _target;
-        [SerializeField] ArenaSettings _arena;
+        [SerializeField] private Transform _target;
+        [SerializeField] private ArenaSettings _arena;
 
         [Tooltip("How far inside the arena the followed point stops, per axis. Set it to roughly " +
                  "what the camera can see either side of the player, so the wall lands at the " +
                  "edge of the screen rather than in the middle of it.")]
-        [SerializeField] Vector2 _viewMargin = new Vector2(26f, 14f);
+        [SerializeField] private Vector2 _viewMargin = new Vector2(26f, 14f);
 
-        Vector3 _offset;
+        private Vector3 _offset;
 
-        void Start()
+        private void Start()
         {
             if (_target != null) _offset = transform.position - _target.position;
         }
 
-        void LateUpdate()
+        private void LateUpdate()
         {
             if (_target == null) return;
 

@@ -10,18 +10,24 @@ namespace Workshop
     /// of the day read one authored value.
     /// </summary>
     [CreateAssetMenu(menuName = "Workshop/Arena Settings")]
-    public class ArenaSettings : ScriptableObject
+    internal class ArenaSettings : ScriptableObject
     {
-        public Vector2 Min = new Vector2(-60f, -40f);
-        public Vector2 Max = new Vector2(60f, 40f);
+        [Tooltip("The near corner of the field, in world X and Z.")]
+        [SerializeField] private Vector2 _min = new Vector2(-60f, -40f);
+
+        [Tooltip("The far corner of the field, in world X and Z.")]
+        [SerializeField] private Vector2 _max = new Vector2(60f, 40f);
+
+        internal Vector2 Min => _min;
+        internal Vector2 Max => _max;
 
         /// <summary>
         /// Holds a position inside the field, keeping <paramref name="inset"/> clear of the edge so
         /// a body stops short of the wall instead of straddling it.
         /// </summary>
-        public Vector3 Clamp(Vector3 position, float inset = 0f) => new Vector3(
-            Mathf.Clamp(position.x, Min.x + inset, Max.x - inset),
+        internal Vector3 Clamp(Vector3 position, float inset = 0f) => new Vector3(
+            Mathf.Clamp(position.x, _min.x + inset, _max.x - inset),
             position.y,
-            Mathf.Clamp(position.z, Min.y + inset, Max.y - inset));
+            Mathf.Clamp(position.z, _min.y + inset, _max.y - inset));
     }
 }

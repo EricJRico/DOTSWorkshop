@@ -1,4 +1,3 @@
-using System;
 using UnityEngine;
 
 namespace Workshop
@@ -8,20 +7,20 @@ namespace Workshop
     /// gizmo, so the wall the player is clamped to is something you can see.
     /// </summary>
     [RequireComponent(typeof(LineRenderer))]
-    public class Arena : MonoBehaviour
+    internal class Arena : MonoBehaviour
     {
-        [SerializeField] ArenaSettings _settings;
+        [SerializeField] private ArenaSettings _settings;
 
         [Tooltip("Fills the field, so inside the wall looks different from outside it.")]
-        [SerializeField] Transform _floor;
+        [SerializeField] private Transform _floor;
 
         [Tooltip("Height of the border line. Above the floor and below the enemies, or it " +
                  "z-fights the floor and draws over the crowd.")]
-        [SerializeField] float _lineHeight = 0.02f;
+        [SerializeField] private float _lineHeight = 0.02f;
 
-        void Start()
+        private void Start()
         {
-            if (_settings == null) 
+            if (_settings == null)
                 return;
 
             var line = GetComponent<LineRenderer>();
@@ -35,16 +34,16 @@ namespace Workshop
 
         private void UpdateFloor()
         {
-            if (_floor == null) 
+            if (_floor == null)
                 return;
-            
+
             var size = _settings.Max - _settings.Min;
             var centre = (_settings.Min + _settings.Max) * 0.5f;
             _floor.position = new Vector3(centre.x, 0f, centre.y);
             _floor.localScale = new Vector3(size.x, size.y, 1f);
         }
 
-        Vector3[] Corners(float height)
+        private Vector3[] Corners(float height)
         {
             var min = _settings.Min;
             var max = _settings.Max;
@@ -63,7 +62,7 @@ namespace Workshop
         }
 
 #if UNITY_EDITOR
-        void OnDrawGizmos()
+        private void OnDrawGizmos()
         {
             if (_settings == null) return;
 
