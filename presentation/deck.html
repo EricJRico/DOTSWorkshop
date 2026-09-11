@@ -278,12 +278,10 @@
     <h2>Open checkpoint-0 and press Play</h2>
     <div class="rule"></div>
     <div class="shot">
-      <div class="tag">Screenshot · the running scene</div>
-      <div class="path">git checkout checkpoint-0</div>
-      <div class="what">Capture on the presenting machine at rehearsal.</div>
+      <img src="images/git-checkout-0.png" alt="The running scene: enemies streaming in from every side, the player in the middle, the health bar across the top.">
     </div>
     <div class="card-foot">
-      <div class="see">You should see: 5,000 enemies closing in on you.</div>
+      <div class="see">You should see: 20,000 enemies closing in on you.</div>
       <div class="meta">15 min · checkpoint-0</div>
     </div>
   </div>
@@ -320,13 +318,10 @@
     <h2>One core did all the work</h2>
     <div class="rule"></div>
     <div class="body">
-      <div class="timeline">
-        <div class="trow"><div class="tname">Main thread</div><div class="track"><div class="blk hot" style="--w:100%; left:0">EnemyMover.Update</div></div></div>
-        <div class="trow"><div class="tname">Worker 0</div><div class="track"><div class="idle">idle</div></div></div>
-        <div class="trow"><div class="tname">Worker 1</div><div class="track"><div class="idle">idle</div></div></div>
-        <div class="trow"><div class="tname">Worker 2</div><div class="track"><div class="idle">idle</div></div></div>
+      <div class="shot">
+        <img src="images/baseline-profiler.png" alt="Profiler Timeline: EnemyMover.Update takes 5.10 ms on the main thread, and no worker row is doing any of it.">
       </div>
-      <div class="placeholder">Placeholder. Replaced by the rehearsal capture.</div>
+      <div class="placeholder">EnemyMover.Update, 5.10 ms, on the main thread. The workers are empty.</div>
     </div>
   </div>
 </section>
@@ -399,12 +394,12 @@
         <div class="num bad">
           <div class="nlbl">Without Burst</div>
           <div class="nval">00.0 ms</div>
-          <div class="nsub">5,000 enemies</div>
+          <div class="nsub">20,000 enemies</div>
         </div>
         <div class="num good">
           <div class="nlbl">With Burst</div>
           <div class="nval">00.0 ms</div>
-          <div class="nsub">5,000 enemies</div>
+          <div class="nsub">20,000 enemies</div>
         </div>
       </div>
       <div class="placeholder">Placeholder. Measured on the presenting machine at rehearsal.</div>
@@ -576,7 +571,7 @@
           <div class="ans">You wrote a job</div>
         </div>
         <div class="pair next fragment fade-in">
-          <div class="prob">Every frame copies 5,000 Transforms in and out</div>
+          <div class="prob">Every frame copies 20,000 Transforms in and out</div>
           <div class="arrow">&darr;</div>
           <div class="ans">Entities, after the break</div>
         </div>
