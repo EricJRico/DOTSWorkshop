@@ -895,24 +895,24 @@ MonoBehaviour:
   - {r: 0.72, g: 0.12, b: 0.35, a: 1}
   - {r: 0.55, g: 0.2, b: 0.75, a: 1}
   _spawnPoints:
-  - Position: {x: -45, y: -28}
-    Radius: 20
-    Count: 5000
-  - Position: {x: 45, y: -30}
-    Radius: 20
-    Count: 3400
-  - Position: {x: 48, y: 26}
-    Radius: 20
-    Count: 2000
-  - Position: {x: -42, y: 30}
-    Radius: 20
-    Count: 2600
-  - Position: {x: 0, y: -36}
-    Radius: 20
-    Count: 5000
-  - Position: {x: 0, y: 36}
-    Radius: 20
-    Count: 2000
+  - _position: {x: -45, y: -28}
+    _radius: 20
+    _count: 5000
+  - _position: {x: 45, y: -30}
+    _radius: 20
+    _count: 3400
+  - _position: {x: 48, y: 26}
+    _radius: 20
+    _count: 2000
+  - _position: {x: -42, y: 30}
+    _radius: 20
+    _count: 2600
+  - _position: {x: 0, y: -36}
+    _radius: 20
+    _count: 5000
+  - _position: {x: 0, y: 36}
+    _radius: 20
+    _count: 2000
   _maxHeight: 1
   _seed: 1
 --- !u!1 &1423412584
@@ -1058,7 +1058,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Workshop.Runtime::Workshop.CameraFollow
   _target: {fileID: 979932964}
   _arena: {fileID: 11400000, guid: a1400e05ccdc34d4087fe7cb9d29adc1, type: 2}
-  _viewMargin: {x: 40, y: 20}
+  _viewMargin: {x: 20, y: 20}
 --- !u!1 &1432564120
 GameObject:
   m_ObjectHideFlags: 0
