@@ -10,7 +10,7 @@ namespace Workshop
     /// of the day read one authored value.
     /// </summary>
     [CreateAssetMenu(menuName = "Workshop/Arena Settings")]
-    internal class ArenaSettings : ScriptableObject
+    public class ArenaSettings : ScriptableObject
     {
         [Tooltip("The near corner of the field, in world X and Z.")]
         [SerializeField] private Vector2 _min = new Vector2(-60f, -40f);

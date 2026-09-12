@@ -12,7 +12,7 @@ namespace Workshop
     /// population is still fixed at load - the points decide where they start, not how many
     /// there are.
     /// </summary>
-    internal class EnemySpawner : MonoBehaviour
+    public class EnemySpawner : MonoBehaviour
     {
         /// <summary>One camp: where it sits on the field, how wide it scatters, and how many
         /// enemies come from it.</summary>

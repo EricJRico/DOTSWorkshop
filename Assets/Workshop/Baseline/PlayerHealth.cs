@@ -7,7 +7,7 @@ namespace Workshop
     /// through, regenerates when they are not, and announces its own value. It never touches the
     /// HUD, and nothing outside it writes its health.
     /// </summary>
-    internal class PlayerHealth : MonoBehaviour
+    public class PlayerHealth : MonoBehaviour
     {
         /// <summary>Current health as a fraction of the maximum, raised whenever it changes.</summary>
         internal event System.Action<float> Changed;

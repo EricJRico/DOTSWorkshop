@@ -9,7 +9,7 @@ namespace Workshop
     /// A clamp rather than a collider: the player is moved by writing its position, which goes
     /// straight through a collider, and the entities half clamps against the same two numbers.
     /// </summary>
-    internal class PlayerController : MonoBehaviour
+    public class PlayerController : MonoBehaviour
     {
         [SerializeField] private ArenaSettings _arena;
         [SerializeField] private float _speed = 8f;

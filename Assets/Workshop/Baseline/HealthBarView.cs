@@ -7,7 +7,7 @@ namespace Workshop
     /// Provided. The HUD's own controller: it listens to <see cref="PlayerHealth"/> and is the
     /// only thing that touches the bar. Nothing pushes values into it.
     /// </summary>
-    internal class HealthBarView : MonoBehaviour
+    public class HealthBarView : MonoBehaviour
     {
         [SerializeField] private PlayerHealth _health;
 

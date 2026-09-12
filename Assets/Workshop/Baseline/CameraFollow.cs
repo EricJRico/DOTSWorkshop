@@ -6,7 +6,7 @@ namespace Workshop
     /// Provided. Keeps the camera over the player, holding whatever offset and angle it was set up
     /// with, and stops following once the arena edge reaches the side of the screen.
     /// </summary>
-    internal class CameraFollow : MonoBehaviour
+    public class CameraFollow : MonoBehaviour
     {
         [SerializeField] private Transform _target;
         [SerializeField] private ArenaSettings _arena;

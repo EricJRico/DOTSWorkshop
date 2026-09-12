@@ -7,7 +7,7 @@ namespace Workshop
     /// gizmo, so the wall the player is clamped to is something you can see.
     /// </summary>
     [RequireComponent(typeof(LineRenderer))]
-    internal class Arena : MonoBehaviour
+    public class Arena : MonoBehaviour
     {
         [SerializeField] private ArenaSettings _settings;
 
