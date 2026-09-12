@@ -14,7 +14,7 @@ namespace Workshop
     /// Block A turns this loop into a job, then Bursts it, then runs it across the worker
     /// threads. Nothing here touches Entities - a job runs on plain arrays.
     /// </summary>
-    internal class EnemyMover : MonoBehaviour
+    public class EnemyMover : MonoBehaviour
     {
         /// <summary>
         /// Raised once a frame with the number of enemies that reached the player this frame.
@@ -77,7 +77,11 @@ namespace Workshop
                 if (dir.sqrMagnitude < hitSq)
                 {
                     // Clamped, or a cornered player would send them back outside the arena.
-                    _enemies[i].position = _arena.Clamp(target + _respawnOffsets[i]);
+                    var respawnPoint = target + _respawnOffsets[i];
+                    _enemies[i].position = new Vector3(
+                        Mathf.Clamp(respawnPoint.x, _arena.Min.x, _arena.Max.x),
+                        respawnPoint.y,
+                        Mathf.Clamp(respawnPoint.z, _arena.Min.y, _arena.Max.y));
                     hits++;
                     continue;
                 }
