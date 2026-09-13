@@ -59,7 +59,6 @@ namespace Workshop
 
             var enemies = new Transform[_totalEnemies];
             var random = new System.Random(_seed);
-            var parent = transform;
             BuildMaterials();
 
             var next = 0;
@@ -77,7 +76,9 @@ namespace Workshop
                         height,
                         centre.z + Mathf.Sin(angle) * radius);
 
-                    var enemy = Instantiate(_enemyPrefab, position, Quaternion.identity, parent);
+                    // No parent: a transform job is handed one range per root hierarchy, so a
+                    // crowd under one object runs the whole job on a single worker.
+                    var enemy = Instantiate(_enemyPrefab, position, Quaternion.identity);
                     enemies[next++] = enemy.transform;
 
                     if (_materials != null)

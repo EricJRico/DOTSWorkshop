@@ -111,6 +111,17 @@
       content: ""; position: absolute; left: -1.25em; top: 0.22em; bottom: 0.22em;
       width: 3px; background: var(--accent); border-radius: 2px;
     }
+    /* the console, quoted: the first two lines carry the rule, the frames
+       below say where it was thrown */
+    .errbox {
+      box-sizing: border-box; width: 100%; margin-top: 26px;
+      background: rgba(255,122,102,0.06); border: 1px solid rgba(255,122,102,0.3);
+      border-radius: 9px; padding: 0.9em 1.1em;
+      font-family: var(--mono); font-size: 0.36em; line-height: 1.65;
+      color: var(--muted); white-space: pre;
+    }
+    .errbox .err { color: var(--slow); text-decoration: none; }
+
     /* a name the compiler cannot resolve, drawn the way the editor draws it */
     .card-code .err {
       color: var(--slow);
@@ -167,6 +178,8 @@
     .num.good .nval { color: var(--fast); }
     .num .nsub { color: var(--muted); font-size: 0.44em; margin-top: 0.35em; }
     .placeholder { color: var(--muted); font-size: 0.46em; margin-top: 30px; font-style: italic; }
+    /* a reading taken off a real capture, not a note to self */
+    .readout { color: var(--body); font-size: 0.5em; margin-top: 30px; font-family: var(--mono); }
 
     /* =========================================================
        DIAGRAM — one picture whose layout matches the thing.
@@ -248,6 +261,7 @@
     .withrail { display: grid; grid-template-columns: 1.55fr 1fr; gap: 26px; width: 100%; align-items: start; }
     .rail { border-left: 1.5px solid var(--line); padding-left: 1.1em; }
     .rail h4 { color: var(--muted); font-size: 0.4em; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; margin: 0 0 0.9em; }
+    .rail h4.later { margin-top: 1.4em; }
     .rail .rrow { display: grid; grid-template-columns: 1fr auto 1fr; gap: 0.5em; align-items: baseline; margin-bottom: 0.62em; }
     .rail .was { color: var(--muted); font-family: var(--mono); font-size: 0.36em; }
     .rail .arr { color: var(--line); font-size: 0.34em; }
@@ -305,7 +319,24 @@
 </section>
 
 <!-- =====================================================================
-     2 · CARD · action · setup
+     2 · MIND MAP · the day, nothing lit
+     The same board as slide 24, empty. The room sees the shape of the day
+     before any of it, so the green at the end reads as a finish rather
+     than as a diagram they are meeting for the first time.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="form">Nothing to type</div>
+    <h2>What you will have by the end of the day</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <svg class="mindmap" viewBox="0 0 1136 470" data-done="" data-now=""></svg>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     3 · CARD · action · setup
      Words used: clone, checkpoint-0. The branch name is introduced here,
      by typing it, before any slide asks them to open it.
      ===================================================================== -->
@@ -323,7 +354,7 @@
 </section>
 
 <!-- =====================================================================
-     3 · CARD · action · setup
+     4 · CARD · action · setup
      Words used: scene, Play. Play is introduced here.
      ===================================================================== -->
 <section data-background-color="#141414">
@@ -336,14 +367,14 @@
       <div class="path">Assets &gt; Workshop &gt; Scenes &gt; GameObjectBaseline</div>
     </div>
     <div class="card-foot">
-      <div class="see">You should see: 20,000 enemies closing in on you.</div>
-      <div class="meta">15 min · checkpoint-0</div>
+      <div class="see">You should see: 20,000 enemies closing in on you. WASD moves you.</div>
+      <div class="meta">5 min · checkpoint-0</div>
     </div>
   </div>
 </section>
 
 <!-- =====================================================================
-     4 · CARD · action · A1
+     5 · CARD · action · A1
      Seen: the game running. Typed: nothing.
      Introduces Profiler and Timeline by clicking them.
      ===================================================================== -->
@@ -364,7 +395,7 @@
 </section>
 
 <!-- =====================================================================
-     5 · EVIDENCE · A1 name
+     6 · EVIDENCE · A1 name
      The only claim the room has evidence for so far. Row names and
      EnemyMover.Update are read straight off the Profiler they just opened.
      ===================================================================== -->
@@ -377,13 +408,13 @@
       <div class="shot">
         <img src="images/baseline-profiler.png" alt="Profiler Timeline: EnemyMover.Update takes 5.10 ms on the main thread, and no worker row is doing any of it.">
       </div>
-      <div class="placeholder">EnemyMover.Update, 5.10 ms, on the main thread. The workers are empty.</div>
+      <div class="readout">EnemyMover.Update, 5.10 ms, on the main thread. The workers are empty.</div>
     </div>
   </div>
 </section>
 
 <!-- =====================================================================
-     6 · BEAT · A2 we-do · 1 of 6 — paste the loop
+     7 · BEAT · A2 we-do · 1 of 6 — paste the loop
      Nothing is designed up front. The loop moves into a job body as it is,
      and the compiler names the work: every red name is either a field or
      a type that a job cannot hold.
@@ -395,7 +426,7 @@
     <div class="rule"></div>
     <div class="file">EnemyMover.cs &mdash; above the EnemyMover class, inside namespace Workshop</div>
     <div class="body">
-      <div class="card-code xxs"><span class="ln">using UnityEngine;</span><span class="ln lit">using Unity.Collections;</span><span class="ln lit">using Unity.Jobs;</span><span class="ln lit">using Unity.Mathematics;</span><span class="ln"> </span><span class="ln lit">public struct MoveJob : IJob<span class="note">one job, one Execute</span></span><span class="ln lit">{</span><span class="ln lit">    public void Execute()</span><span class="ln lit">    {</span><span class="ln lit">        for (var i = 0; i &lt; <span class="err">_enemies</span>.Length; i++)<span class="note">pasted, not retyped</span></span><span class="ln lit">        {</span><span class="ln lit">            var dir = <span class="err">target</span> - <span class="err">_enemies</span>[i].position;</span><span class="ln lit">            dir.y = 0f;</span><span class="ln lit"> </span><span class="ln lit">            if (dir.sqrMagnitude &lt; <span class="err">hitSq</span>)</span><span class="ln lit">            {</span><span class="ln lit">                var respawnPoint = <span class="err">target</span> + <span class="err">_respawnOffsets</span>[i];</span><span class="ln lit">                <span class="err">_enemies</span>[i].position = new Vector3(</span><span class="ln lit">                    Mathf.Clamp(respawnPoint.x, <span class="err">_arena</span>.Min.x, <span class="err">_arena</span>.Max.x),</span><span class="ln lit">                    respawnPoint.y,</span><span class="ln lit">                    Mathf.Clamp(respawnPoint.z, <span class="err">_arena</span>.Min.y, <span class="err">_arena</span>.Max.y));</span><span class="ln lit">                <span class="err">hits</span>++;</span><span class="ln lit">                continue;</span><span class="ln lit">            }</span><span class="ln lit"> </span><span class="ln lit">            <span class="err">_enemies</span>[i].position += dir.normalized * (<span class="err">_speeds</span>[i] * <span class="err">dt</span>);</span><span class="ln lit">        }</span><span class="ln lit">    }</span><span class="ln lit">}</span></div>
+      <div class="card-code xxs"><span class="ln">using UnityEngine;</span><span class="ln lit">using Unity.Collections;</span><span class="ln lit">using Unity.Jobs;</span><span class="ln lit">using Unity.Mathematics;</span><span class="ln lit">using Unity.Profiling;</span><span class="ln"> </span><span class="ln lit">public struct MoveJob : IJob<span class="note">one job, one Execute</span></span><span class="ln lit">{</span><span class="ln lit">    public void Execute()</span><span class="ln lit">    {</span><span class="ln lit">        for (var i = 0; i &lt; <span class="err">_enemies</span>.Length; i++)<span class="note">pasted, not retyped</span></span><span class="ln lit">        {</span><span class="ln lit">            var dir = <span class="err">target</span> - <span class="err">_enemies</span>[i].position;</span><span class="ln lit">            dir.y = 0f;</span><span class="ln lit"> </span><span class="ln lit">            if (dir.sqrMagnitude &lt; <span class="err">hitSq</span>)</span><span class="ln lit">            {</span><span class="ln lit">                var respawnPoint = <span class="err">target</span> + <span class="err">_respawnOffsets</span>[i];</span><span class="ln lit">                <span class="err">_enemies</span>[i].position = new Vector3(</span><span class="ln lit">                    Mathf.Clamp(respawnPoint.x, <span class="err">_arena</span>.Min.x, <span class="err">_arena</span>.Max.x),</span><span class="ln lit">                    respawnPoint.y,</span><span class="ln lit">                    Mathf.Clamp(respawnPoint.z, <span class="err">_arena</span>.Min.y, <span class="err">_arena</span>.Max.y));</span><span class="ln lit">                <span class="err">hits</span>++;</span><span class="ln lit">                continue;</span><span class="ln lit">            }</span><span class="ln lit"> </span><span class="ln lit">            <span class="err">_enemies</span>[i].position += dir.normalized * (<span class="err">_speeds</span>[i] * <span class="err">dt</span>);</span><span class="ln lit">        }</span><span class="ln lit">    }</span><span class="ln lit">}</span></div>
     </div>
     <div class="card-foot">
       <div class="see">You should see: red under every name the loop reads. That is the field list.</div>
@@ -405,7 +436,7 @@
 </section>
 
 <!-- =====================================================================
-     7 · BEAT · A2 we-do · 2 of 6 — fix the body
+     8 · BEAT · A2 we-do · 2 of 6 — fix the body
      Same loop, line for line, in types a job can hold. The rail names each
      swap, and is the only place the math library is explained.
      ===================================================================== -->
@@ -417,16 +448,18 @@
     <div class="file">EnemyMover.cs &mdash; inside MoveJob</div>
     <div class="body">
      <div class="withrail">
-      <div class="card-code xs"><span class="ln lit">    public void Execute()<span class="note">IJob runs this once</span></span><span class="ln lit">    {</span><span class="ln lit">        for (var i = 0; i &lt; Positions.Length; i++)</span><span class="ln lit">        {</span><span class="ln lit">            var dir = Target - Positions[i];</span><span class="ln lit">            dir.y = 0f;</span><span class="ln lit"> </span><span class="ln lit">            if (math.lengthsq(dir) &lt; HitRadiusSq)</span><span class="ln lit">            {</span><span class="ln lit">                var respawnPoint = Target + RespawnOffsets[i];</span><span class="ln lit">                Positions[i] = new float3(<span class="note">was new Vector3</span></span><span class="ln lit">                    math.clamp(respawnPoint.x, ArenaMin.x, ArenaMax.x),</span><span class="ln lit">                    respawnPoint.y,</span><span class="ln lit">                    math.clamp(respawnPoint.z, ArenaMin.y, ArenaMax.y));</span><span class="ln lit">                Hits[0]++;<span class="note">was hits++</span></span><span class="ln lit">                continue;</span><span class="ln lit">            }</span><span class="ln lit"> </span><span class="ln lit">            Positions[i] += math.normalize(dir) * (Speeds[i] * DeltaTime);</span><span class="ln lit">        }</span><span class="ln lit">    }</span></div>
+      <div class="card-code xs"><span class="ln lit">    public void Execute()<span class="note">IJob runs this once</span></span><span class="ln lit">    {</span><span class="ln lit">        for (var i = 0; i &lt; Positions.Length; i++)</span><span class="ln lit">        {</span><span class="ln lit">            var dir = Target - Positions[i];<span class="note">the job holds positions, not Transforms</span></span><span class="ln lit">            dir.y = 0f;</span><span class="ln lit"> </span><span class="ln lit">            if (math.lengthsq(dir) &lt; HitRadiusSq)</span><span class="ln lit">            {</span><span class="ln lit">                var respawnPoint = Target + RespawnOffsets[i];</span><span class="ln lit">                Positions[i] = new float3(<span class="note">was new Vector3</span></span><span class="ln lit">                    math.clamp(respawnPoint.x, ArenaMin.x, ArenaMax.x),</span><span class="ln lit">                    respawnPoint.y,</span><span class="ln lit">                    math.clamp(respawnPoint.z, ArenaMin.y, ArenaMax.y));</span><span class="ln lit">                Hits[0]++;<span class="note">was hits++: the job gets a copy of the struct</span></span><span class="ln lit">                continue;</span><span class="ln lit">            }</span><span class="ln lit"> </span><span class="ln lit">            Positions[i] += math.normalize(dir) * (Speeds[i] * DeltaTime);</span><span class="ln lit">        }</span><span class="ln lit">    }</span></div>
       <div class="rail">
-        <h4>What each line was</h4>
+        <h4>The one real change</h4>
+        <div class="rrow"><span class="was">Transform</span><span class="arr">&rarr;</span><span class="now">float3 in an array</span></div>
+        <div class="why">A Transform is a class, so no job can hold one. The job moves positions it owns, and the Transforms are set from them afterwards.</div>
+        <h4 class="later">The rest are renames</h4>
         <div class="rrow"><span class="was">Vector3</span><span class="arr">&rarr;</span><span class="now">float3</span></div>
         <div class="rrow"><span class="was">Vector3[], float[]</span><span class="arr">&rarr;</span><span class="now">NativeArray&lt;T&gt;</span></div>
         <div class="rrow"><span class="was">dir.sqrMagnitude</span><span class="arr">&rarr;</span><span class="now">math.lengthsq(dir)</span></div>
         <div class="rrow"><span class="was">dir.normalized</span><span class="arr">&rarr;</span><span class="now">math.normalize(dir)</span></div>
         <div class="rrow"><span class="was">Mathf.Clamp</span><span class="arr">&rarr;</span><span class="now">math.clamp</span></div>
-        <div class="rrow"><span class="was">Transform</span><span class="arr">&rarr;</span><span class="now">&mdash;</span></div>
-        <div class="why">Every row is a rename: the same maths, written so Burst can compile it. Transform is the one with no job version. It is a class, so the job gets a copy of the position instead.</div>
+        <div class="why">The same maths, written so Burst can compile it.</div>
       </div>
      </div>
     </div>
@@ -438,7 +471,7 @@
 </section>
 
 <!-- =====================================================================
-     8 · BEAT · A2 we-do · 3 of 6 — the fields
+     9 · BEAT · A2 we-do · 3 of 6 — the fields
      The field list is not designed: it is the red names from the last two
      slides, one line each. public because the job system copies them in.
      ===================================================================== -->
@@ -459,9 +492,10 @@
 </section>
 
 <!-- =====================================================================
-     9 · BEAT · A2 we-do · 4 of 6 — the arrays
+     10 · BEAT · A2 we-do · 4 of 6 — the arrays
      A job cannot hold a managed array, so the three the loop reads become
-     NativeArrays. Allocator and Dispose are first used here.
+     NativeArrays. Allocator and Dispose are first used here, and the two
+     ProfilerMarkers the room will read the copy cost off.
      ===================================================================== -->
 <section data-background-color="#141414">
   <div class="slide do">
@@ -470,7 +504,7 @@
     <div class="rule"></div>
     <div class="file">EnemyMover.cs &mdash; the fields, Start, and a new OnDestroy</div>
     <div class="body">
-      <div class="card-code xs"><span class="ln">private Transform[] _enemies;</span><span class="ln lit">private NativeArray&lt;float3&gt; _respawnOffsets;<span class="note">was Vector3[]</span></span><span class="ln lit">private NativeArray&lt;float&gt; _speeds;<span class="note">was float[]</span></span><span class="ln lit">private NativeArray&lt;float3&gt; _positions;<span class="note">new</span></span><span class="ln lit">private NativeArray&lt;int&gt; _hits;<span class="note">new, length 1</span></span><span class="ln"> </span><span class="ln">private void Start()</span><span class="ln">{</span><span class="ln">    _enemies = _spawner.Spawn();</span><span class="ln lit">    var n = _enemies.Length;</span><span class="ln lit">    _respawnOffsets = new NativeArray&lt;float3&gt;(n, Allocator.Persistent);</span><span class="ln lit">    _speeds = new NativeArray&lt;float&gt;(n, Allocator.Persistent);</span><span class="ln lit">    _positions = new NativeArray&lt;float3&gt;(n, Allocator.Persistent);</span><span class="ln lit">    _hits = new NativeArray&lt;int&gt;(1, Allocator.Persistent);</span><span class="ln">    …<span class="note">the loop that fills them does not change</span></span><span class="ln">}</span><span class="ln"> </span><span class="ln lit">private void OnDestroy()<span class="note">a NativeArray is not garbage collected</span></span><span class="ln lit">{</span><span class="ln lit">    if (_respawnOffsets.IsCreated) _respawnOffsets.Dispose();</span><span class="ln lit">    if (_speeds.IsCreated) _speeds.Dispose();</span><span class="ln lit">    if (_positions.IsCreated) _positions.Dispose();</span><span class="ln lit">    if (_hits.IsCreated) _hits.Dispose();</span><span class="ln lit">}</span></div>
+      <div class="card-code xs"><span class="ln">private Transform[] _enemies;</span><span class="ln lit">private NativeArray&lt;float3&gt; _respawnOffsets;<span class="note">was Vector3[]</span></span><span class="ln lit">private NativeArray&lt;float&gt; _speeds;<span class="note">was float[]</span></span><span class="ln lit">private NativeArray&lt;float3&gt; _positions;<span class="note">new</span></span><span class="ln lit">private NativeArray&lt;int&gt; _hits;<span class="note">new, length 1</span></span><span class="ln lit"> </span><span class="ln lit">private static readonly ProfilerMarker CopyIn = new("EnemyMover.CopyIn");<span class="note">so the Profiler names it</span></span><span class="ln lit">private static readonly ProfilerMarker CopyOut = new("EnemyMover.CopyOut");</span><span class="ln"> </span><span class="ln">private void Start()</span><span class="ln">{</span><span class="ln">    _enemies = _spawner.Spawn();</span><span class="ln lit">    var n = _enemies.Length;</span><span class="ln lit">    _respawnOffsets = new NativeArray&lt;float3&gt;(n, Allocator.Persistent);</span><span class="ln lit">    _speeds = new NativeArray&lt;float&gt;(n, Allocator.Persistent);</span><span class="ln lit">    _positions = new NativeArray&lt;float3&gt;(n, Allocator.Persistent);</span><span class="ln lit">    _hits = new NativeArray&lt;int&gt;(1, Allocator.Persistent);</span><span class="ln">    …<span class="note">the loop that fills them does not change</span></span><span class="ln">}</span><span class="ln"> </span><span class="ln lit">private void OnDestroy()<span class="note">a NativeArray is not garbage collected</span></span><span class="ln lit">{</span><span class="ln lit">    if (_respawnOffsets.IsCreated) _respawnOffsets.Dispose();</span><span class="ln lit">    if (_speeds.IsCreated) _speeds.Dispose();</span><span class="ln lit">    if (_positions.IsCreated) _positions.Dispose();</span><span class="ln lit">    if (_hits.IsCreated) _hits.Dispose();</span><span class="ln lit">}</span></div>
     </div>
     <div class="card-foot">
       <div class="see">You should see: it compiles, and the game still runs as before.</div>
@@ -480,10 +514,10 @@
 </section>
 
 <!-- =====================================================================
-     10 · BEAT · A2 we-do · 5 of 6 — Update
+     11 · BEAT · A2 we-do · 5 of 6 — Update
      The whole loop is gone from the main thread. What is left either side
      of the job is two copy loops over Transform.position, which is the
-     cost slide 18 comes back to.
+     cost slide 20 comes back to.
      ===================================================================== -->
 <section data-background-color="#141414">
   <div class="slide do">
@@ -498,7 +532,7 @@
       </div>
       <div class="col after">
         <div class="lbl">After</div>
-        <div class="card-code"><span class="ln lit">_hits[0] = 0;<span class="note">was var hits = 0</span></span><span class="ln lit"> </span><span class="ln lit">for (var i = 0; i &lt; _enemies.Length; i++)<span class="note">copy in</span></span><span class="ln lit">    _positions[i] = _enemies[i].position;</span><span class="ln lit"> </span><span class="ln lit">new MoveJob</span><span class="ln lit">{</span><span class="ln lit">    Positions = _positions,</span><span class="ln lit">    RespawnOffsets = _respawnOffsets,</span><span class="ln lit">    Speeds = _speeds,</span><span class="ln lit">    Hits = _hits,</span><span class="ln lit">    Target = target,</span><span class="ln lit">    DeltaTime = dt,</span><span class="ln lit">    HitRadiusSq = hitSq,</span><span class="ln lit">    ArenaMin = _arena.Min,</span><span class="ln lit">    ArenaMax = _arena.Max</span><span class="ln lit">}.Schedule().Complete();<span class="note">the whole loop runs here</span></span><span class="ln lit"> </span><span class="ln lit">for (var i = 0; i &lt; _enemies.Length; i++)<span class="note">copy out</span></span><span class="ln lit">    _enemies[i].position = _positions[i];</span><span class="ln lit"> </span><span class="ln lit">var hits = _hits[0];<span class="note">read back after Complete</span></span></div>
+        <div class="card-code"><span class="ln lit">_hits[0] = 0;<span class="note">was var hits = 0</span></span><span class="ln lit"> </span><span class="ln lit">using (CopyIn.Auto())<span class="note">names this block in the Profiler</span></span><span class="ln lit">    for (var i = 0; i &lt; _enemies.Length; i++)</span><span class="ln lit">        _positions[i] = _enemies[i].position;</span><span class="ln lit"> </span><span class="ln lit">new MoveJob</span><span class="ln lit">{</span><span class="ln lit">    Positions = _positions,</span><span class="ln lit">    RespawnOffsets = _respawnOffsets,</span><span class="ln lit">    Speeds = _speeds,</span><span class="ln lit">    Hits = _hits,</span><span class="ln lit">    Target = target,</span><span class="ln lit">    DeltaTime = dt,</span><span class="ln lit">    HitRadiusSq = hitSq,</span><span class="ln lit">    ArenaMin = _arena.Min,</span><span class="ln lit">    ArenaMax = _arena.Max</span><span class="ln lit">}.Schedule().Complete();<span class="note">the whole loop runs here</span></span><span class="ln lit"> </span><span class="ln lit">using (CopyOut.Auto())</span><span class="ln lit">    for (var i = 0; i &lt; _enemies.Length; i++)</span><span class="ln lit">        _enemies[i].position = _positions[i];</span><span class="ln lit"> </span><span class="ln lit">var hits = _hits[0];<span class="note">read back after Complete</span></span></div>
       </div>
     </div>
     <div class="card-foot">
@@ -509,10 +543,10 @@
 </section>
 
 <!-- =====================================================================
-     11 · BEAT · A2 we-do · 6 of 6 — the deliberate mistake
+     12 · BEAT · A2 we-do · 6 of 6 — the deliberate mistake
      Typed, run, read, deleted. This is where blittable is learned: the
      rule is felt as an error rather than heard as a definition.
-     The error text is a rehearsal capture.
+     Error text taken off a run of this build.
      ===================================================================== -->
 <section data-background-color="#141414">
   <div class="slide do">
@@ -522,7 +556,10 @@
     <div class="file">EnemyMover.cs &mdash; add this to MoveJob, press Play, then delete it</div>
     <div class="body">
       <div class="card-code xs"><span class="ln">public struct MoveJob : IJob</span><span class="ln">{</span><span class="ln lit">    public Transform[] Enemies;<span class="note">the obvious first try</span></span><span class="ln">    public NativeArray&lt;float3&gt; Positions;</span><span class="ln">    …</span></div>
-      <div class="placeholder">Placeholder. The exact error text, captured at rehearsal.</div>
+      <div class="errbox"><span class="err">InvalidOperationException: MoveJob.Enemies is not a value type.</span>
+<span class="err">Job structs may not contain any reference types.</span>
+  Unity.Jobs.LowLevel.Unsafe.JobsUtility.Schedule (…)
+  Workshop.EnemyMover.Update () (at Assets/Workshop/Baseline/EnemyMover.cs:139)</div>
     </div>
     <div class="card-foot">
       <div class="see">You should see: it compiles, and Play throws. Delete the field.</div>
@@ -532,7 +569,7 @@
 </section>
 
 <!-- =====================================================================
-     12 · EVIDENCE · A2 name
+     13 · EVIDENCE · A2 name
      MoveJob is now a word the room has typed. Still one row busy.
      ===================================================================== -->
 <section data-background-color="#141414">
@@ -553,7 +590,7 @@
 </section>
 
 <!-- =====================================================================
-     13 · CARD · A3 · Burst
+     14 · CARD · A3 · Burst
      Burst is earned here, by the line the room adds and its label.
      ===================================================================== -->
 <section data-background-color="#141414">
@@ -565,62 +602,64 @@
       <div class="card-code"><span class="ln lit">using Unity.Burst;<span class="note">with the other usings</span></span><span class="ln"> </span><span class="ln lit">[BurstCompile]<span class="note">compiled to native code</span></span><span class="ln">public struct MoveJob : IJob</span><span class="ln">{</span><span class="ln">    public NativeArray&lt;float3&gt; Positions;</span><span class="ln">    …</span><span class="ln"> </span><span class="ln">    public void Execute()</span><span class="ln">    {</span><span class="ln">        for (var i = 0; i &lt; Positions.Length; i++)</span><span class="ln">        { … }</span><span class="ln">    }</span><span class="ln">}</span></div>
     </div>
     <div class="card-foot">
-      <div class="see">You should see: frame time drops in the Profiler.</div>
+      <div class="see">You should see: the MoveJob block in the Timeline gets thinner.</div>
       <div class="meta">5 min · checkpoint-1</div>
     </div>
   </div>
 </section>
 
 <!-- =====================================================================
-     14 · EVIDENCE · A3 name
+     15 · EVIDENCE · A3 name
      ===================================================================== -->
 <section data-background-color="#141414">
   <div class="slide">
     <div class="form">Nothing to type</div>
-    <h2>One attribute</h2>
+    <h2>One attribute, and the maths stops costing anything</h2>
     <div class="rule"></div>
     <div class="body">
       <div class="nums">
         <div class="num bad">
-          <div class="nlbl">Without Burst</div>
-          <div class="nval">00.0 ms</div>
+          <div class="nlbl">MoveJob without Burst</div>
+          <div class="nval">2.50 ms</div>
           <div class="nsub">20,000 enemies</div>
         </div>
         <div class="num good">
-          <div class="nlbl">With Burst</div>
-          <div class="nval">00.0 ms</div>
+          <div class="nlbl">MoveJob with Burst</div>
+          <div class="nval">0.08 ms</div>
           <div class="nsub">20,000 enemies</div>
         </div>
       </div>
-      <div class="placeholder">Placeholder. Measured on the presenting machine at rehearsal.</div>
+      <div class="readout">EnemyMover.Update did not move: 5.44 ms, then 5.36 ms. The two copy loops are the cost.</div>
     </div>
   </div>
 </section>
 
 <!-- =====================================================================
-     15 · CARD · A4 · parallel
+     16 · CARD · A4 · the transforms go into the job
+     The copy loops are not optimised, they are deleted: the job is handed
+     the Transforms themselves and writes them on the workers.
      ===================================================================== -->
 <section data-background-color="#141414">
   <div class="slide do">
     <div class="form">Your turn</div>
-    <h2>One Execute per index, on every core</h2>
+    <h2>Give the job the Transforms and both copy loops go</h2>
     <div class="rule"></div>
     <div class="body">
-      <div class="card-code sm"><span class="ln">[BurstCompile]</span><span class="ln lit">public struct MoveJob : IJobParallelFor<span class="note">one Execute per index</span></span><span class="ln">{</span><span class="ln">    …</span><span class="ln lit">    public void Execute(int i)<span class="note">the for line and its braces go</span></span><span class="ln">    {</span><span class="ln">        var dir = Target - Positions[i];</span><span class="ln">        dir.y = 0f;</span><span class="ln">        …<span class="note">the body does not change</span></span><span class="ln lit">        if (math.lengthsq(dir) &lt; HitRadiusSq) { … return; }<span class="note">continue becomes return</span></span><span class="ln">    }</span><span class="ln">}</span><span class="ln"> </span><span class="ln">}.Schedule().Complete();<span class="note">in Update, was this</span></span><span class="ln lit">}.Schedule(_positions.Length, 64).Complete();<span class="note">64 indices per batch</span></span></div>
+      <div class="card-code sm"><span class="ln lit">using UnityEngine.Jobs;<span class="note">TransformAccess lives here, not Unity.Jobs</span></span><span class="ln"> </span><span class="ln">[BurstCompile]</span><span class="ln lit">public struct MoveJob : IJobParallelForTransform<span class="note">one Execute per transform</span></span><span class="ln">{</span><span class="ln">    …<span class="note">Positions is gone, the rest of the fields stay</span></span><span class="ln lit">    public void Execute(int i, TransformAccess transform)</span><span class="ln">    {</span><span class="ln lit">        float3 position = transform.position;<span class="note">was Positions[i]</span></span><span class="ln">        …<span class="note">the body is the same, but continue becomes return</span></span><span class="ln lit">        transform.position = position;<span class="note">on both paths out</span></span><span class="ln">    }</span><span class="ln">}</span><span class="ln"> </span><span class="ln lit">_access = new TransformAccessArray(_enemies);<span class="note">in Start, disposed in OnDestroy</span></span><span class="ln">}.Schedule().Complete();<span class="note">in Update, was this</span></span><span class="ln lit">}.Schedule(_access).Complete();<span class="note">both copy loops and both markers go</span></span></div>
     </div>
     <div class="card-foot">
-      <div class="see">You should see: Play throws before a single enemy moves.</div>
-      <div class="meta">5 min · checkpoint-1</div>
+      <div class="see">You should see: it runs, then throws the first time an enemy reaches you.</div>
+      <div class="meta">8 min · checkpoint-2</div>
     </div>
   </div>
 </section>
 
 <!-- =====================================================================
-     16 · BEAT · A4 · the counter breaks
+     17 · BEAT · A4 · the counter breaks
      The second planted failure. Hits[0]++ was safe under IJob because one
-     thread ran the whole loop. Under IJobParallelFor every worker would
-     write element 0, so the safety system stops it by name.
-     The error text is a rehearsal capture.
+     thread ran the whole loop. Under IJobParallelForTransform every worker
+     would write element 0, so the safety system stops it by name.
+     Error text taken off a run of this build.
      ===================================================================== -->
 <section data-background-color="#141414">
   <div class="slide do">
@@ -632,99 +671,102 @@
       <div class="col">
         <div class="lbl">Throws</div>
         <div class="card-code"><span class="ln">public NativeArray&lt;int&gt; Hits;</span><span class="ln"> </span><span class="ln">    <span class="err">Hits[0]++;</span><span class="note">every worker, element 0</span></span><span class="ln"> </span><span class="ln">// in Update</span><span class="ln">var hits = _hits[0];</span></div>
-        <div class="placeholder" style="margin-top:14px">Placeholder. The exact error text, captured at rehearsal.</div>
+        <div class="errbox" style="margin-top:14px"><span class="err">IndexOutOfRangeException: ReadWriteBuffers are restricted to</span>
+<span class="err">only read &amp; write the element at the job index.</span>
+  This Exception was thrown from a job compiled with Burst.</div>
       </div>
       <div class="col after">
         <div class="lbl">One slot each</div>
-        <div class="card-code"><span class="ln lit">public NativeArray&lt;int&gt; Hit;<span class="note">one per enemy</span></span><span class="ln"> </span><span class="ln lit">    Hit[i] = 0;<span class="note">top of Execute</span></span><span class="ln lit">    Hit[i] = 1;<span class="note">where Hits[0]++ was</span></span><span class="ln"> </span><span class="ln">// in Start</span><span class="ln lit">_hit = new NativeArray&lt;int&gt;(n, Allocator.Persistent);<span class="note">was 1</span></span><span class="ln"> </span><span class="ln">// in Update, in the copy-out loop</span><span class="ln lit">    hits += _hit[i];</span></div>
+        <div class="card-code"><span class="ln lit">public NativeArray&lt;int&gt; Hit;<span class="note">one per enemy</span></span><span class="ln"> </span><span class="ln lit">    Hit[i] = 0;<span class="note">top of Execute</span></span><span class="ln lit">    Hit[i] = 1;<span class="note">where Hits[0]++ was</span></span><span class="ln"> </span><span class="ln">// in Start</span><span class="ln lit">_hit = new NativeArray&lt;int&gt;(n, Allocator.Persistent);<span class="note">was 1</span></span><span class="ln"> </span><span class="ln">// in Update, after Complete</span><span class="ln lit">for (var i = 0; i &lt; _hit.Length; i++) hits += _hit[i];</span></div>
       </div>
     </div>
     <div class="card-foot">
       <div class="see">You should see: it runs, and the health bar drops as before.</div>
-      <div class="meta">3 min · checkpoint-1</div>
+      <div class="meta">3 min · checkpoint-2</div>
     </div>
   </div>
 </section>
 
 <!-- =====================================================================
-     17 · DIAGRAM · what a batch is
-     Answers the question the card's "64 indices per batch" label raises.
-     Verified in UnityCsReference/Runtime/Jobs/Managed/IJobParallelFor.cs.
+     18 · DIAGRAM · one range per root
+     Answers the question the parallel step raises: why does the split
+     depend on the hierarchy? Read out of TransformAccessArray.bindings.cs
+     (GetSortedTransformAccess) and IJobParallelForTransform.cs: native
+     hands the job transforms already sorted by root, and a hierarchy's
+     shared data cannot be written from two threads.
      ===================================================================== -->
 <section data-background-color="#141414">
   <div class="slide">
-    <h2>A worker takes 64 indices at a time, then comes back for more</h2>
+    <div class="form">Nothing to type</div>
+    <h2>A transform job is split by hierarchy, one range per root</h2>
     <div class="rule"></div>
     <div class="body">
-      <div class="batches">
-        <div class="idxstrip">
-          <div class="batch">batch<span class="rng">0 – 63</span></div>
-          <div class="batch">batch<span class="rng">64 – 127</span></div>
-          <div class="batch">batch<span class="rng">128 – 191</span></div>
-          <div class="batch">batch<span class="rng">192 – 255</span></div>
-          <div class="batch">batch<span class="rng">…</span></div>
-          <div class="batch">last batch<span class="rng">19,968 – 19,999</span></div>
-        </div>
-        <div class="takers">
-          <div class="taker"><span class="who">Worker 0</span><span class="got">Execute(0) … Execute(63)</span></div>
-          <div class="taker"><span class="who">Worker 1</span><span class="got">Execute(64) … Execute(127)</span></div>
-          <div class="taker"><span class="who">Worker 2</span><span class="got">Execute(128) … Execute(191)</span></div>
-        </div>
-        <div class="steal">Finish a batch, take the next one that is free. <b>Smaller batches share the work more evenly. Larger batches spend less time handing it out.</b></div>
+      <div class="takers">
+        <div class="taker"><span class="who">Worker 0</span><span class="got">enemy 0 … 3,332</span></div>
+        <div class="taker"><span class="who">Worker 1</span><span class="got">enemy 3,333 … 6,665</span></div>
+        <div class="taker"><span class="who">Worker 2</span><span class="got">enemy 6,666 … 9,998</span></div>
       </div>
+      <div class="steal" style="margin-top:30px">Every enemy is its own root, so the crowd splits across all the workers. <b>Parent them all under one object and the job gets one range, and one worker does all 20,000.</b></div>
     </div>
   </div>
 </section>
 
 <!-- =====================================================================
-     18 · CARD · stretch
+     19 · CARD · stretch
      ===================================================================== -->
 <section data-background-color="#141414">
   <div class="slide do">
     <div class="form">Your turn · stretch</div>
-    <h2>Batch size changes how the work is handed out</h2>
+    <h2>The hierarchy decides the split</h2>
     <div class="rule"></div>
     <div class="body">
-      <div class="card-code"><span class="ln lit">}.Schedule(_positions.Length, 1).Complete();<span class="note">one index per batch</span></span><span class="ln"> </span><span class="ln lit">}.Schedule(_positions.Length, 1000).Complete();<span class="note">a thousand per batch</span></span></div>
+      <div class="card-code"><span class="ln">// in EnemySpawner.Spawn</span><span class="ln lit">Instantiate(_enemyPrefab, position, Quaternion.identity);<span class="note">as it ships: a root each</span></span><span class="ln"> </span><span class="ln lit">Instantiate(_enemyPrefab, position, Quaternion.identity, transform);<span class="note">all under one parent</span></span></div>
       <div class="panel stretch" style="margin-top:28px">
         <h4>Stretch</h4>
         <p>Watch the Timeline at each.</p>
       </div>
     </div>
     <div class="card-foot">
-      <div class="see">You should see: the worker rows change shape, not just length.</div>
-      <div class="meta">checkpoint-1</div>
+      <div class="see">You should see: parented, one worker row does all the work and the rest are idle.</div>
+      <div class="meta">checkpoint-2</div>
     </div>
   </div>
 </section>
 
 <!-- =====================================================================
-     19 · EVIDENCE · A4 name
+     20 · EVIDENCE · A4 name
      ===================================================================== -->
 <section data-background-color="#141414">
   <div class="slide">
     <div class="form">Nothing to type</div>
-    <h2>The other cores are working now</h2>
+    <h2>The copy loops are gone, and the cores are working</h2>
     <div class="rule"></div>
     <div class="body">
-      <div class="timeline">
-        <div class="trow"><div class="tname">Main thread</div><div class="track"><div class="blk copy" style="--w:34%; left:0">copy in / out</div></div></div>
-        <div class="trow"><div class="tname">Worker 0</div><div class="track"><div class="blk cool" style="--w:28%; left:0">MoveJob</div></div></div>
-        <div class="trow"><div class="tname">Worker 1</div><div class="track"><div class="blk cool" style="--w:26%; left:0">MoveJob</div></div></div>
-        <div class="trow"><div class="tname">Worker 2</div><div class="track"><div class="blk cool" style="--w:27%; left:0">MoveJob</div></div></div>
+      <div class="nums">
+        <div class="num bad">
+          <div class="nlbl">Update, copies in</div>
+          <div class="nval">5.36 ms</div>
+          <div class="nsub">20,000 enemies</div>
+        </div>
+        <div class="num good">
+          <div class="nlbl">Update, transforms in the job</div>
+          <div class="nval">0.86 ms</div>
+          <div class="nsub">20,000 enemies</div>
+        </div>
       </div>
-      <div class="placeholder">Placeholder. Replaced by the rehearsal capture.</div>
+      <div class="placeholder">Timeline capture goes here: worker rows busy, no copy blocks on the main thread.</div>
     </div>
   </div>
 </section>
 
 <!-- =====================================================================
-     20 · DIAGRAM · Schedule / Complete
-     Both words were typed in slide 10. The main thread waits because
+     21 · DIAGRAM · Schedule / Complete
+     Both words were typed in slide 11. The main thread waits because
      .Complete() is called on the same line that schedules.
      ===================================================================== -->
 <section data-background-color="#141414">
   <div class="slide">
+    <div class="form">Nothing to type</div>
     <h2>Schedule queues the work, Complete waits for it</h2>
     <div class="rule"></div>
     <div class="body">
@@ -755,37 +797,39 @@
 </section>
 
 <!-- =====================================================================
-     21 · EVIDENCE · the copy loops
-     The room typed these two loops in slide 5's beat. This is the first
-     time the cost of GameObjects is visible rather than asserted.
+     22 · EVIDENCE · the floor
+     The end of block A, and the reason block B exists. Every number here
+     is measured: docs/enemy-cost-investigation.md. 0.86 ms is not the
+     loop and not the copies, it is Transform.position, an extern native
+     call Burst cannot inline, plus one job range per root hierarchy.
+     Rearranging the hierarchy moves the cost between Schedule and
+     Complete and never removes it.
      ===================================================================== -->
 <section data-background-color="#141414">
   <div class="slide">
     <div class="form">Nothing to type</div>
-    <h2>What is left is the two copy loops</h2>
+    <h2>0.86 ms is the Transform, and no job arrangement removes it</h2>
     <div class="rule"></div>
     <div class="body">
-      <div class="timeline">
-        <div class="trow"><div class="tname">Main thread</div><div class="track">
-          <div class="blk copy" style="--w:29%; left:0">read Transform[]</div>
-          <div class="blk copy" style="--w:29%; left:64%">write Transform[]</div>
-        </div></div>
-        <div class="trow"><div class="tname">Worker 0</div><div class="track"><div class="blk cool" style="--w:26%; left:33%">MoveJob</div></div></div>
-        <div class="trow"><div class="tname">Worker 1</div><div class="track"><div class="blk cool" style="--w:24%; left:33%">MoveJob</div></div></div>
+      <div class="names">
+        <div class="nrow"><span class="word">0.86 ms</span><span class="clause">a root each &mdash; every worker busy, 0.60 in Schedule, 0.24 in Complete</span></div>
+        <div class="nrow"><span class="word">0.87 ms</span><span class="clause">one parent &mdash; one worker does all of it, 0.85 in Complete</span></div>
+        <div class="nrow"><span class="word">1.38 ms</span><span class="clause">eight parents &mdash; worse than either</span></div>
       </div>
-      <div class="placeholder">Placeholder. Replaced by the rehearsal capture.</div>
+      <div class="readout">Transform.position is a native call, so Burst cannot touch it. Entities are what remove it.</div>
     </div>
   </div>
 </section>
 
 <!-- =====================================================================
-     22 · DIAGRAM · two problems, two answers
+     23 · DIAGRAM · two problems, two answers
      Both problems have now been seen on this machine's Profiler: one busy
-     row in slide 4, the two copy loops in slide 13. The first answer is
+     row in slide 6, the Transform floor in slide 22. The first answer is
      what they wrote. The second is named, not explained.
      ===================================================================== -->
 <section data-background-color="#141414">
   <div class="slide">
+    <div class="form">Nothing to type</div>
     <h2>Two problems, two answers</h2>
     <div class="rule"></div>
     <div class="body">
@@ -806,10 +850,11 @@
 </section>
 
 <!-- =====================================================================
-     23 · MIND MAP · Foundation green
+     24 · MIND MAP · Foundation green
      ===================================================================== -->
 <section data-background-color="#141414">
   <div class="slide">
+    <div class="form">Nothing to type</div>
     <h2>Everything you touched so far</h2>
     <div class="rule"></div>
     <div class="body">
