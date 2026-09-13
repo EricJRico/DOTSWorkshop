@@ -104,12 +104,25 @@
     }
     .card-code.sm { font-size: 0.44em; line-height: 1.66; }
     .card-code.xs { font-size: 0.38em; line-height: 1.5; padding: 0.9em 1.1em; }
-    .card-code.xxs { font-size: 0.345em; line-height: 1.42; padding: 0.85em 1em; }
+    .card-code.xxs { font-size: 0.31em; line-height: 1.38; padding: 0.8em 0.95em; }
     .card-code .ln { display: block; opacity: 0.35; position: relative; }
     .card-code .ln.lit { opacity: 1; color: var(--ink); }
     .card-code .ln.lit::before {
       content: ""; position: absolute; left: -1.25em; top: 0.22em; bottom: 0.22em;
       width: 3px; background: var(--accent); border-radius: 2px;
+    }
+    /* a line to delete: red, red bar where added lines have a blue one. The strike goes on
+       the text only, so the indent does not read as a dash. */
+    .card-code .ln.cut { opacity: 1; color: var(--slow); }
+    .card-code .ln.cut x {
+      text-decoration: line-through; text-decoration-color: rgba(255,122,102,0.9);
+      /* auto thickness is a hairline the same colour as the text, which reads as
+         no strike at all from the back of a room. */
+      text-decoration-thickness: 1.5px;
+    }
+    .card-code .ln.cut::before {
+      content: ""; position: absolute; left: -1.25em; top: 0.22em; bottom: 0.22em;
+      width: 3px; background: var(--slow); border-radius: 2px;
     }
     /* the console, quoted: the first two lines carry the rule, the frames
        below say where it was thrown */
@@ -241,6 +254,54 @@
     .pair.next { border-style: dashed; }
     .pair.next .ans { color: var(--fast); }
 
+    /* --- a canvas figure that steps, for the one thing here that is a
+       change over time: where a read goes next. Ported from
+       deck-v1-lecture.html's viz-layout, which already made this walk. --- */
+    svg.viz, canvas.viz { width: 100%; display: block; }
+
+    /* --- CPU, cache, RAM, with the distance drawn as distance. Ported from
+       deck-v1-lecture.html. This names the three parts the trips animation
+       counts, and says why a trip costs anything at all. --- */
+    .hw { display: flex; align-items: center; width: 100%; }
+    .hw .unit {
+      box-sizing: border-box; border: 1.5px solid var(--line); border-radius: 11px;
+      padding: 0.85em 1.1em; text-align: center; background: rgba(255,255,255,0.03);
+    }
+    .hw .unit.near { border-color: var(--accent); background: rgba(124,197,255,0.12); }
+    .hw .unit .u1 { color: var(--ink); font-size: 0.62em; font-weight: 700; line-height: 1.1; }
+    .hw .unit.near .u1 { color: var(--accent); }
+    .hw .unit .u2 { color: var(--muted); font-size: 0.42em; margin-top: 0.4em; line-height: 1.3; }
+    .hw .tie { flex: 0 0 26px; border-top: 1.5px solid var(--line); }
+    .hw .far { flex: 1; position: relative; border-top: 2px dashed rgba(255,255,255,0.28); margin: 0 6px; }
+    .hw .far span {
+      position: absolute; left: 50%; top: -1.5em; transform: translateX(-50%);
+      background: var(--bg); padding: 0 16px; color: var(--muted); text-align: center;
+      font-size: 0.44em; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+    }
+    .hw .far span em {
+      display: block; margin-top: 0.5em; color: var(--muted); opacity: 0.85;
+      font-style: italic; font-weight: 400; font-size: 0.92em; letter-spacing: 0.02em; text-transform: none;
+    }
+
+    /* --- a GameObject inside a subscene becomes an entity, outside it does not --- */
+    .bake { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; width: 100%; }
+    .bakelane {
+      box-sizing: border-box; border: 1.5px solid var(--line); border-radius: 13px;
+      padding: 1.5em 1.4em 1.6em; display: flex; flex-direction: column;
+      gap: 0.85em; align-items: flex-start;
+    }
+    .bakelane.inside { border-color: var(--accent); background: rgba(124,197,255,0.05); }
+    .bakelane .where {
+      color: var(--muted); font-size: 0.46em; font-weight: 700;
+      letter-spacing: 0.16em; text-transform: uppercase;
+    }
+    .bakelane.inside .where { color: var(--accent); }
+    .bakelane .thing { color: var(--ink); font-family: var(--mono); font-size: 0.66em; font-weight: 700; }
+    .bakelane .step { color: var(--muted); font-size: 0.6em; font-weight: 700; }
+    .bakelane .step b { color: var(--accent); font-family: var(--mono); font-weight: 700; }
+    .bakelane .out { font-size: 0.72em; font-weight: 700; color: var(--fast); }
+    .bakelane .out.same { color: var(--slow); }
+
     /* =========================================================
        NAMES — three or four rows, a word and a short clause.
        ========================================================= */
@@ -250,11 +311,12 @@
     .names .clause { color: var(--body); font-size: 0.72em; line-height: 1.4; }
 
     /* --- before and after, one file, side by side --- */
-    .ba { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; width: 100%; align-items: start; }
+    .ba { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; width: 100%; align-items: start; }
+    .ba .lbl { margin-bottom: 0.2em; }
     .ba .col { display: flex; flex-direction: column; gap: 0.6em; min-width: 0; }
     .ba .lbl { font-size: 0.42em; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
     .ba .col.after .lbl { color: var(--fast); }
-    .ba .card-code { font-size: 0.33em; line-height: 1.45; padding: 0.9em 1em; }
+    .ba .card-code { font-size: 0.25em; line-height: 1.34; padding: 0.7em 0.85em; }
     .file { color: var(--ink); font-family: var(--mono); font-size: 0.46em; margin-bottom: 18px; }
 
     /* --- code with a reference rail: what each swapped line used to be --- */
@@ -424,9 +486,9 @@
     <div class="form">Together · live coding · 1 of 6</div>
     <h2>Paste the loop into a job, unchanged</h2>
     <div class="rule"></div>
-    <div class="file">EnemyMover.cs &mdash; above the EnemyMover class, inside namespace Workshop</div>
+    <div class="file">EnemyMover.cs &mdash; inside namespace Workshop, above the /// comment on the class</div>
     <div class="body">
-      <div class="card-code xxs"><span class="ln">using UnityEngine;</span><span class="ln lit">using Unity.Collections;</span><span class="ln lit">using Unity.Jobs;</span><span class="ln lit">using Unity.Mathematics;</span><span class="ln lit">using Unity.Profiling;</span><span class="ln"> </span><span class="ln lit">public struct MoveJob : IJob<span class="note">one job, one Execute</span></span><span class="ln lit">{</span><span class="ln lit">    public void Execute()</span><span class="ln lit">    {</span><span class="ln lit">        for (var i = 0; i &lt; <span class="err">_enemies</span>.Length; i++)<span class="note">pasted, not retyped</span></span><span class="ln lit">        {</span><span class="ln lit">            var dir = <span class="err">target</span> - <span class="err">_enemies</span>[i].position;</span><span class="ln lit">            dir.y = 0f;</span><span class="ln lit"> </span><span class="ln lit">            if (dir.sqrMagnitude &lt; <span class="err">hitSq</span>)</span><span class="ln lit">            {</span><span class="ln lit">                var respawnPoint = <span class="err">target</span> + <span class="err">_respawnOffsets</span>[i];</span><span class="ln lit">                <span class="err">_enemies</span>[i].position = new Vector3(</span><span class="ln lit">                    Mathf.Clamp(respawnPoint.x, <span class="err">_arena</span>.Min.x, <span class="err">_arena</span>.Max.x),</span><span class="ln lit">                    respawnPoint.y,</span><span class="ln lit">                    Mathf.Clamp(respawnPoint.z, <span class="err">_arena</span>.Min.y, <span class="err">_arena</span>.Max.y));</span><span class="ln lit">                <span class="err">hits</span>++;</span><span class="ln lit">                continue;</span><span class="ln lit">            }</span><span class="ln lit"> </span><span class="ln lit">            <span class="err">_enemies</span>[i].position += dir.normalized * (<span class="err">_speeds</span>[i] * <span class="err">dt</span>);</span><span class="ln lit">        }</span><span class="ln lit">    }</span><span class="ln lit">}</span></div>
+      <div class="card-code xxs"><span class="ln lit">using Unity.Collections;</span><span class="ln lit">using Unity.Jobs;</span><span class="ln lit">using Unity.Mathematics;</span><span class="ln lit">using Unity.Profiling;</span><span class="ln">using UnityEngine;<span class="note">already there, now last</span></span><span class="ln"> </span><span class="ln">namespace Workshop</span><span class="ln">{</span><span class="ln lit">    public struct MoveJob : IJob<span class="note">one job, one Execute</span></span><span class="ln lit">{</span><span class="ln lit">    public void Execute()</span><span class="ln lit">    {</span><span class="ln lit">        for (var i = 0; i &lt; <span class="err">_enemies</span>.Length; i++)<span class="note">pasted, not retyped</span></span><span class="ln lit">        {</span><span class="ln lit">            var dir = <span class="err">target</span> - <span class="err">_enemies</span>[i].position;</span><span class="ln lit">            dir.y = 0f;</span><span class="ln lit"> </span><span class="ln lit">            if (dir.sqrMagnitude &lt; <span class="err">hitSq</span>)</span><span class="ln lit">            {</span><span class="ln lit">                var respawnPoint = <span class="err">target</span> + <span class="err">_respawnOffsets</span>[i];</span><span class="ln lit">                <span class="err">_enemies</span>[i].position = new Vector3(</span><span class="ln lit">                    Mathf.Clamp(respawnPoint.x, <span class="err">_arena</span>.Min.x, <span class="err">_arena</span>.Max.x),</span><span class="ln lit">                    respawnPoint.y,</span><span class="ln lit">                    Mathf.Clamp(respawnPoint.z, <span class="err">_arena</span>.Min.y, <span class="err">_arena</span>.Max.y));</span><span class="ln lit">                <span class="err">hits</span>++;</span><span class="ln lit">                continue;</span><span class="ln lit">            }</span><span class="ln lit"> </span><span class="ln lit">            <span class="err">_enemies</span>[i].position += dir.normalized * (<span class="err">_speeds</span>[i] * <span class="err">dt</span>);</span><span class="ln lit">        }</span><span class="ln lit">    }</span><span class="ln lit">}</span><span class="ln"> </span><span class="ln">    /// &lt;summary&gt; … &lt;/summary&gt;<span class="note">the class, unchanged. Its Update keeps the loop until slide 11.</span></span><span class="ln">    public class EnemyMover : MonoBehaviour</span></div>
     </div>
     <div class="card-foot">
       <div class="see">You should see: red under every name the loop reads. That is the field list.</div>
@@ -503,8 +565,15 @@
     <h2>The job's arrays are NativeArrays</h2>
     <div class="rule"></div>
     <div class="file">EnemyMover.cs &mdash; the fields, Start, and a new OnDestroy</div>
-    <div class="body">
-      <div class="card-code xs"><span class="ln">private Transform[] _enemies;</span><span class="ln lit">private NativeArray&lt;float3&gt; _respawnOffsets;<span class="note">was Vector3[]</span></span><span class="ln lit">private NativeArray&lt;float&gt; _speeds;<span class="note">was float[]</span></span><span class="ln lit">private NativeArray&lt;float3&gt; _positions;<span class="note">new</span></span><span class="ln lit">private NativeArray&lt;int&gt; _hits;<span class="note">new, length 1</span></span><span class="ln lit"> </span><span class="ln lit">private static readonly ProfilerMarker CopyIn = new("EnemyMover.CopyIn");<span class="note">so the Profiler names it</span></span><span class="ln lit">private static readonly ProfilerMarker CopyOut = new("EnemyMover.CopyOut");</span><span class="ln"> </span><span class="ln">private void Start()</span><span class="ln">{</span><span class="ln">    _enemies = _spawner.Spawn();</span><span class="ln lit">    var n = _enemies.Length;</span><span class="ln lit">    _respawnOffsets = new NativeArray&lt;float3&gt;(n, Allocator.Persistent);</span><span class="ln lit">    _speeds = new NativeArray&lt;float&gt;(n, Allocator.Persistent);</span><span class="ln lit">    _positions = new NativeArray&lt;float3&gt;(n, Allocator.Persistent);</span><span class="ln lit">    _hits = new NativeArray&lt;int&gt;(1, Allocator.Persistent);</span><span class="ln">    …<span class="note">the loop that fills them does not change</span></span><span class="ln">}</span><span class="ln"> </span><span class="ln lit">private void OnDestroy()<span class="note">a NativeArray is not garbage collected</span></span><span class="ln lit">{</span><span class="ln lit">    if (_respawnOffsets.IsCreated) _respawnOffsets.Dispose();</span><span class="ln lit">    if (_speeds.IsCreated) _speeds.Dispose();</span><span class="ln lit">    if (_positions.IsCreated) _positions.Dispose();</span><span class="ln lit">    if (_hits.IsCreated) _hits.Dispose();</span><span class="ln lit">}</span></div>
+    <div class="ba">
+      <div class="col">
+        <div class="lbl">The fields</div>
+        <div class="card-code"><span class="ln">private Transform[] _enemies;</span><span class="ln lit">private NativeArray&lt;float3&gt; _respawnOffsets;<span class="note">was Vector3[]</span></span><span class="ln lit">private NativeArray&lt;float&gt; _speeds;<span class="note">was float[]</span></span><span class="ln lit">private NativeArray&lt;float3&gt; _positions;<span class="note">new</span></span><span class="ln lit">private NativeArray&lt;int&gt; _hits;<span class="note">new, length 1</span></span><span class="ln lit"> </span><span class="ln lit">private static readonly ProfilerMarker CopyIn = new("EnemyMover.CopyIn");</span><span class="ln lit">private static readonly ProfilerMarker CopyOut = new("EnemyMover.CopyOut");</span><span class="ln"> </span><span class="ln lit">private void OnDestroy()<span class="note">new, between Start and Update</span></span><span class="ln lit">{</span><span class="ln lit">    // A NativeArray is not garbage collected.</span><span class="ln lit">    if (_respawnOffsets.IsCreated) _respawnOffsets.Dispose();</span><span class="ln lit">    if (_speeds.IsCreated) _speeds.Dispose();</span><span class="ln lit">    if (_positions.IsCreated) _positions.Dispose();</span><span class="ln lit">    if (_hits.IsCreated) _hits.Dispose();</span><span class="ln lit">}</span></div>
+      </div>
+      <div class="col after">
+        <div class="lbl">Start</div>
+        <div class="card-code"><span class="ln">private void Start()</span><span class="ln">{</span><span class="ln">    _enemies = _spawner.Spawn();</span><span class="ln lit">    var n = _enemies.Length;</span><span class="ln"> </span><span class="ln">    // Each enemy's spot on the ring, held as an offset from the player rather than a world</span><span class="ln">    // point, so it comes back in from off screen however far the player has walked.</span><span class="ln cut">    <x>_respawnOffsets = new Vector3[_enemies.Length];</x></span><span class="ln cut">    <x>_speeds = new float[_enemies.Length];</x></span><span class="ln lit">    _respawnOffsets = new NativeArray&lt;float3&gt;(n, Allocator.Persistent);</span><span class="ln lit">    _speeds = new NativeArray&lt;float&gt;(n, Allocator.Persistent);</span><span class="ln lit">    _positions = new NativeArray&lt;float3&gt;(n, Allocator.Persistent);</span><span class="ln lit">    _hits = new NativeArray&lt;int&gt;(1, Allocator.Persistent);</span><span class="ln"> </span><span class="ln">    var random = new System.Random(_seed);</span><span class="ln">    var origin = _player.position;</span><span class="ln"> </span><span class="ln cut">    <x>for (var i = 0; i &lt; _enemies.Length; i++)</x></span><span class="ln lit">    for (var i = 0; i &lt; n; i++)</span><span class="ln">    {</span><span class="ln cut">        <x>_respawnOffsets[i] = _enemies[i].position - origin;</x></span><span class="ln lit">        _respawnOffsets[i] = (float3)(_enemies[i].position - origin);<span class="note">a float3 array now</span></span><span class="ln">        _speeds[i] = _speed * (1f + _speedSpread * (2f * (float)random.NextDouble() - 1f));</span><span class="ln">    }</span><span class="ln">}</span></div>
+      </div>
     </div>
     <div class="card-foot">
       <div class="see">You should see: it compiles, and the game still runs as before.</div>
@@ -599,7 +668,7 @@
     <h2>Burst compiles the job to native code</h2>
     <div class="rule"></div>
     <div class="body">
-      <div class="card-code"><span class="ln lit">using Unity.Burst;<span class="note">with the other usings</span></span><span class="ln"> </span><span class="ln lit">[BurstCompile]<span class="note">compiled to native code</span></span><span class="ln">public struct MoveJob : IJob</span><span class="ln">{</span><span class="ln">    public NativeArray&lt;float3&gt; Positions;</span><span class="ln">    …</span><span class="ln"> </span><span class="ln">    public void Execute()</span><span class="ln">    {</span><span class="ln">        for (var i = 0; i &lt; Positions.Length; i++)</span><span class="ln">        { … }</span><span class="ln">    }</span><span class="ln">}</span></div>
+      <div class="card-code"><span class="ln lit">using Unity.Burst;<span class="note">first, above using Unity.Collections</span></span><span class="ln">using Unity.Collections;</span><span class="ln">…</span><span class="ln"> </span><span class="ln">namespace Workshop</span><span class="ln">{</span><span class="ln lit">    [BurstCompile]<span class="note">compiled to native code</span></span><span class="ln">    public struct MoveJob : IJob</span><span class="ln">    {</span><span class="ln">        public NativeArray&lt;float3&gt; Positions;</span><span class="ln">        …</span><span class="ln"> </span><span class="ln">        public void Execute()</span><span class="ln">        { … }</span><span class="ln">    }</span></div>
     </div>
     <div class="card-foot">
       <div class="see">You should see: the MoveJob block in the Timeline gets thinner.</div>
@@ -635,27 +704,96 @@
 </section>
 
 <!-- =====================================================================
-     16 · CARD · A4 · the transforms go into the job
-     The copy loops are not optimised, they are deleted: the job is handed
-     the Transforms themselves and writes them on the workers.
+     16 · CATCH UP · after A3
+     Said once, moved past. Nobody debugs their own file while the room
+     waits; the branch is the finished state of everything up to here.
      ===================================================================== -->
 <section data-background-color="#141414">
   <div class="slide do">
-    <div class="form">Your turn</div>
-    <h2>Give the job the Transforms and both copy loops go</h2>
+    <div class="form">Only if you are stuck</div>
+    <h2>Catch up, then carry on</h2>
     <div class="rule"></div>
-    <div class="body">
-      <div class="card-code sm"><span class="ln lit">using UnityEngine.Jobs;<span class="note">TransformAccess lives here, not Unity.Jobs</span></span><span class="ln"> </span><span class="ln">[BurstCompile]</span><span class="ln lit">public struct MoveJob : IJobParallelForTransform<span class="note">one Execute per transform</span></span><span class="ln">{</span><span class="ln">    …<span class="note">Positions is gone, the rest of the fields stay</span></span><span class="ln lit">    public void Execute(int i, TransformAccess transform)</span><span class="ln">    {</span><span class="ln lit">        float3 position = transform.position;<span class="note">was Positions[i]</span></span><span class="ln">        …<span class="note">the body is the same, but continue becomes return</span></span><span class="ln lit">        transform.position = position;<span class="note">on both paths out</span></span><span class="ln">    }</span><span class="ln">}</span><span class="ln"> </span><span class="ln lit">_access = new TransformAccessArray(_enemies);<span class="note">in Start, disposed in OnDestroy</span></span><span class="ln">}.Schedule().Complete();<span class="note">in Update, was this</span></span><span class="ln lit">}.Schedule(_access).Complete();<span class="note">both copy loops and both markers go</span></span></div>
-    </div>
+    <div class="card-code"><span class="ln lit">git stash</span><span class="ln lit">git checkout checkpoint-1</span></div>
     <div class="card-foot">
-      <div class="see">You should see: it runs, then throws the first time an enemy reaches you.</div>
-      <div class="meta">8 min · checkpoint-2</div>
+      <div class="see">You should see: the job, Burst and both copy loops, exactly as we typed them.</div>
+      <div class="meta">1 min · checkpoint-1</div>
     </div>
   </div>
 </section>
 
 <!-- =====================================================================
-     17 · BEAT · A4 · the counter breaks
+     17 · BEAT · A4 · 1 of 3 — the job
+     Whole struct on screen. Blue is typed, red struck through is deleted,
+     dim is left alone. Nothing is elided where something changes, because
+     the room has only this.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide do">
+    <div class="form">Together · live coding · 1 of 3</div>
+    <h2>The job takes the Transform instead of a copy of it</h2>
+    <div class="rule"></div>
+    <div class="file">EnemyMover.cs &mdash; the usings and the top of MoveJob</div>
+    <div class="body">
+      <div class="card-code xxs"><span class="ln">using Unity.Burst;</span><span class="ln">using Unity.Collections;</span><span class="ln">using Unity.Jobs;</span><span class="ln">using Unity.Mathematics;</span><span class="ln cut"><x>using Unity.Profiling;</x><span class="note">the markers go on slide 19</span></span><span class="ln">using UnityEngine;</span><span class="ln lit">using UnityEngine.Jobs;<span class="note">TransformAccess lives here</span></span><span class="ln"> </span><span class="ln">namespace Workshop</span><span class="ln">{</span><span class="ln">    [BurstCompile]</span><span class="ln cut">    <x>public struct MoveJob : IJob</x></span><span class="ln lit">    public struct MoveJob : IJobParallelForTransform</span><span class="ln">    {</span><span class="ln cut">        <x>public NativeArray&lt;float3&gt; Positions;</x></span><span class="ln">        public NativeArray&lt;float3&gt; RespawnOffsets;</span><span class="ln">        public NativeArray&lt;float&gt; Speeds;</span><span class="ln">        public NativeArray&lt;int&gt; Hits;</span><span class="ln"> </span><span class="ln">        public float3 Target;</span><span class="ln">        public float DeltaTime;</span><span class="ln">        public float HitRadiusSq;</span><span class="ln">        public float2 ArenaMin;</span><span class="ln">        public float2 ArenaMax;</span><span class="ln"> </span><span class="ln">        public void Execute()</span><span class="ln">        { … }<span class="note">the next slide</span></span><span class="ln">    }</span></div>
+    </div>
+    <div class="card-foot">
+      <div class="see">You should see: errors, until Execute is rewritten on the next slide.</div>
+      <div class="meta">3 min · checkpoint-2</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     18 · BEAT · A4 · 2 of 3 — Execute
+     The for loop goes: the job system calls this once per transform. The
+     body is the same maths against a local, written back on both exits.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide do">
+    <div class="form">Together · live coding · 2 of 3</div>
+    <h2>One Execute per transform, so the for loop goes</h2>
+    <div class="rule"></div>
+    <div class="file">EnemyMover.cs &mdash; inside MoveJob. The whole body shifts left one level.</div>
+    <div class="body">
+      <div class="card-code xxs"><span class="ln cut">        <x>public void Execute()</x></span><span class="ln lit">        public void Execute(int i, TransformAccess transform)</span><span class="ln">        {</span><span class="ln cut">            <x>for (var i = 0; i &lt; Positions.Length; i++)</x></span><span class="ln cut">            <x>{</x></span><span class="ln lit">            float3 position = transform.position;<span class="note">new</span></span><span class="ln"> </span><span class="ln lit">            var dir = Target - position;<span class="note">was Positions[i]</span></span><span class="ln">            dir.y = 0f;</span><span class="ln"> </span><span class="ln">            if (math.lengthsq(dir) &lt; HitRadiusSq)</span><span class="ln">            {</span><span class="ln">                var respawnPoint = Target + RespawnOffsets[i];</span><span class="ln lit">                position = new float3(<span class="note">was Positions[i] =</span></span><span class="ln">                    math.clamp(respawnPoint.x, ArenaMin.x, ArenaMax.x),</span><span class="ln">                    respawnPoint.y,</span><span class="ln">                    math.clamp(respawnPoint.z, ArenaMin.y, ArenaMax.y));</span><span class="ln">                Hits[0]++;</span><span class="ln lit">                transform.position = position;<span class="note">new</span></span><span class="ln cut">                <x>continue;</x></span><span class="ln lit">                return;</span><span class="ln">            }</span><span class="ln"> </span><span class="ln lit">            position += math.normalize(dir) * (Speeds[i] * DeltaTime);<span class="note">was Positions[i] +=</span></span><span class="ln lit">            transform.position = position;<span class="note">new</span></span><span class="ln">        }</span><span class="ln cut">        <x>}</x><span class="note">the for loop's brace</span></span><span class="ln">    }</span></div>
+    </div>
+    <div class="card-foot">
+      <div class="see">You should see: the old loop body gone, replaced line for line.</div>
+      <div class="meta">4 min · checkpoint-2</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     19 · BEAT · A4 · 3 of 3 — the fields, Start, OnDestroy and Update
+     Everything the job no longer needs is struck out here: _positions,
+     its allocation, its dispose, both markers and both copy loops.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide do">
+    <div class="form">Together · live coding · 3 of 3</div>
+    <h2>Everything the copies needed goes with them</h2>
+    <div class="rule"></div>
+    <div class="file">EnemyMover.cs &mdash; the fields, Start, OnDestroy and Update</div>
+    <div class="ba">
+      <div class="col">
+        <div class="lbl">Fields, Start, OnDestroy</div>
+        <div class="card-code"><span class="ln cut">/// GameObject, so this walks a Transform[] and moves each one toward the player on the main</span><span class="ln cut">/// thread.</span><span class="ln lit">/// GameObject, so the job is handed the Transforms and moves them on the worker threads.<span class="note">it stopped being true</span></span><span class="ln"> </span><span class="ln">private Transform[] _enemies;</span><span class="ln lit">private TransformAccessArray _access;</span><span class="ln">private NativeArray&lt;float3&gt; _respawnOffsets;</span><span class="ln">private NativeArray&lt;float&gt; _speeds;</span><span class="ln cut"><x>private NativeArray&lt;float3&gt; _positions;</x></span><span class="ln">private NativeArray&lt;int&gt; _hits;</span><span class="ln cut"> <span class="note">this blank line too</span></span><span class="ln cut"><x>private static readonly ProfilerMarker CopyIn = new("EnemyMover.CopyIn");</x></span><span class="ln cut"><x>private static readonly ProfilerMarker CopyOut = new("EnemyMover.CopyOut");</x></span><span class="ln"> </span><span class="ln">private void Start()</span><span class="ln">{</span><span class="ln">    _enemies = _spawner.Spawn();</span><span class="ln">    var n = _enemies.Length;</span><span class="ln"> </span><span class="ln">    // Each enemy's spot on the ring, held as an offset from the player…</span><span class="ln lit">    _access = new TransformAccessArray(_enemies);</span><span class="ln">    _respawnOffsets = new NativeArray&lt;float3&gt;(n, Allocator.Persistent);</span><span class="ln">    _speeds = new NativeArray&lt;float&gt;(n, Allocator.Persistent);</span><span class="ln cut">    <x>_positions = new NativeArray&lt;float3&gt;(n, Allocator.Persistent);</x></span><span class="ln">    _hits = new NativeArray&lt;int&gt;(1, Allocator.Persistent);</span><span class="ln">    …<span class="note">the fill loop does not change</span></span><span class="ln">}</span><span class="ln"> </span><span class="ln">private void OnDestroy()</span><span class="ln">{</span><span class="ln">    // A NativeArray is not garbage collected.</span><span class="ln lit">    if (_access.isCreated) _access.Dispose();</span><span class="ln">    if (_respawnOffsets.IsCreated) _respawnOffsets.Dispose();</span><span class="ln">    if (_speeds.IsCreated) _speeds.Dispose();</span><span class="ln cut">    <x>if (_positions.IsCreated) _positions.Dispose();</x></span><span class="ln">    if (_hits.IsCreated) _hits.Dispose();</span><span class="ln">}</span></div>
+      </div>
+      <div class="col after">
+        <div class="lbl">Update</div>
+        <div class="card-code"><span class="ln">var hitSq = _hitRadius * _hitRadius;</span><span class="ln"> </span><span class="ln">_hits[0] = 0;</span><span class="ln cut"> </span><span class="ln cut"><x>using (CopyIn.Auto())</x></span><span class="ln cut">    <x>for (var i = 0; i &lt; _enemies.Length; i++)</x></span><span class="ln cut">        <x>_positions[i] = _enemies[i].position;</x></span><span class="ln"> </span><span class="ln">new MoveJob</span><span class="ln">{</span><span class="ln cut">    <x>Positions = _positions,</x></span><span class="ln">    RespawnOffsets = _respawnOffsets,</span><span class="ln">    Speeds = _speeds,</span><span class="ln">    Hits = _hits,</span><span class="ln">    Target = target,</span><span class="ln">    DeltaTime = dt,</span><span class="ln">    HitRadiusSq = hitSq,</span><span class="ln">    ArenaMin = _arena.Min,</span><span class="ln">    ArenaMax = _arena.Max</span><span class="ln cut"><x>}.Schedule().Complete();</x></span><span class="ln lit">}.Schedule(_access).Complete();</span><span class="ln cut"> </span><span class="ln cut"><x>using (CopyOut.Auto())</x></span><span class="ln cut">    <x>for (var i = 0; i &lt; _enemies.Length; i++)</x></span><span class="ln cut">        <x>_enemies[i].position = _positions[i];</x></span><span class="ln"> </span><span class="ln">var hits = _hits[0];</span></div>
+      </div>
+    </div>
+    <div class="card-foot">
+      <div class="see">You should see: the enemies move as before, and the worker rows fill.</div>
+      <div class="meta">4 min · checkpoint-2</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     20 · BEAT · A4 · the counter breaks
      The second planted failure. Hits[0]++ was safe under IJob because one
      thread ran the whole loop. Under IJobParallelForTransform every worker
      would write element 0, so the safety system stops it by name.
@@ -666,18 +804,18 @@
     <div class="form">Together · live coding</div>
     <h2>Every Execute writes its own index, and only its own</h2>
     <div class="rule"></div>
-    <div class="file">EnemyMover.cs &mdash; MoveJob and Update</div>
+    <div class="file">EnemyMover.cs &mdash; every line that mentions the counter</div>
     <div class="ba">
       <div class="col">
-        <div class="lbl">Throws</div>
-        <div class="card-code"><span class="ln">public NativeArray&lt;int&gt; Hits;</span><span class="ln"> </span><span class="ln">    <span class="err">Hits[0]++;</span><span class="note">every worker, element 0</span></span><span class="ln"> </span><span class="ln">// in Update</span><span class="ln">var hits = _hits[0];</span></div>
+        <div class="lbl">In MoveJob</div>
+        <div class="card-code"><span class="ln cut">    <x>public NativeArray&lt;int&gt; Hits;</x></span><span class="ln lit">    public NativeArray&lt;int&gt; Hit;<span class="note">one slot per enemy</span></span><span class="ln"> </span><span class="ln">    public void Execute(int i, TransformAccess transform)</span><span class="ln">    {</span><span class="ln">        float3 position = transform.position;</span><span class="ln"> </span><span class="ln">        var dir = Target - position;</span><span class="ln">        dir.y = 0f;</span><span class="ln lit">        Hit[i] = 0;<span class="note">this enemy did not reach you</span></span><span class="ln"> </span><span class="ln">        if (math.lengthsq(dir) &lt; HitRadiusSq)</span><span class="ln">        {</span><span class="ln">            …</span><span class="ln cut">            <x>Hits[0]++;</x></span><span class="ln lit">            Hit[i] = 1;</span><span class="ln">            transform.position = position;</span><span class="ln">            return;</span><span class="ln">        }</span></div>
         <div class="errbox" style="margin-top:14px"><span class="err">IndexOutOfRangeException: ReadWriteBuffers are restricted to</span>
 <span class="err">only read &amp; write the element at the job index.</span>
   This Exception was thrown from a job compiled with Burst.</div>
       </div>
       <div class="col after">
-        <div class="lbl">One slot each</div>
-        <div class="card-code"><span class="ln lit">public NativeArray&lt;int&gt; Hit;<span class="note">one per enemy</span></span><span class="ln"> </span><span class="ln lit">    Hit[i] = 0;<span class="note">top of Execute</span></span><span class="ln lit">    Hit[i] = 1;<span class="note">where Hits[0]++ was</span></span><span class="ln"> </span><span class="ln">// in Start</span><span class="ln lit">_hit = new NativeArray&lt;int&gt;(n, Allocator.Persistent);<span class="note">was 1</span></span><span class="ln"> </span><span class="ln">// in Update, after Complete</span><span class="ln lit">for (var i = 0; i &lt; _hit.Length; i++) hits += _hit[i];</span></div>
+        <div class="lbl">In EnemyMover</div>
+        <div class="card-code"><span class="ln cut"><x>private NativeArray&lt;int&gt; _hits;</x></span><span class="ln lit">private NativeArray&lt;int&gt; _hit;</span><span class="ln"> </span><span class="ln">private void Start()</span><span class="ln">{</span><span class="ln cut">    <x>_hits = new NativeArray&lt;int&gt;(1, Allocator.Persistent);</x></span><span class="ln lit">    _hit = new NativeArray&lt;int&gt;(n, Allocator.Persistent);<span class="note">was 1</span></span><span class="ln">}</span><span class="ln"> </span><span class="ln">private void OnDestroy()</span><span class="ln">{</span><span class="ln cut">    <x>if (_hits.IsCreated) _hits.Dispose();</x></span><span class="ln lit">    if (_hit.IsCreated) _hit.Dispose();</span><span class="ln">}</span><span class="ln"> </span><span class="ln">private void Update()</span><span class="ln">{</span><span class="ln cut">    _hits[0] = 0;<span class="note">the job clears each slot now</span></span><span class="ln">    …</span><span class="ln cut">        <x>Hits = _hits,</x></span><span class="ln lit">        Hit = _hit,</span><span class="ln">    }.Schedule(_access).Complete();</span><span class="ln"> </span><span class="ln cut">    <x>var hits = _hits[0];</x></span><span class="ln lit">    var hits = 0;</span><span class="ln lit">    for (var i = 0; i &lt; _hit.Length; i++) hits += _hit[i];</span><span class="ln">}</span></div>
       </div>
     </div>
     <div class="card-foot">
@@ -688,7 +826,7 @@
 </section>
 
 <!-- =====================================================================
-     18 · DIAGRAM · one range per root
+     21 · DIAGRAM · one range per root
      Answers the question the parallel step raises: why does the split
      depend on the hierarchy? Read out of TransformAccessArray.bindings.cs
      (GetSortedTransformAccess) and IJobParallelForTransform.cs: native
@@ -712,7 +850,7 @@
 </section>
 
 <!-- =====================================================================
-     19 · CARD · stretch
+     22 · CARD · stretch
      ===================================================================== -->
 <section data-background-color="#141414">
   <div class="slide do">
@@ -734,7 +872,7 @@
 </section>
 
 <!-- =====================================================================
-     20 · EVIDENCE · A4 name
+     23 · EVIDENCE · A4 name
      ===================================================================== -->
 <section data-background-color="#141414">
   <div class="slide">
@@ -760,7 +898,7 @@
 </section>
 
 <!-- =====================================================================
-     21 · DIAGRAM · Schedule / Complete
+     24 · DIAGRAM · Schedule / Complete
      Both words were typed in slide 11. The main thread waits because
      .Complete() is called on the same line that schedules.
      ===================================================================== -->
@@ -797,7 +935,7 @@
 </section>
 
 <!-- =====================================================================
-     22 · EVIDENCE · the floor
+     25 · EVIDENCE · the floor
      The end of block A, and the reason block B exists. Every number here
      is measured: docs/enemy-cost-investigation.md. 0.86 ms is not the
      loop and not the copies, it is Transform.position, an extern native
@@ -808,21 +946,42 @@
 <section data-background-color="#141414">
   <div class="slide">
     <div class="form">Nothing to type</div>
-    <h2>0.86 ms is the Transform, and no job arrangement removes it</h2>
+    <h2>What is left is reading and writing 20,000 Transforms</h2>
     <div class="rule"></div>
     <div class="body">
       <div class="names">
-        <div class="nrow"><span class="word">0.86 ms</span><span class="clause">a root each &mdash; every worker busy, 0.60 in Schedule, 0.24 in Complete</span></div>
-        <div class="nrow"><span class="word">0.87 ms</span><span class="clause">one parent &mdash; one worker does all of it, 0.85 in Complete</span></div>
-        <div class="nrow"><span class="word">1.38 ms</span><span class="clause">eight parents &mdash; worse than either</span></div>
+        <div class="nrow"><span class="word">0.08 ms</span><span class="clause">the maths, inside the job. Burst already took care of this.</span></div>
+        <div class="nrow"><span class="word">0.78 ms</span><span class="clause">getting and setting Transform.position, 20,000 times</span></div>
+        <div class="nrow"><span class="word">0.86 ms</span><span class="clause">EnemyMover.Update, and it will not go lower</span></div>
       </div>
-      <div class="readout">Transform.position is a native call, so Burst cannot touch it. Entities are what remove it.</div>
+      <div class="readout">Transform.position is a call into the engine. Burst cannot compile it and workers cannot share it.</div>
     </div>
   </div>
 </section>
 
 <!-- =====================================================================
-     23 · DIAGRAM · two problems, two answers
+     26 · CATCH UP · block A finished
+     The last stop before the entities half. Everyone starts block B from
+     the same file, because block B's first act is Save As on this scene.
+     Nothing new arrives on this branch: Entities and Entities Graphics
+     have been in manifest.json all day and Workshop.Runtime.asmdef
+     already references them. The room builds the entities scene itself.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide do">
+    <div class="form">Everyone, before the break</div>
+    <h2>Take checkpoint-2</h2>
+    <div class="rule"></div>
+    <div class="card-code"><span class="ln lit">git stash</span><span class="ln lit">git checkout checkpoint-2</span></div>
+    <div class="card-foot">
+      <div class="see">You should see: block A finished, exactly as you typed it. Nothing to import.</div>
+      <div class="meta">10 min break · checkpoint-2</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     27 · DIAGRAM · two problems, two answers
      Both problems have now been seen on this machine's Profiler: one busy
      row in slide 6, the Transform floor in slide 22. The first answer is
      what they wrote. The second is named, not explained.
@@ -850,7 +1009,7 @@
 </section>
 
 <!-- =====================================================================
-     24 · MIND MAP · Foundation green
+     28 · MIND MAP · Foundation green
      ===================================================================== -->
 <section data-background-color="#141414">
   <div class="slide">
@@ -861,6 +1020,486 @@
       <svg class="mindmap" viewBox="0 0 1136 470"
            data-done="jobs,burst,collections,mathematics,sched"
            data-now=""></svg>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     BLOCK B · ENTITIES EXIST · 35 min · ends at checkpoint-3
+
+     Nothing is handed over at the break. Entities and Entities Graphics
+     have been in manifest.json since checkpoint-0 and Workshop.Runtime
+     already references them, so every line below compiles on the branch
+     the room is already standing on. They build the entities scene.
+
+     One enemy, not twenty thousand: the Entities Inspector and the
+     Archetypes window are unreadable at 20,000, and archetype has to be
+     read off a real window rather than asserted. The crowd comes back on
+     checkpoint-3, where block C measures it.
+
+     Archetype and chunk are the two words a beginner read once and never
+     used. The answer is not to drop them - chunk is the only thing in the
+     day that says why entities are faster than what they measured this
+     morning. Slide 39 makes that the claim, against the 0.78 ms on slide
+     25, and the Names clauses say what each word decides rather than what
+     it is.
+
+     Seen so far: the game, the Profiler, one worker row, then all of
+     them, and the 0.86 ms Transform floor. Typed so far: MoveJob,
+     [BurstCompile], IJobParallelForTransform, TransformAccessArray,
+     Schedule and Complete. No entities word has been used yet.
+     ===================================================================== -->
+
+<!-- =====================================================================
+     29 · CARD · action · B0 · 1 of 4
+     The same scene, emptied. The two deletions are the whole GameObject
+     crowd: EnemyMover and EnemySpawner both live on Enemies. Root order
+     is the scene's own, read off get_scene_hierarchy. PlayerHealth's
+     reference to EnemyMover is null-guarded, so the HUD survives the
+     delete with the bar sitting full.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide do">
+    <div class="form">Together · 1 of 4</div>
+    <h2>Delete the crowd</h2>
+    <div class="rule"></div>
+    <div class="file">GameObjectBaseline.unity &mdash; the Hierarchy</div>
+    <div class="body">
+      <div class="card-code"><span class="ln">Main Camera</span><span class="ln">Directional Light</span><span class="ln cut"><x>Enemies</x><span class="note">EnemyMover and EnemySpawner live here</span></span><span class="ln cut"><x>Spawners</x><span class="note">the six spawn points</span></span><span class="ln">Player</span><span class="ln">HUD</span><span class="ln">Arena</span></div>
+    </div>
+    <div class="card-foot">
+      <div class="see">You should see: an empty arena, and no EnemyMover.Update row in the Profiler.</div>
+      <div class="meta">8 min · checkpoint-2</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     30 · CARD · action · B0 · 2 of 4
+     Making the container. "From Selection" is greyed out on a right-click
+     into empty Hierarchy space - SubSceneContextMenu.cs only enables it
+     when the click has a valid target GameObject - so the room
+     right-clicks nothing and the working item is the other one.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide do">
+    <div class="form">Together · 2 of 4</div>
+    <h2>Make an empty subscene</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="shot">
+        <img src="images/workshop-subscene.png" alt="Right-clicking the Hierarchy opens New Sub Scene with Empty Scene enabled and From Selection greyed out; the save dialog offers Workshop_SubScene.unity; the new Workshop_SubScene object is selected with its Sub Scene component showing Open SubScenes, Save and Close.">
+        <div class="path">right-click the Hierarchy &gt; New Sub Scene &gt; Empty Scene&hellip;</div>
+      </div>
+    </div>
+    <div class="card-foot">
+      <div class="see">You should see: Workshop_SubScene in the Hierarchy, with nothing in it.</div>
+      <div class="meta">8 min · checkpoint-2</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     31 · CARD · action · B0 · 3 of 4
+     Putting something in it. Separate from making it, because the room
+     has just built an empty container and the only way to find out what
+     it does is to drop something in.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide do">
+    <div class="form">Together · 3 of 4</div>
+    <h2>Drag an enemy into it</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="shot">
+        <img src="images/baselineenemy-subscene.png" alt="BaselineEnemy dragged from Assets > Workshop > Art onto Workshop_SubScene in the Hierarchy, where it now sits as the subscene's only child.">
+        <div class="path">Assets &gt; Workshop &gt; Art &gt; BaselineEnemy &rarr; onto Workshop_SubScene</div>
+      </div>
+    </div>
+    <div class="card-foot">
+      <div class="see">You should see: BaselineEnemy under Workshop_SubScene, and one enemy in the Scene view.</div>
+      <div class="meta">8 min · checkpoint-2</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     32 · CARD · action · B0 · 4 of 4
+     The moment the block turns on. Close first: while the subscene is
+     open the Entities Hierarchy still lists the authoring GameObject, so
+     nothing has changed yet. Closed, the same enemy is an entity, and the
+     Inspector's Runtime tab is where its components are.
+
+     Closed by unticking the checkbox in the Hierarchy, not the Inspector
+     button - same thing, one click, and it is where their eyes already
+     are. Both are on the capture.
+
+     Two entities appear under the closed subscene, not one. Whatever the
+     second is, the slide does not name it, and neither should the
+     instructor until it has been looked up.
+
+     Every entities word is still unsaid - the slide shows it before
+     anything names it.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide do">
+    <div class="form">Together · 4 of 4</div>
+    <h2>Close the subscene and the same enemy is an entity</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="shot">
+        <img src="images/entities-hierarchy.png" alt="Unticking the checkbox beside Workshop_SubScene in the Hierarchy collapses it; Window > Entities > Hierarchy then shows the Editor World with Workshop_SubScene marked closed and two entities under it.">
+        <div class="path">untick Workshop_SubScene in the Hierarchy</div>
+        <div class="path">Window &gt; Entities &gt; Hierarchy &mdash; click the enemy, then Inspector &gt; Runtime</div>
+      </div>
+    </div>
+    <div class="card-foot">
+      <div class="see">You should see: Workshop_SubScene (closed), entities under it, and LocalTransform in the Runtime tab.</div>
+      <div class="meta">8 min · checkpoint-2</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     33 · DIAGRAM · what a subscene is
+     Immediately after they watched it happen, because slide 30 puts the
+     word "subscene" in a title and slide 34 uses "bakes" as a verb. Both
+     are named here, off the two sides of the thing they just did. No
+     Baker on this picture: they have not written one yet.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="form">Nothing to type</div>
+    <h2>A subscene is where GameObjects turn into entities</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="bake">
+        <div class="bakelane inside">
+          <div class="where">In Workshop_SubScene</div>
+          <div class="thing">BaselineEnemy</div>
+          <div class="step">&darr; &nbsp;<b>baking</b></div>
+          <div class="out">An entity</div>
+        </div>
+        <div class="bakelane">
+          <div class="where">In GameObjectBaseline</div>
+          <div class="thing">BaselineEnemy</div>
+          <div class="step">&darr; &nbsp;nothing bakes</div>
+          <div class="out same">Still a GameObject</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     34 · NAMES · four words
+     Every clause says what the word decides, not what it is. "One exact
+     set of components" and "16 KB" are true and were skippable, because
+     neither gave the room a reason the word exists. Entity is "an id"
+     rather than "a number", because a number on its own answers nothing
+     about the row they just clicked.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="form">Nothing to type</div>
+    <h2>Four words for the next twenty minutes</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="names">
+        <div class="nrow"><span class="word">entity</span><span class="clause">an id, and nothing else. The data is in its components.</span></div>
+        <div class="nrow"><span class="word">component</span><span class="clause">a struct of data on an entity</span></div>
+        <div class="nrow"><span class="word">archetype</span><span class="clause">the exact set of components an entity has. It decides which entities are stored together.</span></div>
+        <div class="nrow"><span class="word">chunk</span><span class="clause">the 16 KB they are stored in, one array per component</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     35 · BEAT · B1 we-do · 1 of 2 — the authoring component and its Baker
+     A new file, so every line is lit. Bake is public because the base
+     declares it public abstract; nothing else here is. The nested Baker
+     and Baker<T> do not collide - different generic arity - and this
+     exact shape is what ships in the project already.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide do">
+    <div class="form">Together · live coding · 1 of 2</div>
+    <h2>A Baker turns the GameObject into an entity you choose</h2>
+    <div class="rule"></div>
+    <div class="file">Assets/Workshop/Authoring/EnemyAuthoring.cs &mdash; new folder, new file</div>
+    <div class="body">
+      <div class="card-code xs"><span class="ln lit">using Unity.Entities;</span><span class="ln lit">using UnityEngine;</span><span class="ln lit"> </span><span class="ln lit">namespace Workshop</span><span class="ln lit">{</span><span class="ln lit">    public class EnemyAuthoring : MonoBehaviour</span><span class="ln lit">    {</span><span class="ln lit">        private class Baker : Baker&lt;EnemyAuthoring&gt;<span class="note">one Bake per GameObject</span></span><span class="ln lit">        {</span><span class="ln lit">            public override void Bake(EnemyAuthoring authoring)</span><span class="ln lit">            {</span><span class="ln lit">                var entity = GetEntity(TransformUsageFlags.Dynamic);<span class="note">Dynamic: this one moves</span></span><span class="ln lit">                AddComponent&lt;EnemyTag&gt;(entity);</span><span class="ln lit">            }</span><span class="ln lit">        }</span><span class="ln lit">    }</span><span class="ln lit"> </span><span class="ln lit">    public struct EnemyTag : IComponentData<span class="note">holds nothing, says what this is</span></span><span class="ln lit">    {</span><span class="ln lit"> </span><span class="ln lit">    }</span><span class="ln lit">}</span></div>
+    </div>
+    <div class="card-foot">
+      <div class="see">You should see: it compiles, and nothing changes yet.</div>
+      <div class="meta">9 min · checkpoint-2</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     36 · CARD · action · B1 we-do · 2 of 2
+     The component goes on the prefab asset, not the instance, so B3 can
+     move the instance in and out of the subscene without losing it.
+     Saving the file rebakes the open subscene, so the tag appears with
+     no Play - which is the point worth saying out loud.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide do">
+    <div class="form">Together · 2 of 2</div>
+    <h2>Add EnemyAuthoring to the enemy prefab</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="shot">
+        <img src="images/enemy-tag.png" alt="The BaselineEnemy prefab with Enemy Authoring added at the bottom of its Inspector, and the Entity Baking Preview listing the baked components with Workshop.EnemyTag boxed among Unity's own.">
+        <div class="path">Assets &gt; Workshop &gt; Art &gt; BaselineEnemy &gt; Add Component &gt; EnemyAuthoring</div>
+      </div>
+    </div>
+    <div class="card-foot">
+      <div class="see">You should see: Workshop.EnemyTag in the Entity Baking Preview, without pressing Play.</div>
+      <div class="meta">9 min · checkpoint-2</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     37 · EVIDENCE · B1 name
+     Workshop.EnemyTag sits in a list of components nobody in the room
+     wrote - LocalTransform, MaterialMeshInfo, RenderBounds and the rest,
+     all put there by the bakers that ship with the packages. Theirs is
+     one line in the same pass, and it is the only name on that list with
+     their namespace in front of it.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="form">Nothing to type</div>
+    <h2>Your Baker put the tag on the entity</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="shot">
+        <img src="images/entities-hierarchy-enemy-tag.png" alt="The Entities Hierarchy with Workshop_SubScene closed and one entity selected; the Inspector's Components tab lists Enemy Tag under Tags, boxed, above Local Transform.">
+        <div class="path">Window &gt; Entities &gt; Hierarchy &mdash; the entity selected</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     38 · CARD · B2 you-do — a component with data
+     Value is public because a component's fields have to be; everything
+     else in the file stays internal or private. The Baker reads a private
+     field because it is nested inside the class that declares it.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide do">
+    <div class="form">Your turn</div>
+    <h2>A component with data is a struct with a field</h2>
+    <div class="rule"></div>
+    <div class="file">EnemyAuthoring.cs &mdash; the same file</div>
+    <div class="body">
+      <div class="card-code xs"><span class="ln">    public class EnemyAuthoring : MonoBehaviour</span><span class="ln">    {</span><span class="ln lit">        [SerializeField] private float _moveSpeed = 2.5f;<span class="note">authored on the prefab</span></span><span class="ln"> </span><span class="ln">        private class Baker : Baker&lt;EnemyAuthoring&gt;</span><span class="ln">        {</span><span class="ln">            public override void Bake(EnemyAuthoring authoring)</span><span class="ln">            {</span><span class="ln">                var entity = GetEntity(TransformUsageFlags.Dynamic);</span><span class="ln">                AddComponent&lt;EnemyTag&gt;(entity);</span><span class="ln lit">                AddComponent(entity, new MoveSpeed { Value = authoring._moveSpeed });<span class="note">nested, so a private field is readable</span></span><span class="ln">            }</span><span class="ln">        }</span><span class="ln">    }</span><span class="ln"> </span><span class="ln">    public struct EnemyTag : IComponentData</span><span class="ln">    {</span><span class="ln"> </span><span class="ln">    }</span><span class="ln"> </span><span class="ln lit">    public struct MoveSpeed : IComponentData</span><span class="ln lit">    {</span><span class="ln lit">        public float Value;</span><span class="ln lit">    }</span></div>
+    </div>
+    <div class="card-foot">
+      <div class="see">You should see: Workshop.MoveSpeed on the entity, holding whatever you set on the prefab.</div>
+      <div class="meta">6 min · checkpoint-2</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     39 · EVIDENCE · B2 name · the authored value arrives
+     Mirrors slide 37 for the data component: the number set on the prefab
+     and the same number inside Workshop.MoveSpeed on the entity, with the
+     baking preview between them.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="form">Nothing to type</div>
+    <h2>The number you set on the prefab is on the entity</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="shot">
+        <img src="images/move-speed.png" alt="Enemy Authoring on the prefab with Move Speed set to 5; the Entity Baking Preview listing Workshop.MoveSpeed among the baked components; and the MoveSpeed component showing Value 5.">
+        <div class="path">BaselineEnemy &mdash; Move Speed, and the entity's MoveSpeed</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     40 · EVIDENCE · B2 name · the archetype changed
+     The Archetypes window is where archetype stops being a word, and it
+     hands over two things no drawing should assert: EnemyTag is 0 B, and
+     the chunk capacity falls from 32 to 29 once the two components are
+     on. Both are read off this capture, so slide 43's picture can draw a
+     tag with no array and no capacity number and still be honest.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="form">Nothing to type</div>
+    <h2>Adding a component made a new archetype</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="shot">
+        <img src="images/archetype.png" alt="The Archetypes window showing two archetypes for the same enemy: one with 16 components including MoveSpeed at 4 B and EnemyTag at 0 B, chunk capacity 29; the other with 13 components and neither of them, chunk capacity 32.">
+        <div class="path">Window &gt; Entities &gt; Archetypes</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     41 · DIAGRAM · what the Archetypes window was showing
+     Slide 40 draws the inside of one chunk, which says nothing about
+     either word: archetype needs two of them side by side before a
+     different component set visibly means a different place, and chunk
+     needs several under one archetype before it reads as a unit rather
+     than a row that keeps going.
+
+     This is the enemy they have: slide 37 added MoveSpeed and slide 38
+     showed the window move it. Same event, drawn.
+
+     The gap the entity leaves is filled by the last entity in the chunk,
+     and that is true here - but it is block E's lesson, so it is not
+     drawn and not said.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="form">Nothing to type</div>
+    <h2>Entities with the same set of components are stored together</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <canvas class="viz" id="viz-archetype" width="2272" height="760" style="height:380px;"></canvas>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     42 · DIAGRAM · why any of this is faster
+     The one slide in block B that answers the morning. On slide 25 they
+     measured 0.78 ms getting and setting 20,000 Transform.positions and
+     were told it will not go lower. This says where that goes.
+
+     Ported from deck-v1-lecture.html's viz-layout: the same read walked
+     twice, so the only thing to compare is the shape of the walk. Only
+     Position is coloured - the room's block A code already kept speeds in
+     a NativeArray, so colouring a speed here would draw something that
+     was never scattered.
+
+     0.78 ms is the measured number from slide 25. No number is claimed
+     for the chunk side; block C measures that on this machine.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="form">Nothing to type</div>
+    <h2>Every position you read was somewhere else in memory</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <canvas class="viz" id="viz-layout" width="2272" height="840" style="height:420px;"></canvas>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     43 · DIAGRAM · why a stop costs anything
+     Slide 40 shows two shapes and asserts one is dearer. This is the
+     reason: a read never fetches one value, it hauls back a run of
+     neighbours. Packed, those neighbours are the next reads. Scattered,
+     they are junk. Without it the block ends on a conclusion the room has
+     been shown rather than given.
+
+     The hardware strip and the trips animation are one slide, not two.
+     The strip is not a second figure - it is the key to the first, and it
+     sits directly above the CACHE and RAM columns it names, which is the
+     rule about labels sitting on the thing they label. Split apart, the
+     room has to carry two nouns over from the slide before.
+
+     Both halves ported from deck-v1-lecture.html. "Cache line" stays off
+     the slide on purpose: the count of trips is the point, and the word
+     has had no we-do.
+
+     The 100x is the only number in block B not measured on the presenting
+     machine. It is the standard order of magnitude for a main-memory miss
+     against an L1 hit, hedged to "about" and carried by the distance in
+     the picture rather than quoted as this machine's result.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="form">Nothing to type</div>
+    <h2>A read never fetches one value, it brings back the neighbours</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="hw">
+        <div class="unit near"><div class="u1">CPU</div><div class="u2">does the work</div></div>
+        <div class="tie"></div>
+        <div class="unit near"><div class="u1">Cache</div><div class="u2">tiny, right beside it</div></div>
+        <div class="far"><span>about 100&times; slower<em>the shelf beside you, or a drive across town</em></span></div>
+        <div class="unit"><div class="u1">RAM</div><div class="u2">where everything lives</div></div>
+      </div>
+      <canvas class="viz" id="viz-cache" width="2272" height="580"
+              style="height:290px; margin-top:34px;"></canvas>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     44 · CARD · action · B3 you-do
+     The same object on both sides of the boundary, so the rule is seen
+     rather than stated. What proves it is an absence: inside, the
+     Inspector carries an Entity Baking Preview listing everything that
+     got baked; outside, the same object with the same EnemyAuthoring on
+     it has no preview at all. Dragging it back brings it back.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide do">
+    <div class="form">Your turn</div>
+    <h2>Drag the enemy out of the subscene</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="shot">
+        <img src="images/not-subscene.png" alt="BaselineEnemy inside Workshop_SubScene, its Inspector showing an Entity Baking Preview with Workshop.EnemyTag and Workshop.MoveSpeed; then the same object dragged out to the parent scene, same Enemy Authoring component, and no Entity Baking Preview.">
+        <div class="path">Workshop_SubScene &gt; BaselineEnemy &rarr; GameObjectBaseline</div>
+      </div>
+    </div>
+    <div class="card-foot">
+      <div class="see">You should see: the Entity Baking Preview gone. Same component, nothing baked. Drag it back.</div>
+      <div class="meta">4 min · checkpoint-2</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     45 · MIND MAP · Entities lit
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="form">Nothing to type</div>
+    <h2>Everything you touched so far</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <svg class="mindmap" viewBox="0 0 1136 470"
+           data-done="jobs,burst,collections,mathematics,sched"
+           data-now="entity,component,archetype,baking"></svg>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     46 · CATCH UP · block B finished
+     The one checkout that replaces a scene the room built: checkpoint-3
+     carries GameObjectBaseline and Workshop_SubScene in the form block C
+     needs, with the spawner and the crowd in them. Say that out loud.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide do">
+    <div class="form">Everyone</div>
+    <h2>Take checkpoint-3</h2>
+    <div class="rule"></div>
+    <div class="card-code"><span class="ln lit">git stash</span><span class="ln lit">git checkout checkpoint-3</span></div>
+    <div class="card-foot">
+      <div class="see">You should see: your scene and subscene replaced, with the spawner in them.</div>
+      <div class="meta">checkpoint-3</div>
     </div>
   </div>
 </section>
@@ -891,6 +1530,449 @@
     }
     Reveal.on('ready', arm);
     Reveal.on('slidechanged', arm);
+  })();
+
+  /* =========================================================
+     A canvas figure that steps while its slide is on screen and
+     rewinds when it is left, so stepping back replays it. Same
+     contract as the .run class above, for figures a CSS
+     transition cannot draw.
+     ========================================================= */
+  function autoStep(cv, last, stepTo, redraw, msPerStep, msHold) {
+    var step = 0, timer = null;
+    function onSlide() {
+      var sec = cv.closest('section');
+      return sec && sec === Reveal.getCurrentSlide();
+    }
+    function frame() {
+      step = (step >= last) ? 0 : step + 1;
+      stepTo(step); redraw();
+      timer = setTimeout(frame, step >= last ? msHold : msPerStep);
+    }
+    function start() { if (timer || !onSlide()) return; timer = setTimeout(frame, msPerStep); }
+    function stop() { if (timer) { clearTimeout(timer); timer = null; } }
+    function arm() {
+      if (onSlide()) start();
+      else { stop(); step = 0; stepTo(0); redraw(); }
+    }
+    Reveal.on('ready', arm);
+    Reveal.on('slidechanged', arm);
+    stepTo(0); redraw();
+    start();
+  }
+
+  /* =========================================================
+     Two archetypes, each holding chunks, and one entity moving
+     between them. Drawn from Unity's own picture of the same
+     thing: an archetype is a box of chunks, not a box of
+     entities, and adding a component moves the entity to the
+     archetype that matches its new set.
+
+     The entity that moves is the enemy on the projector: slide
+     37 added MoveSpeed to it and slide 38 watched the Archetypes
+     window report the change.
+     ========================================================= */
+  (function () {
+    var cv = document.getElementById('viz-archetype');
+    if (!cv) return;
+    var ctx = cv.getContext('2d');
+    var S = 2;
+
+    var ACC = '#7CC5FF', IDC = '#FFD08A', FAST = '#6EE7A8';
+    var MUTED = '#7e828b', INK = '#ffffff';
+    var LINE = 'rgba(255,255,255,0.16)';
+
+    var BW = 452, BH = 200, BY = 78, AX = 40, BX = 620;
+    var BARH = 40, BARGAP = 14, BARX = 26, BARW = BW - 52;
+    var step = 0;
+
+    function txt(x, y, str, colour, size, weight, align) {
+      ctx.fillStyle = colour;
+      ctx.font = (weight || 700) + ' ' + (size || 14) + 'px ui-sans-serif, system-ui, sans-serif';
+      ctx.textAlign = align || 'left';
+      ctx.fillText(str, x, y);
+      ctx.textAlign = 'left';
+    }
+    function hexa(hex, a) {
+      var n = parseInt(hex.slice(1), 16);
+      return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+    }
+    function rr(x, y, w, h, r) {
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(x, y, w, h, r === undefined ? 6 : r);
+      else ctx.rect(x, y, w, h);
+    }
+
+    /* The component set, drawn a name at a time so the one being added can
+       carry its own colour. The set is what makes an archetype the
+       archetype it is, so the change has to be legible in the header
+       rather than only in a line of text under the picture. */
+    function componentSet(x, y, parts, baseColour) {
+      ctx.font = '700 15px ui-sans-serif, system-ui, sans-serif';
+      var cx = x;
+      parts.forEach(function (p, i) {
+        if (i > 0) {
+          ctx.fillStyle = 'rgba(255,255,255,0.4)';
+          ctx.fillText(' · ', cx, y);
+          cx += ctx.measureText(' · ').width;
+        }
+        ctx.fillStyle = p[1] || baseColour;
+        ctx.fillText(p[0], cx, y);
+        cx += ctx.measureText(p[0]).width;
+      });
+    }
+
+    /* one archetype: its component set as the label, its chunks inside */
+    function archetype(x, set, chunks, liveIn, liveSlot, lit) {
+      txt(x, BY - 34, 'ARCHETYPE', MUTED, 12.5);
+      componentSet(x, BY - 14, set, lit ? ACC : 'rgba(255,255,255,0.72)');
+      rr(x, BY, BW, BH, 12);
+      ctx.fillStyle = lit ? hexa(ACC, 0.05) : 'rgba(255,255,255,0.02)';
+      ctx.fill();
+      ctx.strokeStyle = lit ? ACC : LINE; ctx.lineWidth = 1.6; ctx.stroke();
+
+      for (var c = 0; c < chunks; c++) {
+        var by = BY + 24 + c * (BARH + BARGAP);
+        rr(x + BARX, by, BARW, BARH, 7);
+        ctx.fillStyle = hexa(ACC, 0.12); ctx.fill();
+        ctx.strokeStyle = hexa(ACC, 0.5); ctx.lineWidth = 1.3; ctx.stroke();
+        txt(x + BARX + 14, by + 25, 'chunk', hexa(ACC, 0.9), 13);
+
+        /* the slots inside a chunk, drawn small: the next slide opens one */
+        for (var s = 0; s < 8; s++) {
+          var sx = x + BARX + 96 + s * 22;
+          var here = (c === liveIn && s === liveSlot);
+          rr(sx, by + 11, 16, 18, 3);
+          ctx.fillStyle = here ? hexa(IDC, 0.85) : hexa(ACC, s < 5 ? 0.34 : 0);
+          ctx.fill();
+          ctx.strokeStyle = here ? IDC : hexa(ACC, 0.45); ctx.lineWidth = here ? 1.8 : 1.1;
+          ctx.stroke();
+        }
+      }
+    }
+
+    function draw() {
+      ctx.setTransform(S, 0, 0, S, 0, 0);
+      ctx.clearRect(0, 0, cv.width, cv.height);
+
+      var moved = step >= 2;
+
+      /* step 1 appends "+ MoveSpeed" to the left header in green: the
+         entity is gaining it, which is why it can no longer stay here.
+         On the right, MoveSpeed turns the same green from step 1, so the
+         name the room just typed is visibly what the two sets differ by. */
+      var leftSet = [['LocalTransform'], ['EnemyTag']];
+      if (step === 1) leftSet.push(['+ MoveSpeed', FAST]);
+      var rightSet = [['LocalTransform'], ['EnemyTag'],
+                      ['MoveSpeed', step >= 1 ? FAST : null]];
+
+      archetype(AX, leftSet, 3, moved ? -1 : 1, 2, step === 1);
+      archetype(BX, rightSet, 2, moved ? 0 : -1, 3, moved);
+
+      if (step >= 1) {
+        var y = BY + BH + 30;
+        ctx.strokeStyle = moved ? IDC : hexa(IDC, 0.4);
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.moveTo(AX + BW - 120, y); ctx.lineTo(BX + 110, y); ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(BX + 120, y); ctx.lineTo(BX + 106, y - 7); ctx.lineTo(BX + 106, y + 7);
+        ctx.closePath(); ctx.fillStyle = moved ? IDC : hexa(IDC, 0.4); ctx.fill();
+      }
+
+      txt(0, BY + BH + 74,
+        /* not "your enemy": the room has one, and this box holds a crowd.
+           It is the rule, with one entity followed through it. */
+        step === 0 ? 'An entity sits in the archetype that matches its components.'
+        : step === 1 ? 'MoveSpeed is added.'
+        : 'Its set of components changed, so it is stored with the entities that match it now.',
+        step === 0 ? MUTED : INK, 15, 400);
+    }
+
+    autoStep(cv, 2, function (v) { step = v; }, draw, 1500, 2600);
+  })();
+
+  /* =========================================================
+     Why the shape of the walk decides the number of trips.
+     The same eight reads on both rows. A grab always hauls back
+     a run of four, not one value. Packed, the other three are
+     the next three reads, so they come free. Scattered, they are
+     junk, so every read is another trip.
+
+     Ported from deck-v1-lecture.html's viz-cache. "Cache line"
+     stays off the slide on purpose: the count of trips is the
+     point, and the room has had no we-do for the word.
+     ========================================================= */
+  (function () {
+    var cv = document.getElementById('viz-cache');
+    if (!cv) return;
+    var ctx = cv.getContext('2d');
+    var S = 2;
+    var READS = 8, RUN = 4, RAM = 32, SLOTS = 4;
+    var CX = 232, RX = 528;   /* cache and RAM columns; the label column is 0..CX */
+
+    var ACC = '#7CC5FF', SLOW = '#FF7A66', FAST = '#6EE7A8';
+    var MUTED = '#7e828b', INK = '#ffffff';
+    var LINE = 'rgba(255,255,255,0.13)';
+    var JUNK = 'rgba(255,255,255,0.13)';
+
+    var step = 0;
+
+    function txt(x, y, str, colour, size, weight, align) {
+      ctx.fillStyle = colour;
+      ctx.font = (weight || 700) + ' ' + (size || 13) + 'px ui-sans-serif, system-ui, sans-serif';
+      ctx.textAlign = align || 'left';
+      ctx.fillText(str, x, y);
+      ctx.textAlign = 'left';
+    }
+    function rr(x, y, w, h, r) {
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(x, y, w, h, r === undefined ? 3 : r); else ctx.rect(x, y, w, h);
+    }
+    function box(x, y, w, h, stroke, fill) {
+      rr(x, y, w, h);
+      if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+      ctx.strokeStyle = stroke; ctx.lineWidth = 1.4; ctx.stroke();
+    }
+
+    /* one row: label, the cache, the trip, then RAM. curCell is the value
+       being read this step; miss says whether it needed a trip or was
+       already sitting there from the last grab. */
+    function row(y, name, wantedAt, trips, free, lastRun, colour, curCell, miss) {
+      txt(0, y + 16, name, INK, 15);
+      txt(0, y + 38, trips + (trips === 1 ? ' trip to RAM' : ' trips to RAM'), colour, 13);
+      txt(0, y + 56, free + ' free from cache', free ? FAST : MUTED, 13);
+
+      /* the row labels name the two shapes from slide 40, so the label
+         column is wider than v1's and the grid starts further right */
+      txt(CX, y - 6, 'CACHE', MUTED, 11);
+      for (var c = 0; c < SLOTS; c++) {
+        var cellIdx = lastRun === null ? null : lastRun * RUN + c;
+        var isWanted = cellIdx !== null && wantedAt.indexOf(cellIdx) !== -1;
+        box(CX + c * 34, y + 2, 30, 34,
+            cellIdx === null ? LINE : (isWanted ? ACC : 'rgba(255,255,255,0.22)'),
+            cellIdx === null ? null : (isWanted ? 'rgba(124,197,255,0.6)' : JUNK));
+        if (cellIdx !== null && cellIdx === curCell) {
+          box(CX + c * 34 - 4, y - 2, 38, 42, INK, null);
+          txt(CX + c * 34 + 15, y + 50, 'READING', INK, 10, 700, 'center');
+        }
+      }
+
+      /* the trip: solid on a miss, absent on a hit */
+      var near = CX + SLOTS * 34 + 10, far = near + 74, mid = (near + far) / 2;
+      if (curCell === null) {
+        ctx.strokeStyle = LINE; ctx.lineWidth = 1.4;
+        ctx.beginPath(); ctx.moveTo(far, y + 19); ctx.lineTo(near, y + 19); ctx.stroke();
+      } else if (miss) {
+        ctx.strokeStyle = colour; ctx.lineWidth = 2.4;
+        ctx.beginPath(); ctx.moveTo(far, y + 19); ctx.lineTo(near, y + 19); ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(near - 8, y + 19); ctx.lineTo(near + 4, y + 13); ctx.lineTo(near + 4, y + 25);
+        ctx.closePath(); ctx.fillStyle = colour; ctx.fill();
+        txt(mid, y + 52, 'went to RAM', colour, 11, 700, 'center');
+      } else {
+        txt(mid, y + 24, 'no trip', FAST, 12, 700, 'center');
+        txt(mid, y + 40, 'already here', FAST, 11, 400, 'center');
+      }
+
+      txt(RX, y - 6, 'RAM', MUTED, 11);
+      var cw = 17, gx = 2, ox = RX;
+      for (var i = 0; i < RAM; i++) {
+        var want = wantedAt.indexOf(i) !== -1;
+        var inRun = lastRun !== null && i >= lastRun * RUN && i < lastRun * RUN + RUN;
+        box(ox + i * (cw + gx), y + 2, cw, 34,
+            inRun ? (miss ? colour : 'rgba(255,255,255,0.22)') : (want ? 'rgba(124,197,255,0.5)' : LINE),
+            want ? 'rgba(124,197,255,0.35)' : (inRun ? 'rgba(255,255,255,0.06)' : null));
+      }
+    }
+
+    function draw() {
+      ctx.setTransform(S, 0, 0, S, 0, 0);
+      ctx.clearRect(0, 0, cv.width, cv.height);
+
+      txt(0, 14, 'BLUE = A POSITION THE JOB WANTS. A GRAB ALWAYS BRINGS BACK FOUR.', MUTED, 12);
+
+      /* scattered: every position sits on its own, far from the others */
+      var sWant = [], i;
+      for (i = 0; i < READS; i++) sWant.push(i * RUN);
+      row(56, 'A Transform per enemy', sWant, step, 0, step ? step - 1 : null, SLOW,
+          step ? sWant[step - 1] : null, true);
+
+      /* packed: the eight positions sit next to each other */
+      var pWant = [];
+      for (i = 0; i < READS; i++) pWant.push(i);
+      var pTrips = step ? Math.floor((step - 1) / RUN) + 1 : 0;
+      row(180, 'One array in a chunk', pWant, pTrips, step - pTrips,
+          step ? Math.floor((step - 1) / RUN) : null, FAST,
+          step ? pWant[step - 1] : null, step ? ((step - 1) % RUN === 0) : false);
+
+      txt(0, 268, step >= READS
+        ? 'Eight reads either way. Packed made two trips and got six for nothing.'
+        : '', INK, 14, 700);
+    }
+
+    /* the closing line exists only on the last frame, so it holds long
+       enough to be read before the walk starts over */
+    autoStep(cv, READS, function (v) { step = v; }, draw, 700, 7000);
+  })();
+
+  /* =========================================================
+     Contiguous or not. Five enemies, the same five positions
+     read twice, so the only thing left to compare is the shape
+     of the walk. Ported from deck-v1-lecture.html's viz-layout.
+
+     Only Position is coloured. Block A's EnemyMover already held
+     its speeds in a NativeArray, so a scattered speed would be a
+     picture of something that never happened in this room.
+     ========================================================= */
+  (function () {
+    var cv = document.getElementById('viz-layout');
+    if (!cv) return;
+    var ctx = cv.getContext('2d');
+    var S = 2;
+    var N = 5, CELLS = 24;
+
+    var POS = '#7CC5FF', SPD = '#C3A6FF', IDC = '#FFD08A', MUTED = '#7e828b', INK = '#ffffff', SLOW = '#FF7A66';
+    var LINE = 'rgba(255,255,255,0.13)';
+    var OTHERF = 'rgba(255,255,255,0.07)';
+
+    /* where each enemy's Transform landed. Fixed, not random, so the
+       picture is the same on every machine and in every rehearsal. */
+    var CLUMP = [0, 4, 9, 13, 18];
+
+    var CW = 34, CH = 38, GX = 3;
+    var done = 0;
+
+    function txt(x, y, str, colour, size, weight, align) {
+      ctx.fillStyle = colour;
+      ctx.font = (weight || 700) + ' ' + (size || 14) + 'px ui-sans-serif, system-ui, sans-serif';
+      ctx.textAlign = align || 'left';
+      ctx.fillText(str, x, y);
+      ctx.textAlign = 'left';
+    }
+    function hexa(hex, a) {
+      var n = parseInt(hex.slice(1), 16);
+      return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+    }
+    function rr(x, y, w, h, r) {
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(x, y, w, h, r === undefined ? 4 : r);
+      else ctx.rect(x, y, w, h);
+    }
+    function cellX(i) { return i * (CW + GX); }
+    function cell(i, y, colour, filled) {
+      rr(cellX(i), y, CW, CH);
+      ctx.fillStyle = filled ? hexa(colour, 0.55) : OTHERF;
+      ctx.fill();
+      ctx.strokeStyle = filled ? colour : LINE;
+      ctx.lineWidth = 1.4; ctx.stroke();
+    }
+    function caret(i, y) {
+      var x = cellX(i) + CW / 2;
+      ctx.beginPath();
+      ctx.moveTo(x, y); ctx.lineTo(x - 7, y - 10); ctx.lineTo(x + 7, y - 10); ctx.closePath();
+      ctx.fillStyle = INK; ctx.fill();
+    }
+    function walk(idx, y, colour) {
+      if (done < 2) return;
+      ctx.beginPath();
+      for (var k = 0; k < done; k++) {
+        var x = cellX(idx[k]) + CW / 2;
+        if (k === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = colour; ctx.lineWidth = 2.4; ctx.stroke();
+    }
+    function bracket(from, to, y, label, colour) {
+      var x1 = cellX(from), x2 = cellX(to) + CW;
+      ctx.strokeStyle = colour; ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(x1, y + 8); ctx.lineTo(x1, y); ctx.lineTo(x2, y); ctx.lineTo(x2, y + 8);
+      ctx.stroke();
+      txt((x1 + x2) / 2, y - 7, label, colour, 13, 700, 'center');
+    }
+
+    var LBL1 = 22, BR1 = 56, Y1 = 72;
+    var LBL2 = 196, Y2 = 214;
+    /* the chunk's own grid: a label column, then one column per slot.
+       RPITCH leaves room for the read head to sit under a row without
+       touching the row below it. */
+    var LBLW = 150, CW2 = 62, CH2 = 34, RPITCH = 58, COLS = 8;
+
+    function draw() {
+      ctx.setTransform(S, 0, 0, S, 0, 0);
+      ctx.clearRect(0, 0, cv.width, cv.height);
+      var i, k;
+
+      /* ---------- a Transform per enemy ---------- */
+      txt(0, LBL1, 'A TRANSFORM PER ENEMY', SLOW, 14);
+      for (i = 0; i < CELLS; i++) {
+        var owner = -1;
+        for (k = 0; k < N; k++) if (i >= CLUMP[k] && i < CLUMP[k] + 3) owner = k;
+        cell(i, Y1, POS, owner >= 0 && i === CLUMP[owner]);
+      }
+      for (k = 0; k < N; k++) bracket(CLUMP[k], CLUMP[k] + 2, BR1, 'Transform ' + k, 'rgba(255,255,255,0.42)');
+      walk(CLUMP, Y1 + CH + 20, SLOW);
+      for (k = 0; k < done; k++) caret(CLUMP[k], Y1 + CH + 13);
+      txt(0, Y1 + CH + 52, 'five positions, five stops across memory — 0.78 ms for 20,000', MUTED, 14, 400);
+
+      /* ---------- an array per component ---------- */
+      /* Stacked arrays with the columns lined up, the way Unity draws a
+         chunk: index 0 of every array is the same entity. Filled is an
+         entity that is there, outlined is a free slot, and the arrays stay
+         tightly packed from the left.
+
+         Verified against the Entities source, not drawn from memory:
+           - the chunk is a 64-byte header plus a buffer (Types/Chunk.cs,
+             kBufferOffset = 64, kChunkSize = 16 * 1024)
+           - the buffer holds one contiguous array per non-zero-sized type,
+             each sized to the archetype's chunk capacity and cache-line
+             aligned: EntityComponentStore.cs:2856 sets Offsets[i] =
+             usedBytes then adds GetComponentArraySize(sizeOf,
+             ChunkCapacity)
+           - the entity ids are one of those arrays, not header metadata:
+             ChunkDataUtility.cs:1586 reads an entity through Offsets[0]
+             and SizeOfs[0]
+           - change versions, entity count, shared component values and
+             the enableable bits are NOT in the chunk. They live in
+             ArchetypeChunkData, one row per chunk on the archetype.
+         Three arrays, not the enemy's whole archetype: this is the shape.
+         No capacity number is drawn - it is min(128, what the component
+         sizes allow), TypeManager.MaximumChunkCapacity being 128, and
+         slide 38's Archetypes window has the real figure for theirs. */
+      txt(0, LBL2, 'A CHUNK · ONE ARRAY PER COMPONENT', POS, 14);
+      var rows = [['entity ids', IDC], ['LocalTransform', POS], ['MoveSpeed', SPD]];
+      rows.forEach(function (row, r) {
+        var ry = Y2 + r * RPITCH;
+        txt(0, ry + CH2 / 2 + 5, row[0], row[1], 13.5);
+        for (var c = 0; c < COLS; c++) {
+          var cx = LBLW + c * (CW2 + GX);
+          rr(cx, ry, CW2, CH2, 4);
+          ctx.fillStyle = c < N ? hexa(row[1], 0.55) : 'transparent';
+          if (c < N) ctx.fill();
+          ctx.strokeStyle = hexa(row[1], c < N ? 1 : 0.5);
+          ctx.lineWidth = 1.4; ctx.stroke();
+        }
+        txt(LBLW + COLS * (CW2 + GX) + 8, ry + CH2 / 2 + 6, '…', MUTED, 16);
+      });
+
+      /* the read walks the LocalTransform row, left to right */
+      var ty = Y2 + RPITCH;
+      if (done >= 2) {
+        ctx.beginPath();
+        ctx.moveTo(LBLW + CW2 / 2, ty + CH2 + 14);
+        ctx.lineTo(LBLW + (done - 1) * (CW2 + GX) + CW2 / 2, ty + CH2 + 14);
+        ctx.strokeStyle = POS; ctx.lineWidth = 2.4; ctx.stroke();
+      }
+      for (k = 0; k < done; k++) {
+        var kx = LBLW + k * (CW2 + GX) + CW2 / 2;
+        ctx.beginPath();
+        ctx.moveTo(kx, ty + CH2 + 7); ctx.lineTo(kx - 7, ty + CH2 - 3); ctx.lineTo(kx + 7, ty + CH2 - 3);
+        ctx.closePath(); ctx.fillStyle = INK; ctx.fill();
+      }
+      txt(0, Y2 + 3 * RPITCH + 28, 'five positions, one straight run', MUTED, 14, 400);
+    }
+
+    autoStep(cv, N, function (v) { done = v; }, draw, 620, 2400);
   })();
 
   /* =========================================================

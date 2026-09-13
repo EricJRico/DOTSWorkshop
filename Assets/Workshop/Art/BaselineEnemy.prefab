@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 2081360318034668295}
   - component: {fileID: 1424480567196253574}
   - component: {fileID: 6490195070625792657}
+  - component: {fileID: 8804982349742167727}
   m_Layer: 0
   m_Name: BaselineEnemy
   m_TagString: Untagged
@@ -90,3 +91,15 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &8804982349742167727
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1315318972077630844}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f94a8050c2c947c4eb8fd655d343fa2e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Workshop.Runtime::Workshop.EnemyAuthoring
