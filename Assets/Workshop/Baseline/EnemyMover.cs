@@ -1,7 +1,49 @@
+using Unity.Burst;
+using Unity.Collections;
+using Unity.Jobs;
+using Unity.Mathematics;
+using Unity.Profiling;
 using UnityEngine;
 
 namespace Workshop
 {
+    [BurstCompile]
+    public struct MoveJob : IJob
+    {
+        public NativeArray<float3> Positions;
+        public NativeArray<float3> RespawnOffsets;
+        public NativeArray<float> Speeds;
+        public NativeArray<int> Hits;
+
+        public float3 Target;
+        public float DeltaTime;
+        public float HitRadiusSq;
+        public float2 ArenaMin;
+        public float2 ArenaMax;
+
+        public void Execute()
+        {
+            for (var i = 0; i < Positions.Length; i++)
+            {
+                var dir = Target - Positions[i];
+                dir.y = 0f;
+
+                if (math.lengthsq(dir) < HitRadiusSq)
+                {
+                    var respawnPoint = Target + RespawnOffsets[i];
+                    Positions[i] = new float3(
+                        math.clamp(respawnPoint.x, ArenaMin.x, ArenaMax.x),
+                        respawnPoint.y,
+                        math.clamp(respawnPoint.z, ArenaMin.y, ArenaMax.y));
+                    Hits[0]++;
+                    continue;
+                }
+
+                Positions[i] += math.normalize(dir) * (Speeds[i] * DeltaTime);
+            }
+        }
+    }
+
     /// <summary>
     /// LAB 1, the file the room edits, and the only enemy code in the scene. Every enemy is a
     /// GameObject, so this walks a Transform[] and moves each one toward the player on the main
@@ -39,25 +81,43 @@ namespace Workshop
         [SerializeField] private int _seed = 1;
 
         private Transform[] _enemies;
-        private Vector3[] _respawnOffsets;
-        private float[] _speeds;
+        private NativeArray<float3> _respawnOffsets;
+        private NativeArray<float> _speeds;
+        private NativeArray<float3> _positions;
+        private NativeArray<int> _hits;
+
+        private static readonly ProfilerMarker CopyIn = new("EnemyMover.CopyIn");
+        private static readonly ProfilerMarker CopyOut = new("EnemyMover.CopyOut");
 
         private void Start()
         {
             _enemies = _spawner.Spawn();
+            var n = _enemies.Length;
 
             // Each enemy's spot on the ring, held as an offset from the player rather than a world
             // point, so it comes back in from off screen however far the player has walked.
-            _respawnOffsets = new Vector3[_enemies.Length];
-            _speeds = new float[_enemies.Length];
+            _respawnOffsets = new NativeArray<float3>(n, Allocator.Persistent);
+            _speeds = new NativeArray<float>(n, Allocator.Persistent);
+            _positions = new NativeArray<float3>(n, Allocator.Persistent);
+            _hits = new NativeArray<int>(1, Allocator.Persistent);
+
             var random = new System.Random(_seed);
             var origin = _player.position;
 
-            for (var i = 0; i < _enemies.Length; i++)
+            for (var i = 0; i < n; i++)
             {
-                _respawnOffsets[i] = _enemies[i].position - origin;
+                _respawnOffsets[i] = (float3)(_enemies[i].position - origin);
                 _speeds[i] = _speed * (1f + _speedSpread * (2f * (float)random.NextDouble() - 1f));
             }
+        }
+
+        private void OnDestroy()
+        {
+            // A NativeArray is not garbage collected.
+            if (_respawnOffsets.IsCreated) _respawnOffsets.Dispose();
+            if (_speeds.IsCreated) _speeds.Dispose();
+            if (_positions.IsCreated) _positions.Dispose();
+            if (_hits.IsCreated) _hits.Dispose();
         }
 
         private void Update()
@@ -67,27 +127,31 @@ namespace Workshop
             var target = _player.position;
             var dt = Time.deltaTime;
             var hitSq = _hitRadius * _hitRadius;
-            var hits = 0;
 
-            for (var i = 0; i < _enemies.Length; i++)
+            _hits[0] = 0;
+
+            using (CopyIn.Auto())
+                for (var i = 0; i < _enemies.Length; i++)
+                    _positions[i] = _enemies[i].position;
+
+            new MoveJob
             {
-                var dir = target - _enemies[i].position;
-                dir.y = 0f;
+                Positions = _positions,
+                RespawnOffsets = _respawnOffsets,
+                Speeds = _speeds,
+                Hits = _hits,
+                Target = target,
+                DeltaTime = dt,
+                HitRadiusSq = hitSq,
+                ArenaMin = _arena.Min,
+                ArenaMax = _arena.Max
+            }.Schedule().Complete();
 
-                if (dir.sqrMagnitude < hitSq)
-                {
-                    // Clamped, or a cornered player would send them back outside the arena.
-                    var respawnPoint = target + _respawnOffsets[i];
-                    _enemies[i].position = new Vector3(
-                        Mathf.Clamp(respawnPoint.x, _arena.Min.x, _arena.Max.x),
-                        respawnPoint.y,
-                        Mathf.Clamp(respawnPoint.z, _arena.Min.y, _arena.Max.y));
-                    hits++;
-                    continue;
-                }
+            using (CopyOut.Auto())
+                for (var i = 0; i < _enemies.Length; i++)
+                    _enemies[i].position = _positions[i];
 
-                _enemies[i].position += dir.normalized * (_speeds[i] * dt);
-            }
+            var hits = _hits[0];
 
             // Once a frame with the total, not once per enemy: a job can count into an int the
             // same way, and nothing in the loop has to touch another component.
