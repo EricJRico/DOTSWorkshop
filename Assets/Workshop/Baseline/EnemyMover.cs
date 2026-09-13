@@ -2,18 +2,17 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
-using Unity.Profiling;
 using UnityEngine;
+using UnityEngine.Jobs;
 
 namespace Workshop
 {
     [BurstCompile]
-    public struct MoveJob : IJob
+    public struct MoveJob : IJobParallelForTransform
     {
-        public NativeArray<float3> Positions;
         public NativeArray<float3> RespawnOffsets;
         public NativeArray<float> Speeds;
-        public NativeArray<int> Hits;
+        public NativeArray<int> Hit;
 
         public float3 Target;
         public float DeltaTime;
@@ -21,33 +20,34 @@ namespace Workshop
         public float2 ArenaMin;
         public float2 ArenaMax;
 
-        public void Execute()
+        public void Execute(int i, TransformAccess transform)
         {
-            for (var i = 0; i < Positions.Length; i++)
+            float3 position = transform.position;
+
+            var dir = Target - position;
+            dir.y = 0f;
+            Hit[i] = 0;
+
+            if (math.lengthsq(dir) < HitRadiusSq)
             {
-                var dir = Target - Positions[i];
-                dir.y = 0f;
-
-                if (math.lengthsq(dir) < HitRadiusSq)
-                {
-                    var respawnPoint = Target + RespawnOffsets[i];
-                    Positions[i] = new float3(
-                        math.clamp(respawnPoint.x, ArenaMin.x, ArenaMax.x),
-                        respawnPoint.y,
-                        math.clamp(respawnPoint.z, ArenaMin.y, ArenaMax.y));
-                    Hits[0]++;
-                    continue;
-                }
-
-                Positions[i] += math.normalize(dir) * (Speeds[i] * DeltaTime);
+                var respawnPoint = Target + RespawnOffsets[i];
+                position = new float3(
+                    math.clamp(respawnPoint.x, ArenaMin.x, ArenaMax.x),
+                    respawnPoint.y,
+                    math.clamp(respawnPoint.z, ArenaMin.y, ArenaMax.y));
+                Hit[i] = 1;
+                transform.position = position;
+                return;
             }
+
+            position += math.normalize(dir) * (Speeds[i] * DeltaTime);
+            transform.position = position;
         }
     }
 
     /// <summary>
     /// LAB 1, the file the room edits, and the only enemy code in the scene. Every enemy is a
-    /// GameObject, so this walks a Transform[] and moves each one toward the player on the main
-    /// thread.
+    /// GameObject, so the job is handed the Transforms and moves them on the worker threads.
     ///
     /// An enemy that reaches the player hits it and dies doing it, which sends it back to the ring
     /// it came from. Without that the whole crowd ends up standing inside itself on top of the
@@ -81,13 +81,10 @@ namespace Workshop
         [SerializeField] private int _seed = 1;
 
         private Transform[] _enemies;
+        private TransformAccessArray _access;
         private NativeArray<float3> _respawnOffsets;
         private NativeArray<float> _speeds;
-        private NativeArray<float3> _positions;
-        private NativeArray<int> _hits;
-
-        private static readonly ProfilerMarker CopyIn = new("EnemyMover.CopyIn");
-        private static readonly ProfilerMarker CopyOut = new("EnemyMover.CopyOut");
+        private NativeArray<int> _hit;
 
         private void Start()
         {
@@ -96,10 +93,10 @@ namespace Workshop
 
             // Each enemy's spot on the ring, held as an offset from the player rather than a world
             // point, so it comes back in from off screen however far the player has walked.
+            _access = new TransformAccessArray(_enemies);
             _respawnOffsets = new NativeArray<float3>(n, Allocator.Persistent);
             _speeds = new NativeArray<float>(n, Allocator.Persistent);
-            _positions = new NativeArray<float3>(n, Allocator.Persistent);
-            _hits = new NativeArray<int>(1, Allocator.Persistent);
+            _hit = new NativeArray<int>(n, Allocator.Persistent);
 
             var random = new System.Random(_seed);
             var origin = _player.position;
@@ -114,10 +111,10 @@ namespace Workshop
         private void OnDestroy()
         {
             // A NativeArray is not garbage collected.
+            if (_access.isCreated) _access.Dispose();
             if (_respawnOffsets.IsCreated) _respawnOffsets.Dispose();
             if (_speeds.IsCreated) _speeds.Dispose();
-            if (_positions.IsCreated) _positions.Dispose();
-            if (_hits.IsCreated) _hits.Dispose();
+            if (_hit.IsCreated) _hit.Dispose();
         }
 
         private void Update()
@@ -128,30 +125,20 @@ namespace Workshop
             var dt = Time.deltaTime;
             var hitSq = _hitRadius * _hitRadius;
 
-            _hits[0] = 0;
-
-            using (CopyIn.Auto())
-                for (var i = 0; i < _enemies.Length; i++)
-                    _positions[i] = _enemies[i].position;
-
             new MoveJob
             {
-                Positions = _positions,
                 RespawnOffsets = _respawnOffsets,
                 Speeds = _speeds,
-                Hits = _hits,
+                Hit = _hit,
                 Target = target,
                 DeltaTime = dt,
                 HitRadiusSq = hitSq,
                 ArenaMin = _arena.Min,
                 ArenaMax = _arena.Max
-            }.Schedule().Complete();
+            }.Schedule(_access).Complete();
 
-            using (CopyOut.Auto())
-                for (var i = 0; i < _enemies.Length; i++)
-                    _enemies[i].position = _positions[i];
-
-            var hits = _hits[0];
+            var hits = 0;
+            for (var i = 0; i < _hit.Length; i++) hits += _hit[i];
 
             // Once a frame with the total, not once per enemy: a job can count into an int the
             // same way, and nothing in the loop has to touch another component.
