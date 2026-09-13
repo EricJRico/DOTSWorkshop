@@ -974,7 +974,7 @@
     <div class="rule"></div>
     <div class="card-code"><span class="ln lit">git stash</span><span class="ln lit">git checkout checkpoint-2</span></div>
     <div class="card-foot">
-      <div class="see">You should see: block A finished, exactly as you typed it. Nothing to import.</div>
+      <div class="see">You should see: the jobs work finished, exactly as you typed it. Nothing to import.</div>
       <div class="meta">10 min break · checkpoint-2</div>
     </div>
   </div>
@@ -1039,8 +1039,8 @@
 
      Archetype and chunk are the two words a beginner read once and never
      used. The answer is not to drop them - chunk is the only thing in the
-     day that says why entities are faster than what they measured this
-     morning. Slide 39 makes that the claim, against the 0.78 ms on slide
+     day that says why entities are faster than what they measured in
+     block A. Slide 39 makes that the claim, against the 0.78 ms on slide
      25, and the Names clauses say what each word decides rather than what
      it is.
 
@@ -1377,7 +1377,7 @@
 
 <!-- =====================================================================
      42 · DIAGRAM · why any of this is faster
-     The one slide in block B that answers the morning. On slide 25 they
+     The one slide in block B that answers block A. On slide 25 they
      measured 0.78 ms getting and setting 20,000 Transform.positions and
      were told it will not go lower. This says where that goes.
 
@@ -1487,9 +1487,9 @@
 
 <!-- =====================================================================
      46 · CATCH UP · block B finished
-     The one checkout that replaces a scene the room built: checkpoint-3
-     carries GameObjectBaseline and Workshop_SubScene in the form block C
-     needs, with the spawner and the crowd in them. Say that out loud.
+     checkpoint-3 is what they just built, in canonical form: the
+     authoring component, the prefab carrying it, and the subscene with
+     one enemy in it.
      ===================================================================== -->
 <section data-background-color="#141414">
   <div class="slide do">
@@ -1498,8 +1498,227 @@
     <div class="rule"></div>
     <div class="card-code"><span class="ln lit">git stash</span><span class="ln lit">git checkout checkpoint-3</span></div>
     <div class="card-foot">
-      <div class="see">You should see: your scene and subscene replaced, with the spawner in them.</div>
+      <div class="see">You should see: EnemyAuthoring, the prefab carrying it, and one enemy in the subscene.</div>
       <div class="meta">checkpoint-3</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     BLOCK C · SYSTEMS · 30 min · ends at checkpoint-4
+
+     What is on screen when this starts: one enemy, an entity, sitting
+     still. Nothing in the project moves it - block A's EnemyMover was
+     deleted on slide 29 and nothing replaced it. That absence is the
+     block's reason to exist.
+
+     Everything below was run on this project before it was written.
+     MoveSystem.cs as typed compiles clean and moves the enemy: its z went
+     0 to -197.6 over a play session at the prefab's authored speed.
+
+     One thing the plan asked for is not here. Its C2 removes
+     .WithAll<EnemyTag>() so "the player drifts with the swarm" - but the
+     world holds exactly one entity with LocalTransform, so removing the
+     filter changes nothing anyone can see. The you-do is .WithNone
+     instead, which with one enemy has a result: it stops.
+     ===================================================================== -->
+
+<!-- =====================================================================
+     47 · BEAT · C1 we-do — the whole system
+     No slide about partial. The plan staged a mistake here - leave the
+     keyword out, press Play, read the compile error - but the IDE flags
+     EA0007 on the squiggle before anyone reaches the compiler, and its
+     message already names the generator and the fix. The word is on the
+     card and the instructor says the rest.
+
+     Verified on this project: this file compiles with zero errors and the
+     entity's z goes from 0 to -197.6 across a play session. The camera is
+     top-down with up = +Z, so -Z reads as down the screen.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide do">
+    <div class="form">Together · live coding</div>
+    <h2>A system is a struct with an OnUpdate</h2>
+    <div class="rule"></div>
+    <div class="file">Assets/Workshop/Systems/MoveSystem.cs &mdash; new folder, new file</div>
+    <div class="body">
+      <div class="card-code xs"><span class="ln lit">using Unity.Burst;</span><span class="ln lit">using Unity.Entities;</span><span class="ln lit">using Unity.Mathematics;</span><span class="ln lit">using Unity.Transforms;</span><span class="ln lit"> </span><span class="ln lit">namespace Workshop</span><span class="ln lit">{</span><span class="ln lit">    [BurstCompile]</span><span class="ln lit">    public partial struct MoveSystem : ISystem</span><span class="ln lit">    {</span><span class="ln lit">        [BurstCompile]</span><span class="ln lit">        public void OnUpdate(ref SystemState state)</span><span class="ln lit">        {</span><span class="ln lit">            var dt = SystemAPI.Time.DeltaTime;</span><span class="ln lit">            var direction = new float3(0f, 0f, -1f);</span><span class="ln lit"> </span><span class="ln lit">            foreach (var (transform, speed) in</span><span class="ln lit">                     SystemAPI.Query&lt;RefRW&lt;LocalTransform&gt;, RefRO&lt;MoveSpeed&gt;&gt;()</span><span class="ln lit">                              .WithAll&lt;EnemyTag&gt;())</span><span class="ln lit">            {</span><span class="ln lit">                transform.ValueRW.Position += direction * speed.ValueRO.Value * dt;</span><span class="ln lit">            }</span><span class="ln lit">        }</span><span class="ln lit">    }</span><span class="ln lit">}</span></div>
+    </div>
+    <div class="card-foot">
+      <div class="see">You should see: no errors, and on Play the enemy slides down the screen.</div>
+      <div class="meta">10 min · checkpoint-3</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     48 · NAMES · three words
+     Dropped after they have watched one run. Query is defined by what
+     they typed: the three components in the Query line are the whole
+     definition, and the room can point at them.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="form">Nothing to type</div>
+    <h2>Three words for the rest of the day</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="names">
+        <div class="nrow"><span class="word">system</span><span class="clause">code that runs every frame. Nothing calls it; it is found and run for you.</span></div>
+        <div class="nrow"><span class="word">query</span><span class="clause">the rule that decides which entities your loop sees. Components it must have, and ones it must not.</span></div>
+        <div class="nrow"><span class="word">RefRW / RefRO</span><span class="clause">whether the loop may write that component, or only read it</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     49 · EVIDENCE · C1 name
+     The Systems window is the answer to "nothing calls it": Move System
+     is sitting in Unity's own tree of groups, under Update, among systems
+     nobody in the room wrote. Its Namespace column says Workshop, so it
+     is unmistakably theirs.
+
+     The Entity Count column is the better half of this capture - it is
+     the query's result as a number, on screen, which is what slide 50 is
+     about to change.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="form">Nothing to type</div>
+    <h2>Nobody called your system, and it ran anyway</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="shot">
+        <img src="images/move-system.png" alt="The Systems window: Move System listed under Update, inside Simulation System Group and Transform System Group, among Unity's own systems. Its Namespace column reads Workshop and its Entity Count column shows how many entities its query matched.">
+        <div class="path">Window &gt; Entities &gt; Systems</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     50 · CARD · C2 you-do — change the query, change what moves
+     WithNone, not "remove WithAll". The plan's version takes the filter
+     off so the player drifts too, but this world holds one entity with a
+     LocalTransform, so removing the filter changes nothing on screen.
+     WithNone has a result they can see: the enemy stops.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide do">
+    <div class="form">Your turn</div>
+    <h2>Change the query and the loop stops finding it</h2>
+    <div class="rule"></div>
+    <div class="file">MoveSystem.cs &mdash; the Query line</div>
+    <div class="body">
+      <div class="card-code"><span class="ln">            foreach (var (transform, speed) in</span><span class="ln">                     SystemAPI.Query&lt;RefRW&lt;LocalTransform&gt;, RefRO&lt;MoveSpeed&gt;&gt;()</span><span class="ln cut">                              <x>.WithAll&lt;EnemyTag&gt;())</x><span class="note">must have it</span></span><span class="ln lit">                              .WithNone&lt;EnemyTag&gt;())<span class="note">must not have it</span></span></div>
+      <div class="readout">Your Baker put EnemyTag on the only entity that has a MoveSpeed, so excluding the tag empties the set.</div>
+    </div>
+    <div class="card-foot">
+      <div class="see">You should see: Entity Count drops to 0 in the Systems window, and the enemy stops. Put WithAll back and watch both come back.</div>
+      <div class="meta">7 min · checkpoint-3</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     51 · DIAGRAM · what a query actually walks
+     Drawn on top of slide 43's chunk, so the picture the room already has
+     is the picture a query lands on: the set of components picks the
+     archetypes, the archetypes hand over their chunks, and the loop runs
+     down the arrays inside.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="form">Nothing to type</div>
+    <h2>A query picks archetypes, then walks their chunks</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="bake">
+        <div class="bakelane inside">
+          <div class="where">Your Query line</div>
+          <div class="thing">LocalTransform &middot; MoveSpeed &middot; EnemyTag</div>
+          <div class="step">&darr; &nbsp;<b>matches</b></div>
+          <div class="out">Every archetype holding all three</div>
+        </div>
+        <div class="bakelane inside">
+          <div class="where">Each of those archetypes</div>
+          <div class="thing">its chunks</div>
+          <div class="step">&darr; &nbsp;<b>walks</b></div>
+          <div class="out">The arrays inside</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     52 · DIAGRAM · where this loop is running
+     All three reviewers asked the same thing and the deck had no answer:
+     the room spent block A getting work off the main thread, then wrote a
+     foreach and nobody said where it runs. It runs on the main thread.
+     [BurstCompile] on an ISystem compiles OnUpdate, it does not schedule
+     it - so the attribute they typed twice does not mean here what it
+     meant in block A.
+
+     No number on this slide. Block C moves one enemy, and one enemy has
+     no measurement worth quoting; the comparison is block D's, at a count
+     that can show it.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="form">Nothing to type</div>
+    <h2>Your system runs on the main thread, like Update did</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="bake">
+        <div class="bakelane">
+          <div class="where">The job you wrote</div>
+          <div class="thing">EnemyMover.Update</div>
+          <div class="step">&darr; &nbsp;Schedule</div>
+          <div class="out">the workers</div>
+        </div>
+        <div class="bakelane inside">
+          <div class="where">Your system</div>
+          <div class="thing">MoveSystem.OnUpdate</div>
+          <div class="step">&darr; &nbsp;nothing scheduled it</div>
+          <div class="out same">the main thread</div>
+        </div>
+      </div>
+      <div class="readout">Entities fixed the layout, not the thread. Putting this loop back on the workers is next.</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     53 · MIND MAP · Running code lit
+     Queries and Systems go green. IJobEntity stays dark - block D.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="form">Nothing to type</div>
+    <h2>Everything you touched so far</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <svg class="mindmap" viewBox="0 0 1136 470"
+           data-done="jobs,burst,collections,mathematics,sched,entity,component,archetype,baking"
+           data-now="systems,queries"></svg>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     54 · CATCH UP · block C finished
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide do">
+    <div class="form">Everyone</div>
+    <h2>Take checkpoint-4</h2>
+    <div class="rule"></div>
+    <div class="card-code"><span class="ln lit">git stash</span><span class="ln lit">git checkout checkpoint-4</span></div>
+    <div class="card-foot">
+      <div class="see">You should see: MoveSystem as you wrote it, with WithAll back in.</div>
+      <div class="meta">checkpoint-4</div>
     </div>
   </div>
 </section>
