@@ -9,7 +9,7 @@
 
   <style>
     /* =========================================================
-       DOTS 101 deck, live-coding redesign. Block A.
+       DOTS 101 deck, live-coding redesign.
 
        Slide kinds: Card, Evidence, Diagram, Names, Beat.
        A Beat marks a we-do: it names what the room is about to
@@ -105,6 +105,9 @@
     .card-code.sm { font-size: 0.44em; line-height: 1.66; }
     .card-code.xs { font-size: 0.38em; line-height: 1.5; padding: 0.9em 1.1em; }
     .card-code.xxs { font-size: 0.31em; line-height: 1.38; padding: 0.8em 0.95em; }
+    /* A whole new file, usings and namespace included, is the tallest card the
+       deck has. Only those use this. */
+    .card-code.file-whole { font-size: 0.265em; line-height: 1.32; padding: 0.7em 0.9em; }
     .card-code .ln { display: block; opacity: 0.35; position: relative; }
     .card-code .ln.lit { opacity: 1; color: var(--ink); }
     .card-code .ln.lit::before {
@@ -116,7 +119,7 @@
     .card-code .ln.cut { opacity: 1; color: var(--slow); }
     .card-code .ln.cut x {
       text-decoration: line-through; text-decoration-color: rgba(255,122,102,0.9);
-      /* auto thickness is a hairline the same colour as the text, which reads as
+      /* auto thickness is a hairline the same color as the text, which reads as
          no strike at all from the back of a room. */
       text-decoration-thickness: 1.5px;
     }
@@ -160,7 +163,18 @@
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       text-align: center; gap: 14px; padding: 1.6em 1.4em; overflow: hidden;
     }
-    .shot img { max-width: 100%; max-height: 100%; object-fit: contain; }
+    /* min-height:0 or the image keeps its full height and pushes the paths under it
+       out through the bottom of the card. */
+    .shot img { max-width: 100%; max-height: 100%; min-height: 0; flex: 0 1 auto; object-fit: contain; }
+    /* a tall screenshot: the paths sit beside it, so the picture keeps the card's height
+       instead of being squeezed to a thumbnail by the lines under it. */
+    /* a wide screenshot with no lines under it: the frame and its padding cost more
+       height than they are worth, and height is what sets this picture's size. */
+    .shot.bleed { border: none; background: none; padding: 0; gap: 0; }
+    .shot.bleed + .readout { margin-top: 14px; }
+    .shot.side { flex-direction: row; gap: 1.6em; justify-content: flex-start; }
+    .shot.side img { max-height: 100%; width: auto; }
+    .shot.side .paths { display: flex; flex-direction: column; gap: 0.7em; text-align: left; flex: 1; min-width: 0; }
     .shot .tag { color: var(--accent); font-size: 0.44em; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; }
     .shot .path { color: var(--ink); font-family: var(--mono); font-size: 0.62em; }
     .shot .what { color: var(--muted); font-size: 0.52em; line-height: 1.45; max-width: 70%; }
@@ -307,6 +321,8 @@
        ========================================================= */
     .names { display: flex; flex-direction: column; gap: 1.15em; width: 100%; }
     .names .nrow { display: grid; grid-template-columns: 8em 1fr; align-items: baseline; gap: 2.2em; }
+    /* for rows whose word is a whole parameter, not a single term */
+    .names.wide .nrow { grid-template-columns: 13em 1fr; }
     .names .word { color: var(--accent); font-family: var(--mono); font-size: 0.78em; font-weight: 700; }
     .names .clause { color: var(--body); font-size: 0.72em; line-height: 1.4; }
 
@@ -317,6 +333,8 @@
     .ba .lbl { font-size: 0.42em; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
     .ba .col.after .lbl { color: var(--fast); }
     .ba .card-code { font-size: 0.25em; line-height: 1.34; padding: 0.7em 0.85em; }
+    /* two files side by side, a dozen lines each — big enough to read from the back */
+    .ba .card-code.two-file { font-size: 0.36em; line-height: 1.5; padding: 0.85em 1em; }
     .file { color: var(--ink); font-family: var(--mono); font-size: 0.46em; margin-bottom: 18px; }
 
     /* --- code with a reference rail: what each swapped line used to be --- */
@@ -488,7 +506,7 @@
     <div class="rule"></div>
     <div class="file">EnemyMover.cs &mdash; inside namespace Workshop, above the /// comment on the class</div>
     <div class="body">
-      <div class="card-code xxs"><span class="ln lit">using Unity.Collections;</span><span class="ln lit">using Unity.Jobs;</span><span class="ln lit">using Unity.Mathematics;</span><span class="ln lit">using Unity.Profiling;</span><span class="ln">using UnityEngine;<span class="note">already there, now last</span></span><span class="ln"> </span><span class="ln">namespace Workshop</span><span class="ln">{</span><span class="ln lit">    public struct MoveJob : IJob<span class="note">one job, one Execute</span></span><span class="ln lit">{</span><span class="ln lit">    public void Execute()</span><span class="ln lit">    {</span><span class="ln lit">        for (var i = 0; i &lt; <span class="err">_enemies</span>.Length; i++)<span class="note">pasted, not retyped</span></span><span class="ln lit">        {</span><span class="ln lit">            var dir = <span class="err">target</span> - <span class="err">_enemies</span>[i].position;</span><span class="ln lit">            dir.y = 0f;</span><span class="ln lit"> </span><span class="ln lit">            if (dir.sqrMagnitude &lt; <span class="err">hitSq</span>)</span><span class="ln lit">            {</span><span class="ln lit">                var respawnPoint = <span class="err">target</span> + <span class="err">_respawnOffsets</span>[i];</span><span class="ln lit">                <span class="err">_enemies</span>[i].position = new Vector3(</span><span class="ln lit">                    Mathf.Clamp(respawnPoint.x, <span class="err">_arena</span>.Min.x, <span class="err">_arena</span>.Max.x),</span><span class="ln lit">                    respawnPoint.y,</span><span class="ln lit">                    Mathf.Clamp(respawnPoint.z, <span class="err">_arena</span>.Min.y, <span class="err">_arena</span>.Max.y));</span><span class="ln lit">                <span class="err">hits</span>++;</span><span class="ln lit">                continue;</span><span class="ln lit">            }</span><span class="ln lit"> </span><span class="ln lit">            <span class="err">_enemies</span>[i].position += dir.normalized * (<span class="err">_speeds</span>[i] * <span class="err">dt</span>);</span><span class="ln lit">        }</span><span class="ln lit">    }</span><span class="ln lit">}</span><span class="ln"> </span><span class="ln">    /// &lt;summary&gt; … &lt;/summary&gt;<span class="note">the class, unchanged. Its Update keeps the loop until slide 11.</span></span><span class="ln">    public class EnemyMover : MonoBehaviour</span></div>
+      <div class="card-code xxs file-whole"><span class="ln lit">using Unity.Collections;</span><span class="ln lit">using Unity.Jobs;</span><span class="ln lit">using Unity.Mathematics;</span><span class="ln lit">using Unity.Profiling;</span><span class="ln">using UnityEngine;<span class="note">already there, now last</span></span><span class="ln"> </span><span class="ln">namespace Workshop</span><span class="ln">{</span><span class="ln lit">    public struct MoveJob : IJob<span class="note">one job, one Execute</span></span><span class="ln lit">{</span><span class="ln lit">    public void Execute()</span><span class="ln lit">    {</span><span class="ln lit">        for (var i = 0; i &lt; <span class="err">_enemies</span>.Length; i++)<span class="note">pasted, not retyped</span></span><span class="ln lit">        {</span><span class="ln lit">            var dir = <span class="err">target</span> - <span class="err">_enemies</span>[i].position;</span><span class="ln lit">            dir.y = 0f;</span><span class="ln lit"> </span><span class="ln lit">            if (dir.sqrMagnitude &lt; <span class="err">hitSq</span>)</span><span class="ln lit">            {</span><span class="ln lit">                var respawnPoint = <span class="err">target</span> + <span class="err">_respawnOffsets</span>[i];</span><span class="ln lit">                <span class="err">_enemies</span>[i].position = new Vector3(</span><span class="ln lit">                    Mathf.Clamp(respawnPoint.x, <span class="err">_arena</span>.Min.x, <span class="err">_arena</span>.Max.x),</span><span class="ln lit">                    respawnPoint.y,</span><span class="ln lit">                    Mathf.Clamp(respawnPoint.z, <span class="err">_arena</span>.Min.y, <span class="err">_arena</span>.Max.y));</span><span class="ln lit">                <span class="err">hits</span>++;</span><span class="ln lit">                continue;</span><span class="ln lit">            }</span><span class="ln lit"> </span><span class="ln lit">            <span class="err">_enemies</span>[i].position += dir.normalized * (<span class="err">_speeds</span>[i] * <span class="err">dt</span>);</span><span class="ln lit">        }</span><span class="ln lit">    }</span><span class="ln lit">}</span><span class="ln"> </span><span class="ln">    /// &lt;summary&gt; … &lt;/summary&gt;<span class="note">the class, unchanged. Its Update keeps the loop until slide 11.</span></span><span class="ln">    public class EnemyMover : MonoBehaviour</span></div>
     </div>
     <div class="card-foot">
       <div class="see">You should see: red under every name the loop reads. That is the field list.</div>
@@ -729,7 +747,7 @@
      ===================================================================== -->
 <section data-background-color="#141414">
   <div class="slide do">
-    <div class="form">Together · live coding · 1 of 3</div>
+    <div class="form">Together · live coding · 1 of 5</div>
     <h2>The job takes the Transform instead of a copy of it</h2>
     <div class="rule"></div>
     <div class="file">EnemyMover.cs &mdash; the usings and the top of MoveJob</div>
@@ -750,7 +768,7 @@
      ===================================================================== -->
 <section data-background-color="#141414">
   <div class="slide do">
-    <div class="form">Together · live coding · 2 of 3</div>
+    <div class="form">Together · live coding · 2 of 5</div>
     <h2>One Execute per transform, so the for loop goes</h2>
     <div class="rule"></div>
     <div class="file">EnemyMover.cs &mdash; inside MoveJob. The whole body shifts left one level.</div>
@@ -936,7 +954,7 @@
 
 <!-- =====================================================================
      25 · EVIDENCE · the floor
-     The end of block A, and the reason block B exists. Every number here
+     The end of checkpoint-0 to 2, and the reason checkpoint-2 to 3 exists. Every number here
      is measured: docs/enemy-cost-investigation.md. 0.86 ms is not the
      loop and not the copies, it is Transform.position, an extern native
      call Burst cannot inline, plus one job range per root hierarchy.
@@ -960,9 +978,9 @@
 </section>
 
 <!-- =====================================================================
-     26 · CATCH UP · block A finished
-     The last stop before the entities half. Everyone starts block B from
-     the same file, because block B's first act is Save As on this scene.
+     26 · CATCH UP · the jobs work is finished
+     The last stop before the entities half. Everyone starts checkpoint-2 to 3 from
+     the same file, because checkpoint-2 to 3's first act is Save As on this scene.
      Nothing new arrives on this branch: Entities and Entities Graphics
      have been in manifest.json all day and Workshop.Runtime.asmdef
      already references them. The room builds the entities scene itself.
@@ -1025,7 +1043,7 @@
 </section>
 
 <!-- =====================================================================
-     BLOCK B · ENTITIES EXIST · 35 min · ends at checkpoint-3
+     ENTITIES EXIST · 35 min · checkpoint-2 to checkpoint-3
 
      Nothing is handed over at the break. Entities and Entities Graphics
      have been in manifest.json since checkpoint-0 and Workshop.Runtime
@@ -1035,12 +1053,12 @@
      One enemy, not twenty thousand: the Entities Inspector and the
      Archetypes window are unreadable at 20,000, and archetype has to be
      read off a real window rather than asserted. The crowd comes back on
-     checkpoint-3, where block C measures it.
+     checkpoint-3, where checkpoint-3 to 4 measures it.
 
      Archetype and chunk are the two words a beginner read once and never
      used. The answer is not to drop them - chunk is the only thing in the
      day that says why entities are faster than what they measured in
-     block A. Slide 39 makes that the claim, against the 0.78 ms on slide
+     checkpoint-0 to 2. Slide 39 makes that the claim, against the 0.78 ms on slide
      25, and the Names clauses say what each word decides rather than what
      it is.
 
@@ -1114,6 +1132,7 @@
       <div class="shot">
         <img src="images/baselineenemy-subscene.png" alt="BaselineEnemy dragged from Assets > Workshop > Art onto Workshop_SubScene in the Hierarchy, where it now sits as the subscene's only child.">
         <div class="path">Assets &gt; Workshop &gt; Art &gt; BaselineEnemy &rarr; onto Workshop_SubScene</div>
+        <div class="path">then set its Scale to 1, so one enemy is big enough to watch</div>
       </div>
     </div>
     <div class="card-foot">
@@ -1125,7 +1144,7 @@
 
 <!-- =====================================================================
      32 · CARD · action · B0 · 4 of 4
-     The moment the block turns on. Close first: while the subscene is
+     The moment it turns on. Close first: while the subscene is
      open the Entities Hierarchy still lists the authoring GameObject, so
      nothing has changed yet. Closed, the same enemy is an entity, and the
      Inspector's Runtime tab is where its components are.
@@ -1361,7 +1380,7 @@
      showed the window move it. Same event, drawn.
 
      The gap the entity leaves is filled by the last entity in the chunk,
-     and that is true here - but it is block E's lesson, so it is not
+     and that is true here - but it is checkpoint-5 to 6's lesson, so it is not
      drawn and not said.
      ===================================================================== -->
 <section data-background-color="#141414">
@@ -1377,18 +1396,18 @@
 
 <!-- =====================================================================
      42 · DIAGRAM · why any of this is faster
-     The one slide in block B that answers block A. On slide 25 they
+     The one slide in checkpoint-2 to 3 that answers checkpoint-0 to 2. On slide 25 they
      measured 0.78 ms getting and setting 20,000 Transform.positions and
      were told it will not go lower. This says where that goes.
 
      Ported from deck-v1-lecture.html's viz-layout: the same read walked
      twice, so the only thing to compare is the shape of the walk. Only
-     Position is coloured - the room's block A code already kept speeds in
-     a NativeArray, so colouring a speed here would draw something that
+     Position is colored - the room's checkpoint-0 to 2 code already kept speeds in
+     a NativeArray, so coloring a speed here would draw something that
      was never scattered.
 
      0.78 ms is the measured number from slide 25. No number is claimed
-     for the chunk side; block C measures that on this machine.
+     for the chunk side; checkpoint-3 to 4 measures that on this machine.
      ===================================================================== -->
 <section data-background-color="#141414">
   <div class="slide">
@@ -1406,7 +1425,7 @@
      Slide 40 shows two shapes and asserts one is dearer. This is the
      reason: a read never fetches one value, it hauls back a run of
      neighbours. Packed, those neighbours are the next reads. Scattered,
-     they are junk. Without it the block ends on a conclusion the room has
+     they are junk. Without it this stretch ends on a conclusion the room has
      been shown rather than given.
 
      The hardware strip and the trips animation are one slide, not two.
@@ -1419,7 +1438,7 @@
      the slide on purpose: the count of trips is the point, and the word
      has had no we-do.
 
-     The 100x is the only number in block B not measured on the presenting
+     The 100x is the only number in checkpoint-2 to 3 not measured on the presenting
      machine. It is the standard order of magnitude for a main-memory miss
      against an L1 hit, hedged to "about" and carried by the distance in
      the picture rather than quoted as this machine's result.
@@ -1486,7 +1505,7 @@
 </section>
 
 <!-- =====================================================================
-     46 · CATCH UP · block B finished
+     46 · CATCH UP · the entities work is finished
      checkpoint-3 is what they just built, in canonical form: the
      authoring component, the prefab carrying it, and the subscene with
      one enemy in it.
@@ -1505,12 +1524,12 @@
 </section>
 
 <!-- =====================================================================
-     BLOCK C · SYSTEMS · 30 min · ends at checkpoint-4
+     SYSTEMS · 30 min · checkpoint-3 to checkpoint-4
 
      What is on screen when this starts: one enemy, an entity, sitting
-     still. Nothing in the project moves it - block A's EnemyMover was
+     still. Nothing in the project moves it - checkpoint-0 to 2's EnemyMover was
      deleted on slide 29 and nothing replaced it. That absence is the
-     block's reason to exist.
+     the reason these slides exist.
 
      Everything below was run on this project before it was written.
      MoveSystem.cs as typed compiles clean and moves the enemy: its z went
@@ -1655,14 +1674,14 @@
 <!-- =====================================================================
      52 · DIAGRAM · where this loop is running
      All three reviewers asked the same thing and the deck had no answer:
-     the room spent block A getting work off the main thread, then wrote a
+     the room spent checkpoint-0 to 2 getting work off the main thread, then wrote a
      foreach and nobody said where it runs. It runs on the main thread.
      [BurstCompile] on an ISystem compiles OnUpdate, it does not schedule
      it - so the attribute they typed twice does not mean here what it
-     meant in block A.
+     meant in checkpoint-0 to 2.
 
-     No number on this slide. Block C moves one enemy, and one enemy has
-     no measurement worth quoting; the comparison is block D's, at a count
+     No number on this slide. Checkpoint-3 to 4 moves one enemy, and one enemy has
+     no measurement worth quoting; the comparison is checkpoint-4 to 5's, at a count
      that can show it.
      ===================================================================== -->
 <section data-background-color="#141414">
@@ -1692,7 +1711,7 @@
 
 <!-- =====================================================================
      53 · MIND MAP · Running code lit
-     Queries and Systems go green. IJobEntity stays dark - block D.
+     Queries and Systems go green. IJobEntity stays dark - checkpoint-4 to 5.
      ===================================================================== -->
 <section data-background-color="#141414">
   <div class="slide">
@@ -1708,7 +1727,7 @@
 </section>
 
 <!-- =====================================================================
-     54 · CATCH UP · block C finished
+     54 · CATCH UP · the systems work is finished
      ===================================================================== -->
 <section data-background-color="#141414">
   <div class="slide do">
@@ -1717,8 +1736,631 @@
     <div class="rule"></div>
     <div class="card-code"><span class="ln lit">git stash</span><span class="ln lit">git checkout checkpoint-4</span></div>
     <div class="card-foot">
-      <div class="see">You should see: MoveSystem as you wrote it, with WithAll back in.</div>
+      <div class="see">You should see: MoveSystem as you wrote it, moving the one enemy.</div>
       <div class="meta">checkpoint-4</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     JOBS AGAIN · 45 min · checkpoint-4 to checkpoint-5
+
+     Rewritten 2026-09-13, twice. The first version opened with the
+     foreach becoming a job over a crowd, and a crowd had never been
+     built - the spawner and the player bridge were going to arrive in a
+     checkout. Nothing arrives that the room did not make, so both are
+     we-dos, and the crowd comes first because a parallel job over one
+     entity is one worker doing everything.
+
+     The second rewrite is plan 0b: the crowd these slides built was not
+     checkpoint-0's crowd. One color, three times the size, one speed, and
+     a job that chased without hitting, respawning or clamping, so after
+     twenty seconds every enemy stood inside the player and stayed there.
+     The entities half rebuilds the same game, behaviour for behaviour,
+     and it is built up a step at a time: every step the room performs is
+     one slide with one visible result.
+
+     Order: the spawner, then the crowd made right - size, height, color,
+     speed - then measure the foreach, then jobify, then hand the job the
+     player, then hit and respawn. Nothing says "crowd" before 55.
+
+     No number is printed on any slide here until it is measured on the
+     presenting machine at the count that ships.
+     ===================================================================== -->
+
+<!-- =====================================================================
+     55 · BEAT · D0.1 we-do — something that says how many
+     Three fields and a Baker. The height, the spread, the hit radius and
+     the arena asset are not here: each one arrives on the slide that
+     needs it, so no field sits unread for twenty minutes.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide do">
+    <div class="form">Together · live coding · 1 of 7</div>
+    <h2>One entity holds the prefab and how many you want</h2>
+    <div class="rule"></div>
+    <div class="file">Assets/Workshop/Authoring/SpawnerAuthoring.cs &mdash; new file</div>
+    <div class="body">
+      <div class="card-code xxs file-whole"><span class="ln lit">using Unity.Entities;</span><span class="ln lit">using UnityEngine;</span><span class="ln lit"> </span><span class="ln lit">namespace Workshop</span><span class="ln lit">{</span><span class="ln lit">    public class SpawnerAuthoring : MonoBehaviour</span><span class="ln lit">    {</span><span class="ln lit">        [SerializeField] private GameObject _enemyPrefab;</span><span class="ln lit">        [SerializeField] private int _count = 20000;</span><span class="ln lit">        [SerializeField] private float _radius = 55f;</span><span class="ln lit"> </span><span class="ln lit">        private class Baker : Baker&lt;SpawnerAuthoring&gt;</span><span class="ln lit">        {</span><span class="ln lit">            public override void Bake(SpawnerAuthoring authoring)</span><span class="ln lit">            {</span><span class="ln lit">                var entity = GetEntity(TransformUsageFlags.None);<span class="note">None: it never moves</span></span><span class="ln lit"> </span><span class="ln lit">                AddComponent(entity, new EnemyPrefab</span><span class="ln lit">                {</span><span class="ln lit">                    Value = GetEntity(authoring._enemyPrefab, TransformUsageFlags.Dynamic)</span><span class="ln lit">                });</span><span class="ln lit">                AddComponent(entity, new SpawnSettings</span><span class="ln lit">                {</span><span class="ln lit">                    Count = authoring._count,</span><span class="ln lit">                    Radius = authoring._radius</span><span class="ln lit">                });</span><span class="ln lit">            }</span><span class="ln lit">        }</span><span class="ln lit">    }</span><span class="ln lit"> </span><span class="ln lit">    public struct EnemyPrefab : IComponentData { public Entity Value; }</span><span class="ln lit"> </span><span class="ln lit">    public struct SpawnSettings : IComponentData</span><span class="ln lit">    {</span><span class="ln lit">        public int Count;</span><span class="ln lit">        public float Radius;</span><span class="ln lit">    }</span><span class="ln lit">}</span></div>
+    </div>
+    <div class="card-foot">
+      <div class="see">You should see: it compiles. Nothing new on screen yet.</div>
+      <div class="meta">13 min · checkpoint-4</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     56 · CARD · action · D0.2 we-do — put it in the subscene
+     An empty GameObject, the component on it, the prefab in its field.
+     Same two moves as the enemy: make the container, put something in it.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide do">
+    <div class="form">Together · 2 of 7</div>
+    <h2>Put a Spawner in the subscene</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="shot side">
+        <img src="images/spawner-subscene.png" alt="A Spawner GameObject under Workshop_SubScene in the Hierarchy, its Spawner Authoring component in the Inspector with BaselineEnemy dragged from Assets &gt; Workshop &gt; Art into the Enemy Prefab field, Count 20000 and Radius 55; the Entity Baking Preview lists Workshop.EnemyPrefab and Workshop.SpawnSettings on Spawner (Entity).">
+        <div class="paths">
+          <div class="path">tick Workshop_SubScene in the Hierarchy to open it again</div>
+          <div class="path">right-click Workshop_SubScene &gt; Create Empty &mdash; call it Spawner</div>
+          <div class="path">Add Component &gt; SpawnerAuthoring</div>
+          <div class="path">drag BaselineEnemy into its Enemy Prefab field</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-foot">
+      <div class="see">You should see: nothing yet. Nothing reads those components.</div>
+      <div class="meta">13 min · checkpoint-4</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     57 · BEAT · D0.3 we-do — the system that makes them
+     OnUpdate, not OnStartRunning. ISystemStartStop earns its place when a
+     system stops and starts repeatedly, because OnStartRunning fires
+     again each time the query starts matching (ISystem.cs:92-97). This
+     runs once, so it is ceremony: a second interface and two more methods
+     for something RequireForUpdate plus state.Enabled = false already
+     does, on the one lifecycle method they have met.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide do">
+    <div class="form">Together · live coding · 3 of 7</div>
+    <h2>Make them all once, before any job is running</h2>
+    <div class="rule"></div>
+    <div class="file">Assets/Workshop/Systems/InitialSpawnSystem.cs &mdash; new file</div>
+    <div class="body">
+      <div class="card-code xxs file-whole"><span class="ln lit">using Unity.Collections;<span class="note">Allocator</span></span><span class="ln lit">using Unity.Entities;</span><span class="ln lit">using Unity.Mathematics;<span class="note">math, float3, Random</span></span><span class="ln lit">using Unity.Transforms;<span class="note">LocalTransform</span></span><span class="ln lit"> </span><span class="ln lit">namespace Workshop</span><span class="ln lit">{</span><span class="ln lit">    public partial struct InitialSpawnSystem : ISystem</span><span class="ln lit">    {</span><span class="ln lit">        public void OnCreate(ref SystemState state)</span><span class="ln lit">        {</span><span class="ln lit">            state.RequireForUpdate&lt;SpawnSettings&gt;();<span class="note">do not run until the Spawner is baked</span></span><span class="ln lit">            state.RequireForUpdate&lt;EnemyPrefab&gt;();</span><span class="ln lit">        }</span><span class="ln lit"> </span><span class="ln lit">        public void OnUpdate(ref SystemState state)</span><span class="ln lit">        {</span><span class="ln lit">            var settings = SystemAPI.GetSingleton&lt;SpawnSettings&gt;();</span><span class="ln lit">            var prefab = SystemAPI.GetSingleton&lt;EnemyPrefab&gt;().Value;</span><span class="ln lit"> </span><span class="ln lit">            var spawned = state.EntityManager.Instantiate(</span><span class="ln lit">                prefab, settings.Count, Allocator.Temp);</span><span class="ln lit"> </span><span class="ln lit">            var random = Random.CreateFromIndex(1);</span><span class="ln lit"> </span><span class="ln lit">            for (var i = 0; i &lt; spawned.Length; i++)</span><span class="ln lit">            {</span><span class="ln lit">                var a = random.NextFloat(0f, math.PI * 2f);</span><span class="ln lit">                var r = settings.Radius * math.sqrt(random.NextFloat());<span class="note">one ring, where this morning had six camps</span></span><span class="ln lit">                var position = new float3(math.cos(a) * r, 0f, math.sin(a) * r);</span><span class="ln lit"> </span><span class="ln lit">                state.EntityManager.SetComponentData(</span><span class="ln lit">                    spawned[i], LocalTransform.FromPosition(position));</span><span class="ln lit">            }</span><span class="ln lit"> </span><span class="ln lit">            spawned.Dispose();</span><span class="ln lit"> </span><span class="ln lit">            state.Enabled = false;<span class="note">made once, not every frame</span></span><span class="ln lit">        }</span><span class="ln lit">    }</span><span class="ln lit">}</span></div>
+    </div>
+    <div class="card-foot">
+      <div class="see">You should see: twenty thousand enemies sliding down the screen, three times the size they were this morning.</div>
+      <div class="meta">13 min · checkpoint-4</div>
+    </div>
+  </div>
+</section>
+
+
+<!-- =====================================================================
+     58 · BEAT · D0.4 we-do — the size, and the height while the line is open
+     They have just watched twenty thousand cubes come up ten times too
+     big, and this is why: LocalTransform.FromPosition builds the whole
+     struct, and Scale is part of it, so the prefab's 0.3 became 1.
+     Checked on the asset and in play mode: BaselineEnemy.prefab is scale
+     0.3, and the spawned entities came up at Scale = 1.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide do">
+    <div class="form">Together · live coding · 4 of 7</div>
+    <h2>FromPosition wrote the whole transform, and the scale came with it</h2>
+    <div class="rule"></div>
+    <div class="ba">
+      <div class="col">
+        <div class="lbl">SpawnerAuthoring.cs</div>
+        <div class="card-code two-file"><span class="ln">    [SerializeField] private int _count = 20000;</span><span class="ln">    [SerializeField] private float _radius = 55f;</span><span class="ln lit">    [SerializeField] private float _maxHeight = 1f;</span><span class="ln"> </span><span class="ln">        AddComponent(entity, new SpawnSettings</span><span class="ln">        {</span><span class="ln">            Count = authoring._count,</span><span class="ln">            Radius = authoring._radius,</span><span class="ln lit">            Height = authoring._maxHeight,</span><span class="ln">        });</span><span class="ln"> </span><span class="ln">public struct SpawnSettings : IComponentData</span><span class="ln">{</span><span class="ln">    public int Count;</span><span class="ln">    public float Radius;</span><span class="ln lit">    public float Height;</span><span class="ln">}</span></div>
+      </div>
+      <div class="col">
+        <div class="lbl">InitialSpawnSystem.cs &mdash; OnUpdate</div>
+        <div class="card-code two-file"><span class="ln">    var prefab = SystemAPI.GetSingleton&lt;EnemyPrefab&gt;().Value;</span><span class="ln"> </span><span class="ln lit">    var size = state.EntityManager</span><span class="ln lit">        .GetComponentData&lt;LocalTransform&gt;(prefab).Scale;</span><span class="ln"> </span><span class="ln">        var a = random.NextFloat(0f, math.PI * 2f);</span><span class="ln cut">        <x>var position = new float3(math.cos(a) * r, 0f, math.sin(a) * r);</x></span><span class="ln lit">        var position = new float3(</span><span class="ln lit">            math.cos(a) * r,</span><span class="ln lit">            random.NextFloat(0f, settings.Height),</span><span class="ln lit">            math.sin(a) * r);</span><span class="ln"> </span><span class="ln cut">        <x>state.EntityManager.SetComponentData(</x></span><span class="ln cut">            <x>spawned[i], LocalTransform.FromPosition(position));</x></span><span class="ln lit">        state.EntityManager.SetComponentData(spawned[i],</span><span class="ln lit">            LocalTransform.FromPositionRotationScale(</span><span class="ln lit">                position, quaternion.identity, size));</span></div>
+      </div>
+    </div>
+    <div class="card-foot">
+      <div class="see">You should see: this morning's crowd. The same size, standing at different heights.</div>
+      <div class="meta">13 min · checkpoint-4</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     59 · CARD · action · D0.5 we-do — let the assembly see the package
+     Without this the next slide does not compile: MaterialProperty lives
+     in Unity.Entities.Graphics, and Workshop.Runtime.asmdef does not
+     reference it. Found by compiling the next slide's code:
+     CS0234 The type or namespace name 'Rendering' does not exist in the
+     namespace 'Unity'.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide do">
+    <div class="form">Together · 5 of 7</div>
+    <h2>The color comes from a package this assembly cannot see yet</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="shot">
+        <img src="images/entities-graphics.png" alt="Workshop.Runtime selected in Assets &gt; Workshop, its Assembly Definition Asset inspector open, with Unity.Entities.Graphics added at the bottom of the Assembly Definition References list under Unity.Entities, Unity.Entities.Hybrid, Unity.Transforms, Unity.Collections, Unity.Burst, Unity.Mathematics and Unity.InputSystem.">
+        <div class="path">Assets &gt; Workshop &gt; Workshop.Runtime</div>
+        <div class="path">Inspector &gt; Assembly Definition References &gt; + &gt; Unity.Entities.Graphics</div>
+        <div class="path">Apply</div>
+      </div>
+    </div>
+    <div class="card-foot">
+      <div class="see">You should see: it recompiles, and no errors.</div>
+      <div class="meta">13 min · checkpoint-4</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     60 · BEAT · D0.6 we-do — one of four colors each
+     EnemySpeed.shadergraph declares _Color with overrideHLSLDeclaration
+     and hlslDeclarationOverride 3, which is Hybrid Per Instance, so the
+     same material takes a per-entity color. Checked in the graph file.
+     The GameObject crowd got four material copies; here it is one
+     component, which is the point worth saying out loud.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide do">
+    <div class="form">Together · live coding · 6 of 7</div>
+    <h2>The color is a component the renderer reads, not four materials</h2>
+    <div class="rule"></div>
+    <div class="ba">
+      <div class="col">
+        <div class="lbl">EnemyAuthoring.cs</div>
+        <div class="card-code two-file"><span class="ln">using Unity.Entities;</span><span class="ln lit">using Unity.Mathematics;<span class="note">float4</span></span><span class="ln lit">using Unity.Rendering;<span class="note">MaterialProperty</span></span><span class="ln">using UnityEngine;</span><span class="ln"> </span><span class="ln">        AddComponent(entity, new MoveSpeed{ Value = authoring._moveSpeed });</span><span class="ln lit">        AddComponent(entity, new EnemyColor { Value = new float4(1f, 1f, 1f, 1f) });</span><span class="ln"> </span><span class="ln">public struct MoveSpeed : IComponentData</span><span class="ln">{</span><span class="ln">    public float Value;</span><span class="ln">}</span><span class="ln"> </span><span class="ln lit">[MaterialProperty("_Color")]</span><span class="ln lit">public struct EnemyColor : IComponentData { public float4 Value; }</span></div>
+      </div>
+      <div class="col">
+        <div class="lbl">InitialSpawnSystem.cs</div>
+        <div class="card-code two-file"><span class="ln">public partial struct InitialSpawnSystem : ISystem</span><span class="ln">{</span><span class="ln lit">    private static readonly float4[] Palette =</span><span class="ln lit">    {</span><span class="ln lit">        new float4(0.85f, 0.18f, 0.18f, 1f),</span><span class="ln lit">        new float4(0.95f, 0.45f, 0.12f, 1f),</span><span class="ln lit">        new float4(0.72f, 0.12f, 0.35f, 1f),</span><span class="ln lit">        new float4(0.55f, 0.20f, 0.75f, 1f)</span><span class="ln lit">    };<span class="note">this morning's four colors</span></span><span class="ln"> </span><span class="ln">    public void OnCreate(ref SystemState state)</span><span class="ln"> </span><span class="ln">        state.EntityManager.SetComponentData(spawned[i],</span><span class="ln">            LocalTransform.FromPositionRotationScale(</span><span class="ln">                position, quaternion.identity, size));</span><span class="ln lit">        state.EntityManager.SetComponentData(spawned[i],</span><span class="ln lit">            new EnemyColor { Value = Palette[random.NextInt(Palette.Length)] });</span></div>
+      </div>
+    </div>
+    <div class="card-foot">
+      <div class="see">You should see: four colors in the crowd, the ones from this morning.</div>
+      <div class="meta">13 min · checkpoint-4</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     61 · BEAT · D0.7 we-do — each with its own speed
+     The base speed is read off the prefab, so the number they typed into
+     EnemyAuthoring at checkpoint-3 is still the one driving the crowd.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide do">
+    <div class="form">Together · live coding · 7 of 7</div>
+    <h2>Each one gets its own speed, spread either side of the prefab's</h2>
+    <div class="rule"></div>
+    <div class="ba">
+      <div class="col">
+        <div class="lbl">SpawnerAuthoring.cs</div>
+        <div class="card-code two-file"><span class="ln">    [SerializeField] private float _maxHeight = 1f;</span><span class="ln lit">    [SerializeField] private float _speedSpread = 0.4f;</span><span class="ln"> </span><span class="ln">        AddComponent(entity, new SpawnSettings</span><span class="ln">        {</span><span class="ln">            Count = authoring._count,</span><span class="ln">            Radius = authoring._radius,</span><span class="ln">            Height = authoring._maxHeight,</span><span class="ln lit">            SpeedSpread = authoring._speedSpread,</span><span class="ln">        });</span><span class="ln"> </span><span class="ln">public struct SpawnSettings : IComponentData</span><span class="ln">{</span><span class="ln">    public int Count;</span><span class="ln">    public float Radius;</span><span class="ln">    public float Height;</span><span class="ln lit">    public float SpeedSpread;</span><span class="ln">}</span></div>
+      </div>
+      <div class="col">
+        <div class="lbl">InitialSpawnSystem.cs &mdash; OnUpdate</div>
+        <div class="card-code two-file"><span class="ln">    var size = state.EntityManager</span><span class="ln">        .GetComponentData&lt;LocalTransform&gt;(prefab).Scale;</span><span class="ln lit">    var speed = state.EntityManager</span><span class="ln lit">        .GetComponentData&lt;MoveSpeed&gt;(prefab).Value;<span class="note">the 2.5 you baked at checkpoint-3</span></span><span class="ln"> </span><span class="ln">        state.EntityManager.SetComponentData(spawned[i],</span><span class="ln">            LocalTransform.FromPositionRotationScale(</span><span class="ln">                position, quaternion.identity, size));</span><span class="ln lit">        state.EntityManager.SetComponentData(spawned[i],</span><span class="ln lit">            new MoveSpeed { Value = speed * (1f + settings.SpeedSpread</span><span class="ln lit">                * random.NextFloat(-1f, 1f)) });</span></div>
+      </div>
+    </div>
+    <div class="card-foot">
+      <div class="see">You should see: the crowd spreads out as it slides instead of moving as one block.</div>
+      <div class="meta">13 min · checkpoint-4</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     62 · NAMES · two words they have just typed
+     Show, then do, then name, like every other names slide in the deck.
+     They have just written GetSingleton and EntityManager and watched
+     twenty thousand enemies appear; this puts the words on what they saw.
+
+     The second row is the one that matters. Slide 44's whole lesson was
+     the Entity Baking Preview disappearing outside the subscene, and they
+     proved it with their own hands. The slide they just typed makes
+     entities from code, which amends that rule - so it is said out loud
+     here rather than left as a quiet exception.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="form">Nothing to type</div>
+    <h2>Two words for what you just typed</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="names">
+        <div class="nrow"><span class="word">singleton</span><span class="clause">a component exactly one entity in the world has, so a system asks for it by type instead of writing a query</span></div>
+        <div class="nrow"><span class="word">EntityManager</span><span class="clause">the world's entities and their components, reached from code: you instantiated twenty thousand and wrote a transform, a color and a speed onto each</span></div>
+      </div>
+      <div class="readout">Everything before this came out of a subscene. Those twenty thousand did not.</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     63 · EVIDENCE · the foreach, measured
+     The middle of the day's three numbers, and the first time this
+     project has had anything worth measuring. Taken with the foreach
+     still in place, before it becomes a job, because that is the
+     comparison. MoveSystem is Bursted but its work is still in OnUpdate -
+     the JobHandle.Complete and WaitForJobGroupID rows beside it belong to
+     LocalToWorldSystem's ComputeWorldSpaceLocalToWorldJob, not to anything
+     in this project.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="form">Nothing to type</div>
+    <h2>Twenty thousand entities, on one thread</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="shot">
+        <img src="images/move-system-burst.png" alt="Profiler Timeline: under SimulationSystemGroup, Default World Workshop.MoveSystem takes 0.202 ms on the main thread, with the tooltip reading Default World Workshop.MoveSystem 0.202ms.">
+      </div>
+      <div class="readout">Workshop.MoveSystem, 0.20 ms, on the main thread. Not against 0.86 ms: that loop also did hit tests, respawns and arena clamping. This is the number this loop starts from.</div>
+    </div>
+  </div>
+</section>
+<!-- =====================================================================
+     64 · BEAT · D1 we-do — the foreach becomes a job
+     Same file, same arithmetic. What changes is who runs it. IJobEntity
+     finds Execute by source generation, so the method is private and
+     nothing declares it - worth saying, because IJob made them implement
+     an interface.
+
+     The job is nested inside MoveSystem, and that is not a style choice:
+     EnemyMover.cs already holds a namespace-level Workshop.MoveJob from
+     the morning, so typing this one beside it is CS0101. Nesting it also
+     compiles - checked in the editor, the generated type is
+     MoveSystem:MoveJob.
+
+     The foreach has to go in the same edit. Left in under the schedule
+     call it writes LocalTransform on the main thread while the job writes
+     it on the workers, and the safety system throws "The previously
+     scheduled job MoveSystem:MoveJob writes to the ComponentTypeHandle".
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide do">
+    <div class="form">Together · live coding</div>
+    <h2>The loop body becomes an Execute, and the workers run it</h2>
+    <div class="rule"></div>
+    <div class="file">MoveSystem.cs &mdash; OnUpdate is replaced, and the job goes inside MoveSystem, under OnUpdate</div>
+    <div class="body">
+      <div class="card-code xxs"><span class="ln">    public partial struct MoveSystem : ISystem</span><span class="ln">    {</span><span class="ln">        public void OnUpdate(ref SystemState state)</span><span class="ln">        {</span><span class="ln cut">            <x>var dt = SystemAPI.Time.DeltaTime;</x></span><span class="ln cut">            <x>var direction = new float3(0f, 0f, -1f);</x></span><span class="ln cut">            <x>foreach (var (transform, speed) in …) { … }</x></span><span class="ln lit">            state.Dependency = new MoveJob</span><span class="ln lit">            {</span><span class="ln lit">                DeltaTime = SystemAPI.Time.DeltaTime,</span><span class="ln lit">                Direction = new float3(0f, 0f, -1f)</span><span class="ln lit">            }.ScheduleParallel(state.Dependency);<span class="note">the workers, not here</span></span><span class="ln">        }</span><span class="ln"> </span><span class="ln lit">        [BurstCompile]</span><span class="ln lit">        [WithAll(typeof(EnemyTag))]<span class="note">the query, as an attribute now</span></span><span class="ln lit">        private partial struct MoveJob : IJobEntity<span class="note">IJob ran once. This runs once per entity.</span></span><span class="ln lit">        {</span><span class="ln lit">            public float DeltaTime;<span class="note">copied into the job</span></span><span class="ln lit">            public float3 Direction;</span><span class="ln lit"> </span><span class="ln lit">            private void Execute(ref LocalTransform transform, in MoveSpeed speed)<span class="note">nothing declares this; it is found</span></span><span class="ln lit">            {</span><span class="ln lit">                transform.Position += Direction * speed.Value * DeltaTime;</span><span class="ln lit">            }</span><span class="ln lit">        }</span><span class="ln">    }<span class="note">the job lives inside the system</span></span></div>
+    </div>
+    <div class="card-foot">
+      <div class="see">You should see: the same crowd moving the same way, and the worker rows busy.</div>
+      <div class="meta">10 min · checkpoint-4</div>
+    </div>
+  </div>
+</section>
+
+
+<!-- =====================================================================
+     65 · DIAGRAM · who calls Complete now
+     The hole three reviewers all fell into. The jobs work was built on
+     Schedule and Complete, with a diagram of the main thread waiting.
+     Then slide 64 hands a handle to state.Dependency, nothing calls
+     Complete, and no slide says who does.
+
+     Read out of Unity.Entities/SystemState.cs, the Dependency docs:
+     "Before OnUpdate, the Dependency property represents the combined job
+     handles of any job that writes to the same components that the
+     current system reads - or reads the same components that the current
+     system writes to." So the handle you store is handed to the next
+     system that touches those components, and it waits, not you.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="form">Nothing to type</div>
+    <h2>Nobody calls Complete, because nobody needs the answer yet</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="bake">
+        <div class="bakelane">
+          <div class="where">The job you wrote first</div>
+          <div class="thing">.Schedule().Complete()</div>
+          <div class="step">&darr; &nbsp;you waited</div>
+          <div class="out same">on the same line</div>
+        </div>
+        <div class="bakelane inside">
+          <div class="where">state.Dependency</div>
+          <div class="thing">you hand the handle back</div>
+          <div class="step">&darr; &nbsp;<b>the next system that touches LocalTransform</b></div>
+          <div class="out">gets it, and schedules behind it</div>
+        </div>
+      </div>
+      <div class="readout">Whoever touches what you wrote inherits the wait, and usually never blocks. Complete early and you have thrown the parallelism away.</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     66 · DIAGRAM · ref and in
+     They typed both without being told they mean anything.
+
+     Corrected 2026-09-13. This slide used to say ref stops the workers
+     running side by side, and that ref/in is why ScheduleParallel is
+     allowed. Both are wrong. Unity's own IJobEntity sample schedules a
+     job whose only parameter is ref with ScheduleParallel
+     (DocCodeSamples.Tests/JobEntityExamples.cs:16 and :27). What ref and
+     in decide is read-only versus read-write on the type handle
+     (SyntaxExtensions.cs:13, IsReadOnly() is RefKind.In), and that sets
+     this job's dependency against OTHER jobs: "A job that writes to a
+     component cannot run in parallel with other jobs that read or write
+     that component" (IJobEntity.cs:399-401).
+
+     Trimmed 2026-09-15, twice. First the asides about workers taking
+     whole chunks came out: true, and the reason ScheduleParallel is safe,
+     but the room never decides anything with it and it raised a subject
+     the slide then dropped. Then the dependency framing came out too. The
+     slide is two words they typed and what they mean, nothing else. Which
+     other jobs may run alongside is a consequence, and no exercise here
+     turns on it.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="form">Nothing to type</div>
+    <h2>in is read only, ref is read and write</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="names wide">
+        <div class="nrow"><span class="word">in MoveSpeed</span><span class="clause">the job reads the speed and never changes it</span></div>
+        <div class="nrow"><span class="word">ref LocalTransform</span><span class="clause">the job writes the position back</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     67 · EVIDENCE · the three numbers
+     All from the presenting machine at the count that ships. Nothing
+     goes on this slide until it has been captured.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="form">Nothing to type</div>
+    <h2>The same crowd, three ways</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="shot bleed">
+        <img src="images/performance-gameobject-entities.png" alt="Three Profiler Timeline captures side by side. GameObjects: EnemyMover.Update 5.10 ms on the main thread, the worker rows idle. Entities single-threaded: Workshop.MoveSystem 0.202 ms on the main thread. Entities multi-threaded: Workshop.MoveSystem 0.006 ms on the main thread, with MoveJob running on every worker row below.">
+      </div>
+      <div class="readout">The same 20,000 enemies, on the main thread. 5.10 ms &rarr; 0.20 ms &rarr; 0.006 ms.</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     68 · BEAT · D3.1 we-do — get the player's position out
+     The player is a GameObject, so the job cannot reach it. Two pieces:
+     a component to carry the position, and a MonoBehaviour that writes it
+     every frame.
+
+     Update, not LateUpdate. SimulationSystemGroup is appended to the
+     player loop's Update phase, after every MonoBehaviour.Update
+     (ScriptBehaviourUpdateOrder.cs:291); LateUpdate runs later, in
+     PreLateUpdate. Written there, the systems would read the position
+     from the frame before. DefaultExecutionOrder(100) puts this after
+     PlayerController, which has none, so the frame goes: player moves,
+     bridge writes, systems read.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide do">
+    <div class="form">Together · live coding · 1 of 8</div>
+    <h2>A MonoBehaviour can put a value where a system can read it</h2>
+    <div class="rule"></div>
+    <div class="file">Assets/Workshop/Bridge/PlayerBridge.cs &mdash; new folder, new file, on the Player</div>
+    <div class="body">
+      <div class="card-code xxs file-whole"><span class="ln lit">using Unity.Entities;</span><span class="ln lit">using Unity.Mathematics;</span><span class="ln lit">using UnityEngine;</span><span class="ln lit"> </span><span class="ln lit">namespace Workshop</span><span class="ln lit">{</span><span class="ln lit">    public struct PlayerPosition : IComponentData { public float3 Value; }</span><span class="ln lit"> </span><span class="ln lit">    [DefaultExecutionOrder(100)]<span class="note">after the player has moved, before the systems run</span></span><span class="ln lit">    public class PlayerBridge : MonoBehaviour</span><span class="ln lit">    {</span><span class="ln lit">        private World _world;</span><span class="ln lit">        private Entity _entity;</span><span class="ln lit"> </span><span class="ln lit">        private void Start()</span><span class="ln lit">        {</span><span class="ln lit">            _world = World.DefaultGameObjectInjectionWorld;<span class="note">a system has state.EntityManager; out here you fetch the World</span></span><span class="ln lit">            _entity = _world.EntityManager.CreateEntity(typeof(PlayerPosition));<span class="note">one entity, made from code</span></span><span class="ln lit">        }</span><span class="ln lit"> </span><span class="ln lit">        private void Update()</span><span class="ln lit">        {</span><span class="ln lit">            if (_world == null || !_world.IsCreated) return;<span class="note">play mode is ending</span></span><span class="ln lit"> </span><span class="ln lit">            _world.EntityManager.SetComponentData(</span><span class="ln lit">                _entity, new PlayerPosition { Value = transform.position });</span><span class="ln lit">        }</span><span class="ln lit">    }</span><span class="ln lit">}</span></div>
+      <div class="shot">
+        <div class="path">then Player &gt; Add Component &gt; PlayerBridge</div>
+      </div>
+    </div>
+    <div class="card-foot">
+      <div class="see">You should see: one more entity in the Entities Hierarchy, with your position on it.</div>
+      <div class="meta">12 min · checkpoint-4</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     69 · BEAT · D3.2 we-do — the job takes a value, not the world
+     The payoff: this Execute is the one from the jobs work, hours later,
+     on entities. A job cannot reach into the world, so the position is
+     read once on the main thread and copied in - the same rule as handing
+     a NativeArray to MoveJob at the start of the day.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide do">
+    <div class="form">Together · live coding · 2 of 8</div>
+    <h2>Read the player once, hand the job the answer</h2>
+    <div class="rule"></div>
+    <div class="file">MoveSystem.cs &mdash; OnUpdate, and Execute</div>
+    <div class="body">
+      <div class="card-code xs"><span class="ln">        public void OnUpdate(ref SystemState state)</span><span class="ln">        {</span><span class="ln lit">            if (!SystemAPI.TryGetSingleton&lt;PlayerPosition&gt;(out var player)) return;<span class="note">one ask, and the bridge may not have run yet</span></span><span class="ln"> </span><span class="ln">            state.Dependency = new MoveJob</span><span class="ln">            {</span><span class="ln">                DeltaTime = SystemAPI.Time.DeltaTime,</span><span class="ln cut">                <x>Direction = new float3(0f, 0f, -1f)</x></span><span class="ln lit">                Target = player.Value<span class="note">a value, copied in</span></span><span class="ln">            }.ScheduleParallel(state.Dependency);</span><span class="ln">        }</span><span class="ln"> </span><span class="ln cut">            <x>public float3 Direction;</x></span><span class="ln lit">            public float3 Target;</span><span class="ln"> </span><span class="ln">            private void Execute(ref LocalTransform transform, in MoveSpeed speed)</span><span class="ln">            {</span><span class="ln lit">                var dir = Target - transform.Position;</span><span class="ln lit">                dir.y = 0f;</span><span class="ln lit">                if (math.lengthsq(dir) &lt; 0.0001f) return;</span><span class="ln lit"> </span><span class="ln cut">                <x>transform.Position += Direction * speed.Value * DeltaTime;</x></span><span class="ln lit">                transform.Position += math.normalize(dir) * speed.Value * DeltaTime;</span><span class="ln">            }</span></div>
+    </div>
+    <div class="card-foot">
+      <div class="see">You should see: the whole crowd turns and comes for you, then stands inside you and stays there.</div>
+      <div class="meta">12 min · checkpoint-4</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     70 · BEAT · D3.3 we-do · EnemyAuthoring — where this one goes back to
+     They have just watched the crowd pile into the player and stop being
+     a crowd. This morning's job never let that happen, and it is the same
+     three numbers: where it started, how close counts, where the walls
+     are. This card is the first of them, and it is one file: every enemy
+     carries its own spot, so RespawnOffset is baked onto the prefab
+     beside EnemyColor. The Baker leaves it at zero; the spawn system
+     writes the real one, two cards on.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide do">
+    <div class="form">Together · live coding · 3 of 8</div>
+    <h2>Every enemy needs a spot of its own to go back to</h2>
+    <div class="rule"></div>
+    <div class="file">EnemyAuthoring.cs &mdash; the Baker, and one more component</div>
+    <div class="body">
+      <div class="card-code xs"><span class="ln">            public override void Bake(EnemyAuthoring authoring)</span><span class="ln">            {</span><span class="ln">                var entity = GetEntity(TransformUsageFlags.Dynamic);</span><span class="ln">                AddComponent&lt;EnemyTag&gt;(entity);</span><span class="ln">                AddComponent(entity, new MoveSpeed { Value = authoring._moveSpeed });</span><span class="ln">                AddComponent(entity, new EnemyColor { Value = new float4(1f, 1f, 1f, 1f) });</span><span class="ln lit">                AddComponent(entity, new RespawnOffset());<span class="note">zero here; the spawn system writes the real one</span></span><span class="ln">            }</span><span class="ln"> </span><span class="ln lit">    public struct RespawnOffset : IComponentData<span class="note">beside EnemyTag, MoveSpeed and EnemyColor</span></span><span class="ln lit">    {</span><span class="ln lit">        public float3 Value;</span><span class="ln lit">    }</span></div>
+    </div>
+    <div class="card-foot">
+      <div class="see">You should see: Workshop.RespawnOffset in the BaselineEnemy prefab's Entity Baking Preview.</div>
+      <div class="meta">6 min · checkpoint-4</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     71 · BEAT · D3.3 we-do · SpawnerAuthoring — how close counts
+     The hit radius is the same for every enemy, so it goes on the
+     Spawner, not the prefab, and it rides in the SpawnSettings they
+     already built. Same number as the morning's job: 0.6.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide do">
+    <div class="form">Together · live coding · 4 of 8</div>
+    <h2>How close counts as reaching you</h2>
+    <div class="rule"></div>
+    <div class="file">SpawnerAuthoring.cs &mdash; one field, the Baker, and SpawnSettings</div>
+    <div class="body">
+      <div class="card-code xs"><span class="ln">        [SerializeField] private float _speedSpread = 0.4f;</span><span class="ln lit">        [SerializeField] private float _hitRadius = 0.6f;<span class="note">this morning's number</span></span><span class="ln"> </span><span class="ln">                AddComponent(entity, new SpawnSettings</span><span class="ln">                {</span><span class="ln">                    Count = authoring._count,</span><span class="ln">                    Radius = authoring._radius,</span><span class="ln">                    Height = authoring._maxHeight,</span><span class="ln lit">                    SpeedSpread = authoring._speedSpread,<span class="note">a comma now</span></span><span class="ln lit">                    HitRadius = authoring._hitRadius</span><span class="ln">                });</span><span class="ln"> </span><span class="ln">    public struct SpawnSettings : IComponentData</span><span class="ln">    {</span><span class="ln">        public int Count;</span><span class="ln">        public float Radius;</span><span class="ln">        public float Height;</span><span class="ln">        public float SpeedSpread;</span><span class="ln lit">        public float HitRadius;</span><span class="ln">    }</span></div>
+    </div>
+    <div class="card-foot">
+      <div class="see">You should see: Hit Radius 0.6 on the Spawner, and Hit Radius 0.6 on SpawnSettings in the Baking Preview.</div>
+      <div class="meta">8 min · checkpoint-4</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     72 · BEAT · D3.3 we-do · SpawnerAuthoring — where the walls are
+     The arena asset is the one the GameObjects already clamp to, so both
+     halves of the day read one authored value. Vector2 converts to float2
+     on its own (math_unity_conversion.cs:22), so the Baker just assigns
+     it — that is what the new using is for.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide do">
+    <div class="form">Together · live coding · 5 of 8</div>
+    <h2>Where the walls are, from the asset that already knows</h2>
+    <div class="rule"></div>
+    <div class="file">SpawnerAuthoring.cs &mdash; one field, the Baker, and a new component</div>
+    <div class="body">
+      <div class="card-code xs"><span class="ln lit">using Unity.Mathematics;<span class="note">for float2</span></span><span class="ln"> </span><span class="ln">        [SerializeField] private float _hitRadius = 0.6f;</span><span class="ln lit">        [SerializeField] private ArenaSettings _arena;<span class="note">the asset the GameObjects already clamp to</span></span><span class="ln"> </span><span class="ln">                });<span class="note">the end of the SpawnSettings block</span></span><span class="ln lit">                AddComponent(entity, new ArenaBounds</span><span class="ln lit">                {</span><span class="ln lit">                    Min = authoring._arena.Min,<span class="note">a Vector2 becomes a float2 on its own</span></span><span class="ln lit">                    Max = authoring._arena.Max</span><span class="ln lit">                });</span><span class="ln"> </span><span class="ln lit">    public struct ArenaBounds : IComponentData</span><span class="ln lit">    {</span><span class="ln lit">        public float2 Min;</span><span class="ln lit">        public float2 Max;</span><span class="ln lit">    }</span></div>
+    </div>
+    <div class="card-foot">
+      <div class="see">You should see: drag Assets &gt; Workshop &gt; ArenaSettings into the Spawner's Arena field, and Workshop.ArenaBounds joins the Baking Preview, &minus;60, &minus;40 to 60, 40.</div>
+      <div class="meta">8 min · checkpoint-4</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     73 · BEAT · D3.3 we-do · InitialSpawnSystem — fill the spot in
+     The Baker could not: the bearing is picked here, in the loop. Not
+     the scattered position: that one is anywhere from the middle of the
+     disc to the rim, and the middle of the disc is where the player is
+     standing, so those would respawn in shot. The rim on the same
+     bearing is always off screen, which is what the six spawn points
+     out of shot do for the GameObject crowd.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide do">
+    <div class="form">Together · live coding · 6 of 8</div>
+    <h2>The spot it goes back to is out on the rim</h2>
+    <div class="rule"></div>
+    <div class="file">InitialSpawnSystem.cs &mdash; the end of the spawn loop</div>
+    <div class="body">
+      <div class="card-code xs"><span class="ln">                state.EntityManager.SetComponentData(spawned[i],</span><span class="ln">                    new EnemyColor { Value = Palette[random.NextInt(Palette.Length)] });</span><span class="ln"> </span><span class="ln lit">                state.EntityManager.SetComponentData(spawned[i],</span><span class="ln lit">                    new RespawnOffset { Value = new float3(</span><span class="ln lit">                        math.cos(a) * settings.Radius,<span class="note">the bearing it came in on, out at full radius</span></span><span class="ln lit">                        position.y,</span><span class="ln lit">                        math.sin(a) * settings.Radius) });</span><span class="ln">            }</span></div>
+    </div>
+    <div class="card-foot">
+      <div class="see">You should see: it compiles, and one enemy in the Entities Hierarchy has a Respawn Offset 55 out from the middle.</div>
+      <div class="meta">6 min · checkpoint-4</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     74 · BEAT · D3.3 we-do · the system — what the job is handed
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide do">
+    <div class="form">Together · live coding · 7 of 8</div>
+    <h2>The system reads those two, and the job holds them</h2>
+    <div class="rule"></div>
+    <div class="file">MoveSystem.cs &mdash; a new OnCreate, then OnUpdate, then the job's fields</div>
+    <div class="body">
+      <div class="card-code xxs"><span class="ln lit">        public void OnCreate(ref SystemState state)</span><span class="ln lit">        {</span><span class="ln lit">            state.RequireForUpdate&lt;SpawnSettings&gt;();<span class="note">both come off the Spawner, and it has to be baked first</span></span><span class="ln lit">            state.RequireForUpdate&lt;ArenaBounds&gt;();</span><span class="ln lit">        }</span><span class="ln"> </span><span class="ln">        public void OnUpdate(ref SystemState state)</span><span class="ln">        {</span><span class="ln">            if (!SystemAPI.TryGetSingleton&lt;PlayerPosition&gt;(out var player)) return;</span><span class="ln">            var dt = SystemAPI.Time.DeltaTime;</span><span class="ln lit">            var settings = SystemAPI.GetSingleton&lt;SpawnSettings&gt;();</span><span class="ln lit">            var arena = SystemAPI.GetSingleton&lt;ArenaBounds&gt;();</span><span class="ln"> </span><span class="ln">            state.Dependency = new MoveJob()</span><span class="ln">            {</span><span class="ln">                DeltaTime = dt,</span><span class="ln lit">                Target = player.Value,<span class="note">a comma now</span></span><span class="ln lit">                HitRadiusSq = settings.HitRadius * settings.HitRadius,</span><span class="ln lit">                ArenaMin = arena.Min,</span><span class="ln lit">                ArenaMax = arena.Max</span><span class="ln">            }.ScheduleParallel(state.Dependency);</span><span class="ln">        }</span><span class="ln"> </span><span class="ln">        private partial struct MoveJob : IJobEntity</span><span class="ln">        {</span><span class="ln">            public float DeltaTime;</span><span class="ln">            public float3 Target;</span><span class="ln lit">            public float HitRadiusSq;<span class="note">a job only has what you hand it</span></span><span class="ln lit">            public float2 ArenaMin;</span><span class="ln lit">            public float2 ArenaMax;</span><span class="ln">        }</span></div>
+    </div>
+    <div class="card-foot">
+      <div class="see">You should see: it compiles, and the crowd still piles into you.</div>
+      <div class="meta">12 min · checkpoint-4</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     75 · BEAT · D3.3 we-do · Execute — the morning's job, on entities
+     This is the payoff slide, and it only earns the word when the body is
+     the block A job line for line: the same hit test, the same respawn
+     point, the same clamp. in RespawnOffset is read and ref LocalTransform
+     is written, which is the ref/in diagram standing up on its own.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide do">
+    <div class="form">Together · live coding · 8 of 8</div>
+    <h2>They reach you, so send them back where they came from</h2>
+    <div class="rule"></div>
+    <div class="file">MoveSystem.cs &mdash; Execute</div>
+    <div class="body">
+      <div class="card-code xs"><span class="ln">            private void Execute(ref LocalTransform transform, in MoveSpeed speed,</span><span class="ln lit">                                 in RespawnOffset respawn)<span class="note">read, so every worker at once</span></span><span class="ln">            {</span><span class="ln">                var dir = Target - transform.Position;</span><span class="ln">                dir.y = 0f;</span><span class="ln"> </span><span class="ln cut">                <x>if (math.lengthsq(dir) &lt; 0.0001f) return;</x></span><span class="ln lit">                if (math.lengthsq(dir) &lt; HitRadiusSq)</span><span class="ln lit">                {</span><span class="ln lit">                    var respawnPoint = Target + respawn.Value;</span><span class="ln lit">                    transform.Position = new float3(</span><span class="ln lit">                        math.clamp(respawnPoint.x, ArenaMin.x, ArenaMax.x),</span><span class="ln lit">                        respawnPoint.y,</span><span class="ln lit">                        math.clamp(respawnPoint.z, ArenaMin.y, ArenaMax.y));</span><span class="ln lit">                    return;</span><span class="ln lit">                }</span><span class="ln"> </span><span class="ln">                transform.Position += math.normalize(dir) * speed.Value * DeltaTime;</span><span class="ln">            }</span></div>
+    </div>
+    <div class="card-foot">
+      <div class="see">You should see: this morning's game. They stream in, reach you, and go back out.</div>
+      <div class="meta">12 min · checkpoint-4</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     76 · MIND MAP · IJobEntity lit
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="form">Nothing to type</div>
+    <h2>Everything you touched so far</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <svg class="mindmap" viewBox="0 0 1136 470"
+           data-done="jobs,burst,collections,mathematics,sched,entity,component,archetype,baking,systems,queries"
+           data-now="ijobentity"></svg>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     77 · CATCH UP · the jobs-again work is finished
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide do">
+    <div class="form">Everyone</div>
+    <h2>Take checkpoint-5</h2>
+    <div class="rule"></div>
+    <div class="card-code"><span class="ln lit">git stash</span><span class="ln lit">git checkout checkpoint-5</span></div>
+    <div class="card-foot">
+      <div class="see">You should see: the spawner, the bridge and the job as you wrote them, and this morning's crowd chasing you.</div>
+      <div class="meta">checkpoint-5</div>
     </div>
   </div>
 </section>
@@ -1805,8 +2447,8 @@
     var BARH = 40, BARGAP = 14, BARX = 26, BARW = BW - 52;
     var step = 0;
 
-    function txt(x, y, str, colour, size, weight, align) {
-      ctx.fillStyle = colour;
+    function txt(x, y, str, color, size, weight, align) {
+      ctx.fillStyle = color;
       ctx.font = (weight || 700) + ' ' + (size || 14) + 'px ui-sans-serif, system-ui, sans-serif';
       ctx.textAlign = align || 'left';
       ctx.fillText(str, x, y);
@@ -1823,10 +2465,10 @@
     }
 
     /* The component set, drawn a name at a time so the one being added can
-       carry its own colour. The set is what makes an archetype the
+       carry its own color. The set is what makes an archetype the
        archetype it is, so the change has to be legible in the header
        rather than only in a line of text under the picture. */
-    function componentSet(x, y, parts, baseColour) {
+    function componentSet(x, y, parts, baseColor) {
       ctx.font = '700 15px ui-sans-serif, system-ui, sans-serif';
       var cx = x;
       parts.forEach(function (p, i) {
@@ -1835,7 +2477,7 @@
           ctx.fillText(' · ', cx, y);
           cx += ctx.measureText(' · ').width;
         }
-        ctx.fillStyle = p[1] || baseColour;
+        ctx.fillStyle = p[1] || baseColor;
         ctx.fillText(p[0], cx, y);
         cx += ctx.measureText(p[0]).width;
       });
@@ -1937,8 +2579,8 @@
 
     var step = 0;
 
-    function txt(x, y, str, colour, size, weight, align) {
-      ctx.fillStyle = colour;
+    function txt(x, y, str, color, size, weight, align) {
+      ctx.fillStyle = color;
       ctx.font = (weight || 700) + ' ' + (size || 13) + 'px ui-sans-serif, system-ui, sans-serif';
       ctx.textAlign = align || 'left';
       ctx.fillText(str, x, y);
@@ -1957,9 +2599,9 @@
     /* one row: label, the cache, the trip, then RAM. curCell is the value
        being read this step; miss says whether it needed a trip or was
        already sitting there from the last grab. */
-    function row(y, name, wantedAt, trips, free, lastRun, colour, curCell, miss) {
+    function row(y, name, wantedAt, trips, free, lastRun, color, curCell, miss) {
       txt(0, y + 16, name, INK, 15);
-      txt(0, y + 38, trips + (trips === 1 ? ' trip to RAM' : ' trips to RAM'), colour, 13);
+      txt(0, y + 38, trips + (trips === 1 ? ' trip to RAM' : ' trips to RAM'), color, 13);
       txt(0, y + 56, free + ' free from cache', free ? FAST : MUTED, 13);
 
       /* the row labels name the two shapes from slide 40, so the label
@@ -1983,12 +2625,12 @@
         ctx.strokeStyle = LINE; ctx.lineWidth = 1.4;
         ctx.beginPath(); ctx.moveTo(far, y + 19); ctx.lineTo(near, y + 19); ctx.stroke();
       } else if (miss) {
-        ctx.strokeStyle = colour; ctx.lineWidth = 2.4;
+        ctx.strokeStyle = color; ctx.lineWidth = 2.4;
         ctx.beginPath(); ctx.moveTo(far, y + 19); ctx.lineTo(near, y + 19); ctx.stroke();
         ctx.beginPath();
         ctx.moveTo(near - 8, y + 19); ctx.lineTo(near + 4, y + 13); ctx.lineTo(near + 4, y + 25);
-        ctx.closePath(); ctx.fillStyle = colour; ctx.fill();
-        txt(mid, y + 52, 'went to RAM', colour, 11, 700, 'center');
+        ctx.closePath(); ctx.fillStyle = color; ctx.fill();
+        txt(mid, y + 52, 'went to RAM', color, 11, 700, 'center');
       } else {
         txt(mid, y + 24, 'no trip', FAST, 12, 700, 'center');
         txt(mid, y + 40, 'already here', FAST, 11, 400, 'center');
@@ -2000,7 +2642,7 @@
         var want = wantedAt.indexOf(i) !== -1;
         var inRun = lastRun !== null && i >= lastRun * RUN && i < lastRun * RUN + RUN;
         box(ox + i * (cw + gx), y + 2, cw, 34,
-            inRun ? (miss ? colour : 'rgba(255,255,255,0.22)') : (want ? 'rgba(124,197,255,0.5)' : LINE),
+            inRun ? (miss ? color : 'rgba(255,255,255,0.22)') : (want ? 'rgba(124,197,255,0.5)' : LINE),
             want ? 'rgba(124,197,255,0.35)' : (inRun ? 'rgba(255,255,255,0.06)' : null));
       }
     }
@@ -2040,7 +2682,7 @@
      read twice, so the only thing left to compare is the shape
      of the walk. Ported from deck-v1-lecture.html's viz-layout.
 
-     Only Position is coloured. Block A's EnemyMover already held
+     Only Position is colored. Checkpoint-0 to 2's EnemyMover already held
      its speeds in a NativeArray, so a scattered speed would be a
      picture of something that never happened in this room.
      ========================================================= */
@@ -2062,8 +2704,8 @@
     var CW = 34, CH = 38, GX = 3;
     var done = 0;
 
-    function txt(x, y, str, colour, size, weight, align) {
-      ctx.fillStyle = colour;
+    function txt(x, y, str, color, size, weight, align) {
+      ctx.fillStyle = color;
       ctx.font = (weight || 700) + ' ' + (size || 14) + 'px ui-sans-serif, system-ui, sans-serif';
       ctx.textAlign = align || 'left';
       ctx.fillText(str, x, y);
@@ -2079,11 +2721,11 @@
       else ctx.rect(x, y, w, h);
     }
     function cellX(i) { return i * (CW + GX); }
-    function cell(i, y, colour, filled) {
+    function cell(i, y, color, filled) {
       rr(cellX(i), y, CW, CH);
-      ctx.fillStyle = filled ? hexa(colour, 0.55) : OTHERF;
+      ctx.fillStyle = filled ? hexa(color, 0.55) : OTHERF;
       ctx.fill();
-      ctx.strokeStyle = filled ? colour : LINE;
+      ctx.strokeStyle = filled ? color : LINE;
       ctx.lineWidth = 1.4; ctx.stroke();
     }
     function caret(i, y) {
@@ -2092,22 +2734,22 @@
       ctx.moveTo(x, y); ctx.lineTo(x - 7, y - 10); ctx.lineTo(x + 7, y - 10); ctx.closePath();
       ctx.fillStyle = INK; ctx.fill();
     }
-    function walk(idx, y, colour) {
+    function walk(idx, y, color) {
       if (done < 2) return;
       ctx.beginPath();
       for (var k = 0; k < done; k++) {
         var x = cellX(idx[k]) + CW / 2;
         if (k === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
       }
-      ctx.strokeStyle = colour; ctx.lineWidth = 2.4; ctx.stroke();
+      ctx.strokeStyle = color; ctx.lineWidth = 2.4; ctx.stroke();
     }
-    function bracket(from, to, y, label, colour) {
+    function bracket(from, to, y, label, color) {
       var x1 = cellX(from), x2 = cellX(to) + CW;
-      ctx.strokeStyle = colour; ctx.lineWidth = 1.4;
+      ctx.strokeStyle = color; ctx.lineWidth = 1.4;
       ctx.beginPath();
       ctx.moveTo(x1, y + 8); ctx.lineTo(x1, y); ctx.lineTo(x2, y); ctx.lineTo(x2, y + 8);
       ctx.stroke();
-      txt((x1 + x2) / 2, y - 7, label, colour, 13, 700, 'center');
+      txt((x1 + x2) / 2, y - 7, label, color, 13, 700, 'center');
     }
 
     var LBL1 = 22, BR1 = 56, Y1 = 72;

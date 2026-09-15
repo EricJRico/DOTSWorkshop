@@ -618,6 +618,7 @@ GameObject:
   - component: {fileID: 979932964}
   - component: {fileID: 979932965}
   - component: {fileID: 979932968}
+  - component: {fileID: 979932969}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -673,6 +674,18 @@ MonoBehaviour:
   _damagePerHit: 0.35
   _regenerate: 0
   _regenPerSecond: 8
+--- !u!114 &979932969
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 979932963}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7eb972c31e4c4439a04eeaf188dcc8b5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Workshop.Runtime::Workshop.PlayerBridge
 --- !u!1 &1104070341
 GameObject:
   m_ObjectHideFlags: 0
