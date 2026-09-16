@@ -1,66 +1,80 @@
 # DOTS 101 — Entities, Jobs, and Why They Are Fast
 
-> **Status: work in progress.** The slide deck and the ECS sample are in the repo. The
-> per-lab starting points and checkpoints are still being built. Expect things to move.
+A hands-on Unity workshop on the Data-Oriented Tech Stack. One top-down arena with 20,000
+enemies chasing you, built twice: first as GameObjects with a job, then as entities. The
+Profiler is open the whole time, so every DOTS feature arrives attached to the problem it
+solves.
 
-A hands-on Unity workshop on the Data-Oriented Tech Stack. We build the same top-down
-arena three times — plain MonoBehaviours, then jobs plus Burst, then full ECS — and
-profile each one, so every DOTS feature arrives attached to the problem it solves.
+You type all of it. Nothing is handed over except the branch you start from.
 
-Runs about three hours.
+## The deck
+
+`presentation/deck.html` — open it in a browser, arrow keys to move. 96 slides. Every card
+tells you the file, the lines to type, and what you should see afterwards.
 
 ## Requirements
 
 - Unity **6000.3.22f1** (Unity 6 LTS)
 - Comfort with C#. No DOTS experience needed.
-- A machine with more than one core, which is all of them.
+- A machine with more than one core.
 
-Packages are already in `Packages/manifest.json`; opening the project pulls them:
+Packages come with the project; opening it pulls them.
 
 | Package | Version |
 | --- | --- |
 | `com.unity.entities` | 1.4.8 |
 | `com.unity.entities.graphics` | 1.4.21 |
 | `com.unity.render-pipelines.universal` | 17.3.0 |
+| `com.unity.inputsystem` | 1.20.0 |
 
-## The two problems
+## Checkpoints
 
-Everything in the workshop answers one of these:
+Each branch is a starting line, not a finish line: it holds the room's own work up to that
+point, in canonical form. If you fall behind, or you want to pick the day back up later,
+take the branch for the stretch you want and carry on from there.
 
-1. **One thread.** The main thread does all the work while the other cores sit idle.
-   → the Job System and Burst.
-2. **Scattered data.** Every enemy is its own object somewhere on the heap, so each one
-   costs a trip to RAM. → ECS layout.
+```
+git stash
+git checkout checkpoint-3
+```
 
-## Blocks
+| Branch | What it holds |
+| --- | --- |
+| `checkpoint-0` | The GameObject game. 20,000 enemies, one `foreach` on the main thread, 5.10 ms. |
+| `checkpoint-1` | That loop as a Bursted `IJob`, with the two copy loops it costs. |
+| `checkpoint-2` | `IJobParallelForTransform` — the Transforms go into the job, the copies go. |
+| `checkpoint-3` | The first entity: a subscene, a Baker, `EnemyTag` and `MoveSpeed`. |
+| `checkpoint-4` | `MoveSystem` — a system moving everything its query finds. |
+| `checkpoint-5` | The crowd. A Spawner, `InitialSpawnSystem`, `MoveJob` as `IJobEntity`, and the bridge that hands the job the player's position. |
+| `checkpoint-6` | Reaching you is spent: destroy through an `EntityCommandBuffer`, then `Alive` as an enableable component, and the health bar moving again. |
 
-| Block | Topic | What you build |
-| --- | --- | --- |
-| 1 | The problem | Profile 5,000 enemies on a single thread. Find where the time goes. |
-| 2 | Jobs and Burst | Move the swarm on the worker threads. Toggle `[BurstCompile]` and read the number. |
-| 3 | Entities | Rebuild the arena as entities, components, and systems. Baking and sub scenes. |
+`develop` is the working branch and is not a checkpoint.
 
 ## Layout
 
 ```
-Assets/
+Assets/Workshop/
   Scenes/
-    Workshop.unity            main scene
-    Workshop_SubScene.unity   baked entity content
-  Workshop/
-    Authoring/                MonoBehaviour authoring + component definitions
-    Systems/                  ISystem implementations (spawn, chase, move, fire, collide)
-    Editor/                   scene builder tooling
-    Art/                      player, enemy, bullet prefabs and materials
+    GameObjectBaseline.unity              the scene, all day
+    GameObjectBaseline/
+      Workshop_SubScene.unity             the baked entity content
+  Baseline/                               the GameObject game: spawner, mover, player, health, arena
+  Authoring/                              MonoBehaviour authoring + the components their Bakers write
+  Systems/                                ISystem implementations
+  Bridge/                                 PlayerBridge — GameObject data crossing into ECS
+  Art/                                    prefabs, materials, the enemy shader graph
 presentation/
-  deck.html                   the slide deck, open it in a browser
+  deck.html                               the slide deck
+  images/                                 the Profiler and Editor captures it shows
 ```
 
-## Not done yet
+## What this is not
 
-- `Assets/Workshop/Baseline/` — the MonoBehaviour version and the Lab 1 job stub the
-  deck points at.
-- Checkpoint files per lab, for anyone who falls behind.
-- Block 3 slides.
-- Links for continued learning.
-- A LICENSE file.
+A game. There is no score, no waves, and once an enemy reaches you it is spent — walk in
+circles long enough and the crowd runs out. It is a benchmark with a player in it, which is
+what makes the Profiler numbers mean something.
+
+## Where to go next
+
+Dynamic buffers, shared components, blob assets, component lookups, Unity Physics and
+Netcode for Entities — named on the last slide, covered in the follow-up workshop.
