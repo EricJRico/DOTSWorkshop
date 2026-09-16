@@ -671,7 +671,6 @@
         <div class="trow"><div class="tname">Worker 1</div><div class="track"><div class="idle">idle</div></div></div>
         <div class="trow"><div class="tname">Worker 2</div><div class="track"><div class="idle">idle</div></div></div>
       </div>
-      <div class="placeholder">Placeholder. Replaced by the rehearsal capture.</div>
     </div>
   </div>
 </section>
@@ -910,7 +909,6 @@
           <div class="nsub">20,000 enemies</div>
         </div>
       </div>
-      <div class="placeholder">Timeline capture goes here: worker rows busy, no copy blocks on the main thread.</div>
     </div>
   </div>
 </section>
@@ -2543,26 +2541,7 @@
 </section>
 
 <!-- =====================================================================
-     85 · EVIDENCE · the frame the entities were destroyed
-     Captured on the presenting machine, on a frame where a batch dies,
-     against a quiet frame.
-     ===================================================================== -->
-<section data-background-color="#141414">
-  <div class="slide">
-    <div class="form">Nothing to type</div>
-    <h2>The frame they died cost more than the frame they walked</h2>
-    <div class="rule"></div>
-    <div class="body">
-      <div class="shot">
-        <div class="path">Profiler Timeline &mdash; a frame with a batch destroyed, beside a quiet one</div>
-      </div>
-      <div class="placeholder">Placeholder. Replaced by the rehearsal capture.</div>
-    </div>
-  </div>
-</section>
-
-<!-- =====================================================================
-     86 · DIAGRAM · what a structural change does to the frame
+     85 · DIAGRAM · what a structural change does to the frame
      Same lane picture as slide 24, so the room reads it without being
      taught it twice. Destroying moves entities between chunks, so
      nothing may be touching a chunk while it happens: every job is
@@ -2602,7 +2581,7 @@
 </section>
 
 <!-- =====================================================================
-     87 · BEAT · E3 we-do — a component that can be switched off
+     86 · BEAT · E3 we-do — a component that can be switched off
      IEnableableComponent is the whole change. The component has no
      fields: what it carries is whether it is on. Baked enabled, because
      an enemy starts alive.
@@ -2624,7 +2603,7 @@
 </section>
 
 <!-- =====================================================================
-     88 · BEAT · E3 we-do — switch it off, and the buffer goes with it
+     87 · BEAT · E3 we-do — switch it off, and the buffer goes with it
      Switching a component off is not a structural change, so there is
      nothing to defer and the whole EntityCommandBuffer comes out. That
      is the beat: the tool arrived for the thing that needed it and
@@ -2653,7 +2632,7 @@
 </section>
 
 <!-- =====================================================================
-     89 · CARD · E4 you-do — the dead drop out of the job too
+     88 · CARD · E4 you-do — the dead drop out of the job too
      The job still moves them: its query does not mention Alive, so a
      switched-off enemy keeps walking into the player. One attribute.
      ===================================================================== -->
@@ -2675,7 +2654,7 @@
 </section>
 
 <!-- =====================================================================
-     90 · NAME · destroy against disable
+     89 · NAME · destroy against disable
      The picture the room now has: slide 41 drew archetypes with chunks
      and slots, and slide 51 drew the query walking them. This says what
      each of the two does to that picture, in those words.
@@ -2696,7 +2675,7 @@
 </section>
 
 <!-- =====================================================================
-     91 · MIND MAP · the whole Changing state branch lit
+     90 · MIND MAP · the whole Changing state branch lit
      All three: they made a structural change, wrote a command buffer to
      get it out of the loop, and then switched a component off instead
      and deleted the buffer.
@@ -2715,7 +2694,7 @@
 </section>
 
 <!-- =====================================================================
-     92 · CATCH UP · the changing-state work is finished
+     91 · CATCH UP · the changing-state work is finished
      ===================================================================== -->
 <section data-background-color="#141414">
   <div class="slide do">
@@ -2731,7 +2710,7 @@
 </section>
 
 <!-- =====================================================================
-     93 · CARD · the finale — ten times the crowd
+     92 · CARD · the finale — ten times the crowd
      This happens on the projector, not on a slide: change the number,
      press Play, and leave the Profiler open beside it. No figure is
      claimed here because the number is whatever the presenting machine
@@ -2752,6 +2731,28 @@
     <div class="card-foot">
       <div class="see">You should see: 200,000 enemies chasing you, and MoveSystem still cheaper than the loop you started the day with.</div>
       <div class="meta">5 min &middot; checkpoint-6</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     93 · EVIDENCE · 200,000, on the presenting machine
+     The capture behind the card before it, so the claim is not left to
+     whatever the room's own machines do. Only what is legible is
+     claimed: MoveSystem 1.58 ms inside a 1.65 ms SimulationSystemGroup,
+     at 200,000. The 5.10 ms beside it is slide 16's capture of the
+     GameObject loop at 20,000. Both measured here; neither divided.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="form">Nothing to type</div>
+    <h2>Ten times the crowd, a third of the cost</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="shot bleed">
+        <img src="images/enemies-20000.png" alt="Profiler Timeline at 200,000 entities: PlayerLoop 5.43 ms, SimulationSystemGroup 1.65 ms, and Default World Workshop.MoveSystem 1.58 ms on the main thread.">
+      </div>
+      <div class="readout">200,000 entities, Workshop.MoveSystem 1.58 ms. This morning, 20,000 GameObjects cost 5.10 ms.</div>
     </div>
   </div>
 </section>
