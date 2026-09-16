@@ -15,6 +15,9 @@ namespace Workshop
         [Tooltip("Where hits are reported from.")]
         [SerializeField] private EnemyMover _enemies;
 
+        [Tooltip("Where hits are reported from on the entities side.")]
+        [SerializeField] private PlayerBridge _bridge;
+
         [SerializeField] private float _maxHealth = 100f;
         [SerializeField] private float _damagePerHit = 0.35f;
 
@@ -37,11 +40,13 @@ namespace Workshop
         private void OnEnable()
         {
             if (_enemies != null) _enemies.PlayerHit += OnPlayerHit;
+            if (_bridge != null) _bridge.PlayerHit += OnPlayerHit;
         }
 
         private void OnDisable()
         {
             if (_enemies != null) _enemies.PlayerHit -= OnPlayerHit;
+            if (_bridge != null) _bridge.PlayerHit -= OnPlayerHit;
         }
 
         private void Start()

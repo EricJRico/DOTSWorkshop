@@ -670,6 +670,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Workshop.Runtime::Workshop.PlayerHealth
   _enemies: {fileID: 0}
+  _bridge: {fileID: 979932969}
   _maxHealth: 100
   _damagePerHit: 0.35
   _regenerate: 0

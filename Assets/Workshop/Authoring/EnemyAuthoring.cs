@@ -18,6 +18,7 @@ namespace Workshop
                 AddComponent(entity, new MoveSpeed { Value = authoring._moveSpeed });
                 AddComponent(entity, new EnemyColor { Value = new float4(1f, 1f, 1f, 1f) });
                 AddComponent(entity, new RespawnOffset());
+                AddComponent<Alive>(entity);
             }
         }
     }
@@ -40,5 +41,9 @@ namespace Workshop
     public struct RespawnOffset : IComponentData
     {
         public float3 Value;
+    }
+
+    public struct Alive : IComponentData, IEnableableComponent
+    {
     }
 }

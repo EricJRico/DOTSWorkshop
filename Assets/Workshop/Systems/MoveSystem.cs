@@ -1,4 +1,5 @@
 using Unity.Burst;
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
@@ -21,41 +22,45 @@ namespace Workshop
             
             var dt = SystemAPI.Time.DeltaTime;
             var settings = SystemAPI.GetSingleton<SpawnSettings>();
-            var arena = SystemAPI.GetSingleton<ArenaBounds>();
             state.Dependency = new MoveJob()
             {
                 DeltaTime = dt,
-                Target = player.Value,
-                HitRadiusSq = settings.HitRadius * settings.HitRadius,
-                ArenaMin =  arena.Min,
-                ArenaMax = arena.Max
+                Target = player.Value
             }.ScheduleParallel(state.Dependency);
+
+            state.Dependency.Complete();
+
+            var hitSq = settings.HitRadius * settings.HitRadius;
+            var hits = 0;
+
+            foreach (var (transform, entity) in
+                     SystemAPI.Query<RefRO<LocalTransform>>()
+                         .WithAll<EnemyTag, Alive>()
+                         .WithEntityAccess())
+            {
+                if (math.distancesq(transform.ValueRO.Position, player.Value) < hitSq)
+                {
+                    state.EntityManager.SetComponentEnabled<Alive>(entity, false);
+                    hits++;
+                }
+            }
+
+            SystemAPI.SetSingleton(new PlayerHits { Value = hits });
         }
         
         [BurstCompile]
-        [WithAll(typeof(EnemyTag))]
+        [WithAll(typeof(EnemyTag), typeof(Alive))]
         private partial struct MoveJob : IJobEntity
         {
             public float DeltaTime;
             public float3 Target;
-            public float HitRadiusSq;
-            public float2 ArenaMin;
-            public float2 ArenaMax;
-        
-            private void Execute(ref LocalTransform transform, in MoveSpeed speed, in RespawnOffset respawn)
+
+            private void Execute(ref LocalTransform transform, in MoveSpeed speed)
             {
                 var dir = Target - transform.Position;
                 dir.y = 0f;
-                if (math.lengthsq(dir) < HitRadiusSq)
-                {
-                    var respawnPoint = Target + respawn.Value;
-                    transform.Position = new float3(
-                        math.clamp(respawnPoint.x, ArenaMin.x, ArenaMax.x),
-                        respawnPoint.y,
-                        math.clamp(respawnPoint.z, ArenaMin.y, ArenaMax.y));
-                    return;
-                }
-                
+                if (math.lengthsq(dir) < 0.0001f) return;
+
                 transform.Position += math.normalize(dir) * speed.Value * DeltaTime;
             }
         }
