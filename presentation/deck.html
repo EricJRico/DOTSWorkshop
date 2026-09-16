@@ -671,7 +671,6 @@
         <div class="trow"><div class="tname">Worker 1</div><div class="track"><div class="idle">idle</div></div></div>
         <div class="trow"><div class="tname">Worker 2</div><div class="track"><div class="idle">idle</div></div></div>
       </div>
-      <div class="placeholder">Placeholder. Replaced by the rehearsal capture.</div>
     </div>
   </div>
 </section>
@@ -910,7 +909,6 @@
           <div class="nsub">20,000 enemies</div>
         </div>
       </div>
-      <div class="placeholder">Timeline capture goes here: worker rows busy, no copy blocks on the main thread.</div>
     </div>
   </div>
 </section>
@@ -1553,6 +1551,11 @@
      Verified on this project: this file compiles with zero errors and the
      entity's z goes from 0 to -197.6 across a play session. The camera is
      top-down with up = +Z, so -Z reads as down the screen.
+
+     Say out loud, once, on this card: tutorials written before Unity 2022
+     do this loop as Entities.ForEach, which still compiles and is on the
+     way out. It is not a slide — the room has never seen it, and naming
+     it anywhere else in the day means naming something they never typed.
      ===================================================================== -->
 <section data-background-color="#141414">
   <div class="slide do">
@@ -2361,6 +2364,462 @@
     <div class="card-foot">
       <div class="see">You should see: the spawner, the bridge and the job as you wrote them, and this morning's crowd chasing you.</div>
       <div class="meta">checkpoint-5</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     78 · BEAT · E1.1 we-do — reaching you stops being a respawn
+     The trigger already exists: at checkpoint-5 an enemy that reaches the
+     player goes back to the rim. This stretch changes what reaching you
+     means, so the first thing to go is the respawn. The fields go with
+     it, struck on the slide, because a field nothing reads is the kind
+     of thing that stays for a year. Execute is back to the four lines
+     from D3.2, and the crowd piles into the player again — which is the
+     problem the rest of the stretch answers.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide do">
+    <div class="form">Together &middot; live coding &middot; 1 of 8</div>
+    <h2>Take the respawn back out of the job</h2>
+    <div class="rule"></div>
+    <div class="file">MoveSystem.cs &mdash; OnUpdate, the job's fields, and Execute</div>
+    <div class="body">
+      <div class="card-code xxs"><span class="ln">            var settings = SystemAPI.GetSingleton&lt;SpawnSettings&gt;();<span class="note">stays: the next card reads it</span></span><span class="ln cut">            <x>var arena = SystemAPI.GetSingleton&lt;ArenaBounds&gt;();</x></span><span class="ln">            state.Dependency = new MoveJob()</span><span class="ln">            {</span><span class="ln">                DeltaTime = dt,</span><span class="ln lit">                Target = player.Value<span class="note">no comma now</span></span><span class="ln cut">                <x>HitRadiusSq = settings.HitRadius * settings.HitRadius,</x></span><span class="ln cut">                <x>ArenaMin = arena.Min,</x></span><span class="ln cut">                <x>ArenaMax = arena.Max</x></span><span class="ln">            }.ScheduleParallel(state.Dependency);</span><span class="ln"> </span><span class="ln">            public float3 Target;</span><span class="ln cut">            <x>public float HitRadiusSq;</x></span><span class="ln cut">            <x>public float2 ArenaMin;</x></span><span class="ln cut">            <x>public float2 ArenaMax;</x></span><span class="ln"> </span><span class="ln lit">            private void Execute(ref LocalTransform transform, in MoveSpeed speed)<span class="note">respawn goes too</span></span><span class="ln">            {</span><span class="ln">                var dir = Target - transform.Position;</span><span class="ln">                dir.y = 0f;</span><span class="ln cut">                <x>if (math.lengthsq(dir) &lt; HitRadiusSq)</x></span><span class="ln cut">                <x>{</x></span><span class="ln cut">                    <x>var respawnPoint = Target + respawn.Value;</x></span><span class="ln cut">                    <x>transform.Position = new float3(</x></span><span class="ln cut">                        <x>math.clamp(respawnPoint.x, ArenaMin.x, ArenaMax.x),</x></span><span class="ln cut">                        <x>respawnPoint.y,</x></span><span class="ln cut">                        <x>math.clamp(respawnPoint.z, ArenaMin.y, ArenaMax.y));</x></span><span class="ln cut">                    <x>return;</x></span><span class="ln cut">                <x>}</x></span><span class="ln lit">                if (math.lengthsq(dir) &lt; 0.0001f) return;</span><span class="ln"> </span><span class="ln">                transform.Position += math.normalize(dir) * speed.Value * DeltaTime;</span></div>
+    </div>
+    <div class="card-foot">
+      <div class="see">You should see: the crowd reaches you and stands there, the way it did before the respawn went in.</div>
+      <div class="meta">8 min &middot; checkpoint-5</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     79 · BEAT · E1.1 we-do — the main thread destroys them
+     No command buffer: line 9 of the plan says they are read, not
+     written, and getting a result out of a parallel job needs a
+     ParallelWriter, an Entity parameter and a Complete. That is a
+     stretch of its own.
+
+     DestroyEntity cannot be called inside the foreach — Unity throws
+     "Structural changes are not allowed while iterating over entities"
+     (measured in the editor, 2026-09-15), and the message names the fix.
+     So the loop records commands and plays them back after: the destroy
+     still happens, one line later, which is what makes the sync point on
+     slide 86 a single moment in the frame.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide do">
+    <div class="form">Together &middot; live coding &middot; 2 of 8</div>
+    <h2>After the job, the main thread destroys what reached you</h2>
+    <div class="rule"></div>
+    <div class="file">MoveSystem.cs &mdash; a using, and the end of OnUpdate</div>
+    <div class="body">
+      <div class="card-code xxs"><span class="ln">using Unity.Burst;</span><span class="ln lit">using Unity.Collections;<span class="note">Allocator lives here</span></span><span class="ln">using Unity.Entities;</span><span class="ln"> </span><span class="ln">            }.ScheduleParallel(state.Dependency);</span><span class="ln"> </span><span class="ln lit">            state.Dependency.Complete();<span class="note">the job has to finish before you read what it wrote</span></span><span class="ln lit"> </span><span class="ln lit">            var hitSq = settings.HitRadius * settings.HitRadius;</span><span class="ln lit">            var ecb = new EntityCommandBuffer(Allocator.Temp);</span><span class="ln lit"> </span><span class="ln lit">            foreach (var (transform, entity) in</span><span class="ln lit">                     SystemAPI.Query&lt;RefRO&lt;LocalTransform&gt;&gt;()</span><span class="ln lit">                         .WithAll&lt;EnemyTag&gt;()</span><span class="ln lit">                         .WithEntityAccess())<span class="note">the loop needs the entity, not just its components</span></span><span class="ln lit">            {</span><span class="ln lit">                if (math.distancesq(transform.ValueRO.Position, player.Value) &lt; hitSq)</span><span class="ln lit">                    ecb.DestroyEntity(entity);<span class="note">written down now, done later</span></span><span class="ln lit">            }</span><span class="ln lit"> </span><span class="ln lit">            ecb.Playback(state.EntityManager);<span class="note">every command at once, here</span></span><span class="ln lit">            ecb.Dispose();</span></div>
+    </div>
+    <div class="card-foot">
+      <div class="see">You should see: the crowd thins as it arrives. Entity Count falls and never comes back &mdash; 20,000, then 17,086, then 8,637.</div>
+      <div class="meta">10 min &middot; checkpoint-5</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     80 · NAME · the three things that card needed
+     All three were typed, none were explained. The third is the error
+     Unity actually raises if the DestroyEntity goes inside the loop, so
+     it is quoted rather than described.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="form">Nothing to type</div>
+    <h2>Why that loop is shaped the way it is</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="names wide">
+        <div class="nrow"><span class="word">Complete</span><span class="clause">the same word from this morning: the job has to finish before the main thread reads what it wrote</span></div>
+        <div class="nrow"><span class="word">WithEntityAccess</span><span class="clause">destroying needs the entity itself, and a query hands you components</span></div>
+        <div class="nrow"><span class="word">EntityCommandBuffer</span><span class="clause">&ldquo;Structural changes are not allowed while iterating over entities&rdquo; &mdash; so you write the change down and play it back after</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     81 · BEAT · E1.2 we-do — the bridge's entity carries a second value
+     The bridge already writes one value a frame. It now also carries the
+     one that comes back. Same entity, made in D3.1, so nothing new is
+     created and the room can see both components on it.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide do">
+    <div class="form">Together &middot; live coding &middot; 3 of 8</div>
+    <h2>The bridge's entity carries the answer back</h2>
+    <div class="rule"></div>
+    <div class="file">PlayerBridge.cs &mdash; a second component, and Start</div>
+    <div class="body">
+      <div class="card-code xs"><span class="ln">    public struct PlayerPosition : IComponentData { public float3 Value; }</span><span class="ln lit"> </span><span class="ln lit">    public struct PlayerHits : IComponentData { public int Value; }</span><span class="ln"> </span><span class="ln">        private void Start()</span><span class="ln">        {</span><span class="ln">            _world = World.DefaultGameObjectInjectionWorld;</span><span class="ln lit">            _entity = _world.EntityManager.CreateEntity(</span><span class="ln lit">                typeof(PlayerPosition), typeof(PlayerHits));<span class="note">one entity, two components</span></span><span class="ln">        }</span></div>
+    </div>
+    <div class="card-foot">
+      <div class="see">You should see: the entity you made in D3.1 now lists Player Hits under Player Position in the Entities Inspector.</div>
+      <div class="meta">6 min &middot; checkpoint-5</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     82 · BEAT · E1.2 we-do — the system counts what it destroyed
+     A counter beside the command, because the buffer does not tell you
+     what is in it. SetSingleton writes the total to the one entity that
+     has PlayerHits, which is the bridge's, and the early return at the
+     top of OnUpdate guarantees it exists.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide do">
+    <div class="form">Together &middot; live coding &middot; 4 of 8</div>
+    <h2>Count them on the way past</h2>
+    <div class="rule"></div>
+    <div class="file">MoveSystem.cs &mdash; the loop, and just after it</div>
+    <div class="body">
+      <div class="card-code xs"><span class="ln">            var hitSq = settings.HitRadius * settings.HitRadius;</span><span class="ln lit">            var hits = 0;</span><span class="ln">            var ecb = new EntityCommandBuffer(Allocator.Temp);</span><span class="ln"> </span><span class="ln">                if (math.distancesq(transform.ValueRO.Position, player.Value) &lt; hitSq)</span><span class="ln lit">                {</span><span class="ln">                    ecb.DestroyEntity(entity);</span><span class="ln lit">                    hits++;</span><span class="ln lit">                }</span><span class="ln">            }</span><span class="ln lit"> </span><span class="ln lit">            SystemAPI.SetSingleton(new PlayerHits { Value = hits });<span class="note">the only entity with one is the bridge's</span></span><span class="ln"> </span><span class="ln">            ecb.Playback(state.EntityManager);</span></div>
+    </div>
+    <div class="card-foot">
+      <div class="see">You should see: Player Hits moving in the Entities Inspector while the crowd arrives.</div>
+      <div class="meta">5 min &middot; checkpoint-5</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     83 · BEAT · E1.3 we-do — the bridge raises the event
+     The same event EnemyMover raises, with the same signature, because
+     PlayerHealth is already built to hear it. Read in Update, after the
+     position is written: the value is the one the systems left last
+     frame, which is what a bridge is.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide do">
+    <div class="form">Together &middot; live coding &middot; 5 of 8</div>
+    <h2>A MonoBehaviour can read a value back out too</h2>
+    <div class="rule"></div>
+    <div class="file">PlayerBridge.cs &mdash; an event, and the end of Update</div>
+    <div class="body">
+      <div class="card-code xs"><span class="ln">    public class PlayerBridge : MonoBehaviour</span><span class="ln">    {</span><span class="ln lit">        internal event System.Action&lt;int&gt; PlayerHit;<span class="note">the same event EnemyMover raises</span></span><span class="ln"> </span><span class="ln">            _world.EntityManager.SetComponentData(</span><span class="ln">                _entity, new PlayerPosition { Value = transform.position });</span><span class="ln lit"> </span><span class="ln lit">            var hits = _world.EntityManager.GetComponentData&lt;PlayerHits&gt;(_entity).Value;</span><span class="ln lit">            if (hits &gt; 0) PlayerHit?.Invoke(hits);</span><span class="ln">        }</span></div>
+    </div>
+    <div class="card-foot">
+      <div class="see">You should see: it compiles, and nothing changes. Nothing is listening yet.</div>
+      <div class="meta">6 min &middot; checkpoint-5</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     84 · BEAT · E1.3 we-do — the health bar comes back
+     It has been dead since checkpoint-3: PlayerHealth listens to
+     EnemyMover, and EnemyMover left with the GameObjects. The two lines
+     the room types are copies of the two already above them, which is
+     the point worth saying out loud — both halves of the day drive one
+     HUD through one event.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide do">
+    <div class="form">Together &middot; live coding &middot; 6 of 8</div>
+    <h2>Both halves of the day drive one health bar</h2>
+    <div class="rule"></div>
+    <div class="file">PlayerHealth.cs &mdash; one field, and one line in each of OnEnable and OnDisable</div>
+    <div class="body">
+      <div class="card-code xs"><span class="ln">        [Tooltip("Where hits are reported from.")]</span><span class="ln">        [SerializeField] private EnemyMover _enemies;</span><span class="ln lit"> </span><span class="ln lit">        [Tooltip("Where hits are reported from on the entities side.")]</span><span class="ln lit">        [SerializeField] private PlayerBridge _bridge;</span><span class="ln"> </span><span class="ln">        private void OnEnable()</span><span class="ln">        {</span><span class="ln">            if (_enemies != null) _enemies.PlayerHit += OnPlayerHit;</span><span class="ln lit">            if (_bridge != null) _bridge.PlayerHit += OnPlayerHit;<span class="note">a copy of the line above it</span></span><span class="ln">        }</span><span class="ln"> </span><span class="ln">        private void OnDisable()</span><span class="ln">        {</span><span class="ln">            if (_enemies != null) _enemies.PlayerHit -= OnPlayerHit;</span><span class="ln lit">            if (_bridge != null) _bridge.PlayerHit -= OnPlayerHit;</span><span class="ln">        }</span></div>
+      <div class="shot">
+        <div class="path">then drag the Player onto Player Health &gt; Bridge</div>
+      </div>
+    </div>
+    <div class="card-foot">
+      <div class="see">You should see: the bar going down as they get through, for the first time since checkpoint-3.</div>
+      <div class="meta">8 min &middot; checkpoint-5</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     85 · DIAGRAM · what a structural change does to the frame
+     Same lane picture as slide 24, so the room reads it without being
+     taught it twice. Destroying moves entities between chunks, so
+     nothing may be touching a chunk while it happens: every job is
+     finished first and none may start until it is done.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="form">Nothing to type</div>
+    <h2>A structural change stops everything until it is done</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="sched">
+        <div class="lane">
+          <div class="lname">Main thread</div>
+          <div class="bar">
+            <div class="seg sch d1" style="left:0;width:14%">Schedule</div>
+            <div class="seg wait d2" style="left:14%;width:30%">Complete</div>
+            <div class="seg sch d3" style="left:44%;width:26%">DestroyEntity</div>
+          </div>
+        </div>
+        <div class="lane">
+          <div class="lname">Worker 0</div>
+          <div class="bar"><div class="seg work d2" style="left:16%;width:26%">MoveJob</div></div>
+        </div>
+        <div class="lane">
+          <div class="lname">Worker 1</div>
+          <div class="bar"><div class="seg work d2" style="left:16%;width:24%">MoveJob</div></div>
+        </div>
+        <div class="lane">
+          <div class="lname">Worker 2</div>
+          <div class="bar"><div class="seg work d2" style="left:16%;width:25%">MoveJob</div></div>
+        </div>
+      </div>
+      <div class="readout">Entities move between chunks, so nothing may be reading one while it happens. Every job finishes first, and none starts until it is over.</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     86 · BEAT · E3 we-do — a component that can be switched off
+     IEnableableComponent is the whole change. The component has no
+     fields: what it carries is whether it is on. Baked enabled, because
+     an enemy starts alive.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide do">
+    <div class="form">Together &middot; live coding &middot; 7 of 8</div>
+    <h2>A component that can be switched off without moving anything</h2>
+    <div class="rule"></div>
+    <div class="file">EnemyAuthoring.cs &mdash; the Baker, and one more component</div>
+    <div class="body">
+      <div class="card-code xs"><span class="ln">                AddComponent(entity, new EnemyColor { Value = new float4(1f, 1f, 1f, 1f) });</span><span class="ln">                AddComponent(entity, new RespawnOffset());</span><span class="ln lit">                AddComponent&lt;Alive&gt;(entity);<span class="note">added enabled, because an enemy starts alive</span></span><span class="ln">            }</span><span class="ln"> </span><span class="ln lit">    public struct Alive : IComponentData, IEnableableComponent<span class="note">no fields: what it carries is whether it is on</span></span><span class="ln lit">    {</span><span class="ln lit">    }</span></div>
+    </div>
+    <div class="card-foot">
+      <div class="see">You should see: Workshop.Alive in the prefab's Entity Baking Preview, with a ticked box beside it.</div>
+      <div class="meta">6 min &middot; checkpoint-5</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     87 · BEAT · E3 we-do — switch it off, and the buffer goes with it
+     Switching a component off is not a structural change, so there is
+     nothing to defer and the whole EntityCommandBuffer comes out. That
+     is the beat: the tool arrived for the thing that needed it and
+     leaves when it does not.
+
+     The query gains Alive so a dead one drops out of it, or the same
+     enemy is counted as a hit every frame for the rest of the run and
+     the bar empties in seconds. Calling SetComponentEnabled inside the
+     loop on the component the query filters on is fine — run in the
+     editor 2026-09-15, no error, alive falls 17,239 then 8,831.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide do">
+    <div class="form">Together &middot; live coding &middot; 8 of 8</div>
+    <h2>Switch them off instead of removing them</h2>
+    <div class="rule"></div>
+    <div class="file">MoveSystem.cs &mdash; the query, the loop, and the buffer</div>
+    <div class="body">
+      <div class="card-code xs"><span class="ln">            var hits = 0;</span><span class="ln cut">            <x>var ecb = new EntityCommandBuffer(Allocator.Temp);</x><span class="note">nothing to defer any more</span></span><span class="ln"> </span><span class="ln">                     SystemAPI.Query&lt;RefRO&lt;LocalTransform&gt;&gt;()</span><span class="ln cut">                         <x>.WithAll&lt;EnemyTag&gt;()</x></span><span class="ln lit">                         .WithAll&lt;EnemyTag, Alive&gt;()<span class="note">a switched-off one drops out of the query</span></span><span class="ln">                         .WithEntityAccess())</span><span class="ln">                {</span><span class="ln cut">                    <x>ecb.DestroyEntity(entity);</x></span><span class="ln lit">                    state.EntityManager.SetComponentEnabled&lt;Alive&gt;(entity, false);</span><span class="ln">                    hits++;</span><span class="ln">                }</span><span class="ln"> </span><span class="ln">            SystemAPI.SetSingleton(new PlayerHits { Value = hits });</span><span class="ln cut">            <x>ecb.Playback(state.EntityManager);</x></span><span class="ln cut">            <x>ecb.Dispose();</x></span></div>
+    </div>
+    <div class="card-foot">
+      <div class="see">You should see: they still walk in and still take your health, but Entity Count stays at 20,000.</div>
+      <div class="meta">8 min &middot; checkpoint-5</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     88 · CARD · E4 you-do — the dead drop out of the job too
+     The job still moves them: its query does not mention Alive, so a
+     switched-off enemy keeps walking into the player. One attribute.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide do">
+    <div class="form">Your turn</div>
+    <h2>The job is still moving the dead ones</h2>
+    <div class="rule"></div>
+    <div class="file">MoveSystem.cs &mdash; the job's attribute</div>
+    <div class="body">
+      <div class="card-code"><span class="ln">        [BurstCompile]</span><span class="ln cut">        <x>[WithAll(typeof(EnemyTag))]</x></span><span class="ln lit">        [WithAll(typeof(EnemyTag), typeof(Alive))]</span><span class="ln">        private partial struct MoveJob : IJobEntity</span></div>
+      <div class="readout">The loop on the main thread already skips them. The job has its own query, and it does not.</div>
+    </div>
+    <div class="card-foot">
+      <div class="see">You should see: enemies that reach you stop dead and stay there. Entity Count still 20,000, and the sync point is gone.</div>
+      <div class="meta">5 min &middot; checkpoint-5</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     89 · NAME · destroy against disable
+     The picture the room now has: slide 41 drew archetypes with chunks
+     and slots, and slide 51 drew the query walking them. This says what
+     each of the two does to that picture, in those words.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="form">Nothing to type</div>
+    <h2>One flips a bit, the other moves the entity</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="names wide">
+        <div class="nrow"><span class="word">DestroyEntity</span><span class="clause">the entity leaves its chunk, the last one in the chunk fills the gap, and no job may run while it happens</span></div>
+        <div class="nrow"><span class="word">SetComponentEnabled</span><span class="clause">the entity stays where it is and a bit flips in the chunk. Queries skip it; nothing moves</span></div>
+      </div>
+      <div class="readout">Both take it out of the query. Only one of them is a structural change, which is why only one of them needed a command buffer.</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     90 · MIND MAP · the whole Changing state branch lit
+     All three: they made a structural change, wrote a command buffer to
+     get it out of the loop, and then switched a component off instead
+     and deleted the buffer.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="form">Nothing to type</div>
+    <h2>Everything you touched so far</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <svg class="mindmap" viewBox="0 0 1136 470"
+           data-done="jobs,burst,collections,mathematics,sched,entity,component,archetype,baking,systems,queries,ijobentity"
+           data-now="structural,ecb,enableable"></svg>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     91 · CATCH UP · the changing-state work is finished
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide do">
+    <div class="form">Everyone</div>
+    <h2>Take checkpoint-6</h2>
+    <div class="rule"></div>
+    <div class="card-code"><span class="ln lit">git stash</span><span class="ln lit">git checkout checkpoint-6</span></div>
+    <div class="card-foot">
+      <div class="see">You should see: the crowd chases, dies on contact, and your health bar goes down &mdash; with nothing destroyed.</div>
+      <div class="meta">checkpoint-6</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     92 · CARD · the finale — ten times the crowd
+     This happens on the projector, not on a slide: change the number,
+     press Play, and leave the Profiler open beside it. No figure is
+     claimed here because the number is whatever the presenting machine
+     does on the day. The one to read out loud is MoveSystem against
+     5.10 ms, which is what 20,000 GameObjects cost this morning.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide do">
+    <div class="form">Everyone</div>
+    <h2>Now make it ten times bigger</h2>
+    <div class="rule"></div>
+    <div class="file">Workshop_SubScene &gt; Spawner &gt; Count</div>
+    <div class="body">
+      <div class="shot">
+        <div class="path">Count 20000 &rarr; 200000, then Play, with the Profiler open</div>
+      </div>
+    </div>
+    <div class="card-foot">
+      <div class="see">You should see: 200,000 enemies chasing you, and MoveSystem still cheaper than the loop you started the day with.</div>
+      <div class="meta">5 min &middot; checkpoint-6</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     93 · EVIDENCE · 200,000, on the presenting machine
+     The capture behind the card before it, so the claim is not left to
+     whatever the room's own machines do. Only what is legible is
+     claimed: MoveSystem 1.58 ms inside a 1.65 ms SimulationSystemGroup,
+     at 200,000. The 5.10 ms beside it is slide 16's capture of the
+     GameObject loop at 20,000. Both measured here; neither divided.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="form">Nothing to type</div>
+    <h2>Ten times the crowd, a third of the cost</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="shot bleed">
+        <img src="images/enemies-20000.png" alt="Profiler Timeline at 200,000 entities: PlayerLoop 5.43 ms, SimulationSystemGroup 1.65 ms, and Default World Workshop.MoveSystem 1.58 ms on the main thread.">
+      </div>
+      <div class="readout">200,000 entities, Workshop.MoveSystem 1.58 ms. This morning, 20,000 GameObjects cost 5.10 ms.</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     94 · EVIDENCE · the day, in four numbers
+     Every one of these was captured on the presenting machine and is
+     already on a slide earlier in the deck: 5.10 on slide 16, 0.86 on
+     slide 25, 0.20 on slide 63, 0.006 on slide 67. Nothing new is
+     measured here and nothing is divided out — the drop is the point,
+     not a ratio.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="form">Nothing to type</div>
+    <h2>The same 20,000 enemies, all day</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="names wide">
+        <div class="nrow"><span class="word">5.10 ms</span><span class="clause">a foreach over 20,000 Transforms, on the main thread</span></div>
+        <div class="nrow"><span class="word">0.86 ms</span><span class="clause">the same work as a Bursted job across the workers, still GameObjects</span></div>
+        <div class="nrow"><span class="word">0.20 ms</span><span class="clause">entities, one thread, no job</span></div>
+        <div class="nrow"><span class="word">0.006 ms</span><span class="clause">entities, IJobEntity, every worker at once</span></div>
+      </div>
+      <div class="readout">You typed every one of these. The last one is the first one with the data laid out for the machine and the work handed to the cores.</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     95 · MIND MAP · all green
+     Every leaf is a word the room typed today. The caption row is the
+     four ideas from the design document, in the order the day built
+     them.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="form">Nothing to type</div>
+    <h2>Everything you typed today</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <svg class="mindmap" viewBox="0 0 1136 470"
+           data-done="jobs,burst,collections,mathematics,sched,entity,component,archetype,baking,systems,queries,ijobentity,structural,ecb,enableable"
+           data-now=""></svg>
+      <div class="readout">Layout and threads decide speed, not cleverness &middot; a job is work you hand the other cores, and Burst compiles it &middot; entities are selected by the components they carry &middot; changing an entity's shape is dear, changing its data or its enabled state is not.</div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     96 · CLOSING · what this is not, and what comes next
+     The scene is a benchmark with a player in it, and saying so is
+     better than letting the room find out by walking in circles until
+     the crowd is spent. The right-hand list is the scope line from the
+     plan: named here, taught in the second workshop.
+     ===================================================================== -->
+<section data-background-color="#141414">
+  <div class="slide">
+    <div class="form">Nothing to type</div>
+    <h2>What you built is a benchmark with a player in it</h2>
+    <div class="rule"></div>
+    <div class="body">
+      <div class="names wide">
+        <div class="nrow"><span class="word">To be a game</span><span class="clause">a score, waves that keep coming, and a budget for what respawns. Walk in circles now and the crowd runs out</span></div>
+        <div class="nrow"><span class="word">Next workshop</span><span class="clause">dynamic buffers, shared components, blob assets, component lookups, physics and netcode</span></div>
+      </div>
+      <div class="readout">Everything in this deck, and the branch for every checkpoint, is yours to keep.</div>
     </div>
   </div>
 </section>
